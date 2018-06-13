@@ -29,6 +29,7 @@
 #include "cpuid.h"
 #include "pmu.h"
 #include "hyperv.h"
+#include "xen.h"
 
 #include <linux/clocksource.h>
 #include <linux/interrupt.h>
@@ -2338,6 +2339,8 @@ static int xen_hvm_config(struct kvm_vcpu *vcpu, u64 data)
 	}
 	if (kvm_vcpu_write_guest(vcpu, page_addr, page, PAGE_SIZE))
 		goto out_free;
+
+	kvm_xen_hypercall_set(kvm);
 	r = 0;
 out_free:
 	kfree(page);
@@ -7076,6 +7079,9 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 	if (kvm_hv_hypercall_enabled(vcpu->kvm))
 		return kvm_hv_hypercall(vcpu);
 
+	if (kvm_xen_hypercall_enabled(vcpu->kvm))
+		return kvm_xen_hypercall(vcpu);
+
 	nr = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	a0 = kvm_register_read(vcpu, VCPU_REGS_RBX);
 	a1 = kvm_register_read(vcpu, VCPU_REGS_RCX);
@@ -7733,6 +7739,12 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		if (kvm_check_request(KVM_REQ_HV_EXIT, vcpu)) {
 			vcpu->run->exit_reason = KVM_EXIT_HYPERV;
 			vcpu->run->hyperv = vcpu->arch.hyperv.exit;
+			r = 0;
+			goto out;
+		}
+		if (kvm_check_request(KVM_REQ_XEN_EXIT, vcpu)) {
+			vcpu->run->exit_reason = KVM_EXIT_XEN;
+			vcpu->run->xen = vcpu->arch.xen.exit;
 			r = 0;
 			goto out;
 		}

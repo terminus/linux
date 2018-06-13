@@ -79,6 +79,7 @@
 #define KVM_REQ_HV_STIMER		KVM_ARCH_REQ(22)
 #define KVM_REQ_LOAD_EOI_EXITMAP	KVM_ARCH_REQ(23)
 #define KVM_REQ_GET_VMCS12_PAGES	KVM_ARCH_REQ(24)
+#define KVM_REQ_XEN_EXIT		KVM_ARCH_REQ(25)
 
 #define CR0_RESERVED_BITS                                               \
 	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
@@ -533,6 +534,11 @@ struct kvm_vcpu_hv {
 	cpumask_t tlb_flush;
 };
 
+/* Xen per vcpu emulation context */
+struct kvm_vcpu_xen {
+	struct kvm_xen_exit exit;
+};
+
 struct kvm_vcpu_arch {
 	/*
 	 * rip and regs accesses must go through
@@ -720,6 +726,7 @@ struct kvm_vcpu_arch {
 	unsigned long singlestep_rip;
 
 	struct kvm_vcpu_hv hyperv;
+	struct kvm_vcpu_xen xen;
 
 	cpumask_var_t wbinvd_dirty_mask;
 
@@ -833,6 +840,11 @@ struct kvm_hv {
 	atomic_t num_mismatched_vp_indexes;
 };
 
+/* Xen emulation context */
+struct kvm_xen {
+	u64 xen_hypercall;
+};
+
 enum kvm_irqchip_mode {
 	KVM_IRQCHIP_NONE,
 	KVM_IRQCHIP_KERNEL,       /* created with KVM_CREATE_IRQCHIP */
@@ -899,6 +911,7 @@ struct kvm_arch {
 	struct hlist_head mask_notifier_list;
 
 	struct kvm_hv hyperv;
+	struct kvm_xen xen;
 
 	#ifdef CONFIG_KVM_MMU_AUDIT
 	int audit_point;
