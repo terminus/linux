@@ -11,8 +11,60 @@
 #include <linux/kvm_host.h>
 
 #include <trace/events/kvm.h>
+#include <xen/interface/xen.h>
 
 #include "trace.h"
+
+static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
+{
+	struct shared_info *shared_info;
+	struct page *page;
+
+	page = gfn_to_page(kvm, gfn);
+	if (is_error_page(page))
+		return -EINVAL;
+
+	kvm->arch.xen.shinfo_addr = gfn;
+
+	shared_info = page_to_virt(page);
+	memset(shared_info, 0, sizeof(struct shared_info));
+	kvm->arch.xen.shinfo = shared_info;
+	return 0;
+}
+
+int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
+{
+	int r = -ENOENT;
+
+	switch (data->type) {
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO: {
+		gfn_t gfn = data->u.shared_info.gfn;
+
+		r = kvm_xen_shared_info_init(kvm, gfn);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return r;
+}
+
+int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
+{
+	int r = -ENOENT;
+
+	switch (data->type) {
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO: {
+		data->u.shared_info.gfn = kvm->arch.xen.shinfo_addr;
+		break;
+	}
+	default:
+		break;
+	}
+
+	return r;
+}
 
 bool kvm_xen_hypercall_enabled(struct kvm *kvm)
 {
@@ -76,4 +128,12 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		kvm_xen_hypercall_complete_userspace;
 
 	return 0;
+}
+
+void kvm_xen_destroy_vm(struct kvm *kvm)
+{
+	struct kvm_xen *xen = &kvm->arch.xen;
+
+	if (xen->shinfo)
+		put_page(virt_to_page(xen->shinfo));
 }

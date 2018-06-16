@@ -1455,6 +1455,21 @@ struct kvm_enc_region {
 /* Available with KVM_CAP_HYPERV_CPUID */
 #define KVM_GET_SUPPORTED_HV_CPUID _IOWR(KVMIO, 0xc1, struct kvm_cpuid2)
 
+#define KVM_XEN_HVM_GET_ATTR        _IOWR(KVMIO,  0xc2, struct kvm_xen_hvm_attr)
+#define KVM_XEN_HVM_SET_ATTR        _IOW(KVMIO,  0xc3, struct kvm_xen_hvm_attr)
+
+struct kvm_xen_hvm_attr {
+	__u16 type;
+
+	union {
+		struct {
+			__u64 gfn;
+		} shared_info;
+	} u;
+};
+
+#define KVM_XEN_ATTR_TYPE_SHARED_INFO       0x0
+
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {
 	/* Guest initialization commands */

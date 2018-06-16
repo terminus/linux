@@ -843,6 +843,9 @@ struct kvm_hv {
 /* Xen emulation context */
 struct kvm_xen {
 	u64 xen_hypercall;
+
+	gfn_t shinfo_addr;
+	struct shared_info *shinfo;
 };
 
 enum kvm_irqchip_mode {
