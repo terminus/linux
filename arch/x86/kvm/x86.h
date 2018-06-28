@@ -256,6 +256,7 @@ static inline bool kvm_check_has_quirk(struct kvm *kvm, u64 quirk)
 }
 
 void kvm_set_pending_timer(struct kvm_vcpu *vcpu);
+void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock);
 int kvm_inject_realmode_interrupt(struct kvm_vcpu *vcpu, int irq, int inc_eip);
 
 void kvm_write_tsc(struct kvm_vcpu *vcpu, struct msr_data *msr);

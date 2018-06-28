@@ -19,6 +19,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 {
 	struct shared_info *shared_info;
 	struct page *page;
+	gpa_t gpa = gfn_to_gpa(gfn);
 
 	page = gfn_to_page(kvm, gfn);
 	if (is_error_page(page))
@@ -29,6 +30,8 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	shared_info = page_to_virt(page);
 	memset(shared_info, 0, sizeof(struct shared_info));
 	kvm->arch.xen.shinfo = shared_info;
+
+	kvm_write_wall_clock(kvm, gpa + offsetof(struct shared_info, wc));
 
 	kvm_make_all_cpus_request(kvm, KVM_REQ_MASTERCLOCK_UPDATE);
 	return 0;

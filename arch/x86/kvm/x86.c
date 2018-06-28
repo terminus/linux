@@ -1418,7 +1418,7 @@ void kvm_set_pending_timer(struct kvm_vcpu *vcpu)
 	kvm_make_request(KVM_REQ_PENDING_TIMER, vcpu);
 }
 
-static void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
+void kvm_write_wall_clock(struct kvm *kvm, gpa_t wall_clock)
 {
 	int version;
 	int r;
