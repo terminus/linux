@@ -537,6 +537,8 @@ struct kvm_vcpu_hv {
 /* Xen per vcpu emulation context */
 struct kvm_vcpu_xen {
 	struct kvm_xen_exit exit;
+	gpa_t vcpu_info_addr;
+	struct vcpu_info *vcpu_info;
 };
 
 struct kvm_vcpu_arch {

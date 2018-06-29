@@ -15,6 +15,33 @@
 
 #include "trace.h"
 
+static void set_vcpu_attr(struct kvm_vcpu *v, u16 type, gpa_t gpa, void *addr)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
+
+	switch (type) {
+	case KVM_XEN_ATTR_TYPE_VCPU_INFO:
+		vcpu_xen->vcpu_info_addr = gpa;
+		vcpu_xen->vcpu_info = addr;
+		kvm_xen_setup_pvclock_page(v);
+		break;
+	default:
+		break;
+	}
+}
+
+static gpa_t get_vcpu_attr(struct kvm_vcpu *v, u16 type)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
+
+	switch (type) {
+	case KVM_XEN_ATTR_TYPE_VCPU_INFO:
+		return vcpu_xen->vcpu_info_addr;
+	default:
+		return 0;
+	}
+}
+
 static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 {
 	struct shared_info *shared_info;
@@ -37,26 +64,44 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	return 0;
 }
 
+static void *xen_vcpu_info(struct kvm_vcpu *v)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
+	struct kvm_xen *kvm = &v->kvm->arch.xen;
+	unsigned int offset = 0;
+	void *hva = NULL;
+
+	if (vcpu_xen->vcpu_info_addr)
+		return vcpu_xen->vcpu_info;
+
+	if (kvm->shinfo_addr && v->vcpu_id < MAX_VIRT_CPUS) {
+		hva = kvm->shinfo;
+		offset += offsetof(struct shared_info, vcpu_info);
+		offset += v->vcpu_id * sizeof(struct vcpu_info);
+	}
+
+	return hva + offset;
+}
+
 void kvm_xen_setup_pvclock_page(struct kvm_vcpu *v)
 {
 	struct kvm_vcpu_arch *vcpu = &v->arch;
 	struct pvclock_vcpu_time_info *guest_hv_clock;
+	void *hva = xen_vcpu_info(v);
 	unsigned int offset;
 
-	if (v->vcpu_id >= MAX_VIRT_CPUS)
+	if (!hva)
 		return;
 
 	offset = offsetof(struct vcpu_info, time);
-	offset += offsetof(struct shared_info, vcpu_info);
-	offset += v->vcpu_id * sizeof(struct vcpu_info);
 
 	guest_hv_clock = (struct pvclock_vcpu_time_info *)
-		(((void *)v->kvm->arch.xen.shinfo) + offset);
+		(hva + offset);
 
 	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
 
 	if (guest_hv_clock->version & 1)
-		++guest_hv_clock->version;  /* first time write, random junk */
+		++guest_hv_clock->version;
 
 	vcpu->hv_clock.version = guest_hv_clock->version + 1;
 	guest_hv_clock->version = vcpu->hv_clock.version;
@@ -93,6 +138,25 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = kvm_xen_shared_info_init(kvm, gfn);
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_VCPU_INFO: {
+		gpa_t gpa = data->u.vcpu_attr.gpa;
+		struct kvm_vcpu *v;
+		struct page *page;
+		void *addr;
+
+		v = kvm_get_vcpu(kvm, data->u.vcpu_attr.vcpu);
+		if (!v)
+			return -EINVAL;
+
+		page = gfn_to_page(v->kvm, gpa_to_gfn(gpa));
+		if (is_error_page(page))
+			return -EFAULT;
+
+		addr = page_to_virt(page) + offset_in_page(gpa);
+		set_vcpu_attr(v, data->type, gpa, addr);
+		r = 0;
+		break;
+	}
 	default:
 		break;
 	}
@@ -107,6 +171,17 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 	switch (data->type) {
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO: {
 		data->u.shared_info.gfn = kvm->arch.xen.shinfo_addr;
+		break;
+	}
+	case KVM_XEN_ATTR_TYPE_VCPU_INFO: {
+		struct kvm_vcpu *v;
+
+		v = kvm_get_vcpu(kvm, data->u.vcpu_attr.vcpu);
+		if (!v)
+			return -EINVAL;
+
+		data->u.vcpu_attr.gpa = get_vcpu_attr(v, data->type);
+		r = 0;
 		break;
 	}
 	default:
@@ -178,6 +253,14 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		kvm_xen_hypercall_complete_userspace;
 
 	return 0;
+}
+
+void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	if (vcpu_xen->vcpu_info)
+		put_page(virt_to_page(vcpu_xen->vcpu_info));
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)

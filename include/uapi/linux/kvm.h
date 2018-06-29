@@ -1465,10 +1465,15 @@ struct kvm_xen_hvm_attr {
 		struct {
 			__u64 gfn;
 		} shared_info;
+		struct {
+			__u32 vcpu;
+			__u64 gpa;
+		} vcpu_attr;
 	} u;
 };
 
 #define KVM_XEN_ATTR_TYPE_SHARED_INFO       0x0
+#define KVM_XEN_ATTR_TYPE_VCPU_INFO         0x1
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {
