@@ -539,6 +539,8 @@ struct kvm_vcpu_xen {
 	struct kvm_xen_exit exit;
 	gpa_t vcpu_info_addr;
 	struct vcpu_info *vcpu_info;
+	gpa_t pv_time_addr;
+	struct pvclock_vcpu_time_info *pv_time;
 };
 
 struct kvm_vcpu_arch {

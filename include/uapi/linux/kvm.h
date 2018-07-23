@@ -1474,6 +1474,7 @@ struct kvm_xen_hvm_attr {
 
 #define KVM_XEN_ATTR_TYPE_SHARED_INFO       0x0
 #define KVM_XEN_ATTR_TYPE_VCPU_INFO         0x1
+#define KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO    0x2
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {
