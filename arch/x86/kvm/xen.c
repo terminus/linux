@@ -9,9 +9,11 @@
 #include "xen.h"
 
 #include <linux/kvm_host.h>
+#include <linux/sched/stat.h>
 
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
+#include <xen/interface/vcpu.h>
 
 #include "trace.h"
 
@@ -30,6 +32,11 @@ static void set_vcpu_attr(struct kvm_vcpu *v, u16 type, gpa_t gpa, void *addr)
 		vcpu_xen->pv_time = addr;
 		kvm_xen_setup_pvclock_page(v);
 		break;
+	case KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE:
+		vcpu_xen->steal_time_addr = gpa;
+		vcpu_xen->steal_time = addr;
+		kvm_xen_setup_runstate_page(v);
+		break;
 	default:
 		break;
 	}
@@ -44,6 +51,8 @@ static gpa_t get_vcpu_attr(struct kvm_vcpu *v, u16 type)
 		return vcpu_xen->vcpu_info_addr;
 	case KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO:
 		return vcpu_xen->pv_time_addr;
+	case KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE:
+		return vcpu_xen->steal_time_addr;
 	default:
 		return 0;
 	}
@@ -124,6 +133,41 @@ static void kvm_xen_update_vcpu_time(struct kvm_vcpu *v,
 	guest_hv_clock->version = vcpu->hv_clock.version;
 }
 
+void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	int state = RUNSTATE_runnable;
+
+	vcpu->arch.st.steal.preempted = KVM_VCPU_PREEMPTED;
+
+	vcpu_xen->steal_time->state = state;
+}
+
+void kvm_xen_setup_runstate_page(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	struct vcpu_runstate_info runstate;
+
+	runstate = *vcpu_xen->steal_time;
+
+	runstate.state_entry_time += 1;
+	runstate.state_entry_time |= XEN_RUNSTATE_UPDATE;
+	vcpu_xen->steal_time->state_entry_time = runstate.state_entry_time;
+	smp_wmb();
+
+	vcpu->arch.st.steal.steal += current->sched_info.run_delay -
+		vcpu->arch.st.last_steal;
+	vcpu->arch.st.last_steal = current->sched_info.run_delay;
+
+	runstate.state = RUNSTATE_running;
+	runstate.time[RUNSTATE_runnable] = vcpu->arch.st.steal.steal;
+	*vcpu_xen->steal_time = runstate;
+
+	runstate.state_entry_time &= ~XEN_RUNSTATE_UPDATE;
+	vcpu_xen->steal_time->state_entry_time = runstate.state_entry_time;
+	smp_wmb();
+}
+
 void kvm_xen_setup_pvclock_page(struct kvm_vcpu *v)
 {
 	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
@@ -155,6 +199,10 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = kvm_xen_shared_info_init(kvm, gfn);
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE:
+		if (unlikely(!sched_info_on()))
+			return -ENOTSUPP;
+	/* fallthrough */
 	case KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO:
 	case KVM_XEN_ATTR_TYPE_VCPU_INFO: {
 		gpa_t gpa = data->u.vcpu_attr.gpa;
@@ -191,6 +239,7 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		data->u.shared_info.gfn = kvm->arch.xen.shinfo_addr;
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE:
 	case KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO:
 	case KVM_XEN_ATTR_TYPE_VCPU_INFO: {
 		struct kvm_vcpu *v;
@@ -282,6 +331,8 @@ void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
 		put_page(virt_to_page(vcpu_xen->vcpu_info));
 	if (vcpu_xen->pv_time)
 		put_page(virt_to_page(vcpu_xen->pv_time));
+	if (vcpu_xen->steal_time)
+		put_page(virt_to_page(vcpu_xen->steal_time));
 }
 
 void kvm_xen_destroy_vm(struct kvm *kvm)

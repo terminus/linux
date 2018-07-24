@@ -17,6 +17,8 @@ static inline struct kvm_vcpu *xen_vcpu_to_vcpu(struct kvm_vcpu_xen *xen_vcpu)
 }
 
 void kvm_xen_setup_pvclock_page(struct kvm_vcpu *vcpu);
+void kvm_xen_setup_runstate_page(struct kvm_vcpu *vcpu);
+void kvm_xen_runstate_set_preempted(struct kvm_vcpu *vcpu);
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data);
 bool kvm_xen_hypercall_enabled(struct kvm *kvm);

@@ -541,6 +541,8 @@ struct kvm_vcpu_xen {
 	struct vcpu_info *vcpu_info;
 	gpa_t pv_time_addr;
 	struct pvclock_vcpu_time_info *pv_time;
+	gpa_t steal_time_addr;
+	struct vcpu_runstate_info *steal_time;
 };
 
 struct kvm_vcpu_arch {
