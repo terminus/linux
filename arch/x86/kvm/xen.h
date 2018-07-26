@@ -25,6 +25,15 @@ bool kvm_xen_hypercall_enabled(struct kvm *kvm);
 bool kvm_xen_hypercall_set(struct kvm *kvm);
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu);
 
+int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu);
+int kvm_xen_get_interrupt(struct kvm_vcpu *vcpu);
+
+int kvm_xen_set_evtchn(struct kvm_kernel_irq_routing_entry *e,
+		       struct kvm *kvm, int irq_source_id, int level,
+		       bool line_status);
+int kvm_xen_setup_evtchn(struct kvm *kvm,
+			 struct kvm_kernel_irq_routing_entry *e);
+
 void kvm_xen_destroy_vm(struct kvm *kvm);
 void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu);
 

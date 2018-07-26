@@ -36,6 +36,7 @@
 #include "lapic.h"
 
 #include "hyperv.h"
+#include "xen.h"
 #include "x86.h"
 
 static int kvm_set_pic_irq(struct kvm_kernel_irq_routing_entry *e,
@@ -176,6 +177,9 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 	int r;
 
 	switch (e->type) {
+	case KVM_IRQ_ROUTING_XEN_EVTCHN:
+		return kvm_xen_set_evtchn(e, kvm, irq_source_id, level,
+				       line_status);
 	case KVM_IRQ_ROUTING_HV_SINT:
 		return kvm_hv_set_sint(e, kvm, irq_source_id, level,
 				       line_status);
@@ -325,6 +329,13 @@ int kvm_set_routing_entry(struct kvm *kvm,
 		e->hv_sint.vcpu = ue->u.hv_sint.vcpu;
 		e->hv_sint.sint = ue->u.hv_sint.sint;
 		break;
+	case KVM_IRQ_ROUTING_XEN_EVTCHN:
+		e->set = kvm_xen_set_evtchn;
+		e->evtchn.vcpu = ue->u.evtchn.vcpu;
+		e->evtchn.vector = ue->u.evtchn.vector;
+		e->evtchn.via = ue->u.evtchn.via;
+
+		return kvm_xen_setup_evtchn(kvm, e);
 	default:
 		return -EINVAL;
 	}

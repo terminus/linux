@@ -7,6 +7,7 @@
 
 #include "x86.h"
 #include "xen.h"
+#include "ioapic.h"
 
 #include <linux/kvm_host.h>
 #include <linux/sched/stat.h>
@@ -16,6 +17,111 @@
 #include <xen/interface/vcpu.h>
 
 #include "trace.h"
+
+static void *xen_vcpu_info(struct kvm_vcpu *v);
+
+int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	struct vcpu_info *vcpu_info = xen_vcpu_info(vcpu);
+
+	if (!!atomic_read(&vcpu_xen->cb.queued) || (vcpu_info &&
+	    test_bit(0, (unsigned long *) &vcpu_info->evtchn_upcall_pending)))
+		return 1;
+
+	return -1;
+}
+
+int kvm_xen_get_interrupt(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	u32 vector = vcpu_xen->cb.vector;
+
+	if (kvm_xen_has_interrupt(vcpu) == -1)
+		return 0;
+
+	atomic_set(&vcpu_xen->cb.queued, 0);
+	return vector;
+}
+
+static int kvm_xen_do_upcall(struct kvm *kvm, u32 dest_vcpu,
+			     u32 via, u32 vector, int level)
+{
+	struct kvm_vcpu_xen *vcpu_xen;
+	struct kvm_lapic_irq irq;
+	struct kvm_vcpu *vcpu;
+
+	if (vector > 0xff || vector < 0x10 || dest_vcpu >= KVM_MAX_VCPUS)
+		return -EINVAL;
+
+	vcpu = kvm_get_vcpu(kvm, dest_vcpu);
+	if (!vcpu)
+		return -EINVAL;
+
+	memset(&irq, 0, sizeof(irq));
+	if (via == KVM_XEN_CALLBACK_VIA_VECTOR) {
+		vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+		atomic_set(&vcpu_xen->cb.queued, 1);
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		kvm_vcpu_kick(vcpu);
+	} else if (via == KVM_XEN_CALLBACK_VIA_EVTCHN) {
+		irq.shorthand = APIC_DEST_SELF;
+		irq.dest_mode = APIC_DEST_PHYSICAL;
+		irq.delivery_mode = APIC_DM_FIXED;
+		irq.vector = vector;
+		irq.level = level;
+
+		/* Deliver upcall to a vector on the destination vcpu */
+		kvm_irq_delivery_to_apic(kvm, vcpu->arch.apic, &irq, NULL);
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+int kvm_xen_set_evtchn(struct kvm_kernel_irq_routing_entry *e,
+		   struct kvm *kvm, int irq_source_id, int level,
+		   bool line_status)
+{
+	/*
+	 * The routing information for the kirq specifies the vector
+	 * on the destination vcpu.
+	 */
+	return kvm_xen_do_upcall(kvm, e->evtchn.vcpu, e->evtchn.via,
+				 e->evtchn.vector, level);
+}
+
+int kvm_xen_setup_evtchn(struct kvm *kvm,
+			 struct kvm_kernel_irq_routing_entry *e)
+{
+	struct kvm_vcpu_xen *vcpu_xen;
+	struct kvm_vcpu *vcpu = NULL;
+
+	if (e->evtchn.vector > 0xff || e->evtchn.vector < 0x10)
+		return -EINVAL;
+
+	/* Expect vcpu to be sane */
+	if (e->evtchn.vcpu >= KVM_MAX_VCPUS)
+		return -EINVAL;
+
+	vcpu = kvm_get_vcpu(kvm, e->evtchn.vcpu);
+	if (!vcpu)
+		return -EINVAL;
+
+	vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	if (e->evtchn.via == KVM_XEN_CALLBACK_VIA_VECTOR) {
+		vcpu_xen->cb.via = KVM_XEN_CALLBACK_VIA_VECTOR;
+		vcpu_xen->cb.vector = e->evtchn.vector;
+	} else if (e->evtchn.via == KVM_XEN_CALLBACK_VIA_EVTCHN) {
+		vcpu_xen->cb.via = KVM_XEN_CALLBACK_VIA_EVTCHN;
+		vcpu_xen->cb.vector = e->evtchn.vector;
+	} else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
 
 static void set_vcpu_attr(struct kvm_vcpu *v, u16 type, gpa_t gpa, void *addr)
 {

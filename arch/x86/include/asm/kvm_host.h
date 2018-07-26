@@ -534,6 +534,12 @@ struct kvm_vcpu_hv {
 	cpumask_t tlb_flush;
 };
 
+struct kvm_xen_callback {
+	u32 via;
+	u32 vector;
+	atomic_t queued;
+};
+
 /* Xen per vcpu emulation context */
 struct kvm_vcpu_xen {
 	struct kvm_xen_exit exit;
@@ -543,6 +549,7 @@ struct kvm_vcpu_xen {
 	struct pvclock_vcpu_time_info *pv_time;
 	gpa_t steal_time_addr;
 	struct vcpu_runstate_info *steal_time;
+	struct kvm_xen_callback cb;
 };
 
 struct kvm_vcpu_arch {
@@ -852,6 +859,13 @@ struct kvm_xen {
 
 	gfn_t shinfo_addr;
 	struct shared_info *shinfo;
+};
+
+enum kvm_xen_callback_via {
+	KVM_XEN_CALLBACK_VIA_GSI,
+	KVM_XEN_CALLBACK_VIA_PCI_INTX,
+	KVM_XEN_CALLBACK_VIA_VECTOR,
+	KVM_XEN_CALLBACK_VIA_EVTCHN,
 };
 
 enum kvm_irqchip_mode {

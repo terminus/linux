@@ -350,6 +350,29 @@ struct kvm_hv_sint {
 	u32 sint;
 };
 
+/*
+ * struct kvm_xen_evtchn: currently specifies the upcall vector setup to
+ * deliver the interrupt to the guest.
+ *
+ * via = XEN_PARAM_CALLBACK_VIA_TYPE_GSI|_PCI
+ *    vcpu: always deliver to vcpu-0
+ *    vector: is used as upcall-vector
+ *    EOI: none
+ * via = XEN_PARAM_CALLBACK_VIA_TYPE_VECTOR
+ *    vcpu: deliver to specified vcpu
+ *    vector: used as upcall-vector
+ *    EOI: none
+ * via = XEN_PARAM_CALLBACK_VIA_TYPE_EVTCHN
+ *    vcpu: deliver to specified vcpu (vector should be bound to the vcpu)
+ *    vector: used as upcall-vector
+ *    EOI: expected
+ */
+struct kvm_xen_evtchn {
+	u32 via;
+	u32 vcpu;
+	u32 vector;
+};
+
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
 	u32 type;
@@ -370,6 +393,7 @@ struct kvm_kernel_irq_routing_entry {
 		} msi;
 		struct kvm_s390_adapter_int adapter;
 		struct kvm_hv_sint hv_sint;
+		struct kvm_xen_evtchn evtchn;
 	};
 	struct hlist_node link;
 };

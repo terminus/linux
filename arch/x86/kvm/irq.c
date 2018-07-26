@@ -26,6 +26,7 @@
 #include "irq.h"
 #include "i8254.h"
 #include "x86.h"
+#include "xen.h"
 
 /*
  * check if there are pending timer events
@@ -61,7 +62,9 @@ static int kvm_cpu_has_extint(struct kvm_vcpu *v)
 			return pending_userspace_extint(v);
 		else
 			return v->kvm->arch.vpic->output;
-	} else
+	} else if (kvm_xen_has_interrupt(v) != -1)
+		return 1;
+	else
 		return 0;
 }
 
@@ -119,7 +122,7 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v)
 	if (kvm_cpu_has_extint(v))
 		return 1;
 
-	return kvm_apic_has_interrupt(v) != -1;	/* LAPIC */
+	return kvm_apic_has_interrupt(v) != -1; /* LAPIC */
 }
 EXPORT_SYMBOL_GPL(kvm_cpu_has_interrupt);
 
@@ -135,8 +138,13 @@ static int kvm_cpu_get_extint(struct kvm_vcpu *v)
 
 			v->arch.pending_external_vector = -1;
 			return vector;
-		} else
+		} else {
+			int vector = kvm_xen_get_interrupt(v);
+
+			if (vector)
+				return vector;		 /* Xen */
 			return kvm_pic_read_irq(v->kvm); /* PIC */
+		}
 	} else
 		return -1;
 }
