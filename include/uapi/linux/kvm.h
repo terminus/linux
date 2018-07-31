@@ -1003,6 +1003,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_ARM_VM_IPA_SIZE 165
 #define KVM_CAP_MANUAL_DIRTY_LOG_PROTECT 166
 #define KVM_CAP_HYPERV_CPUID 167
+#define KVM_CAP_XEN_HVM_GUEST 168
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1455,6 +1456,7 @@ struct kvm_enc_region {
 /* Available with KVM_CAP_HYPERV_CPUID */
 #define KVM_GET_SUPPORTED_HV_CPUID _IOWR(KVMIO, 0xc1, struct kvm_cpuid2)
 
+/* Available with KVM_CAP_XEN_HVM_GUEST */
 #define KVM_XEN_HVM_GET_ATTR        _IOWR(KVMIO,  0xc2, struct kvm_xen_hvm_attr)
 #define KVM_XEN_HVM_SET_ATTR        _IOW(KVMIO,  0xc3, struct kvm_xen_hvm_attr)
 
@@ -1472,6 +1474,7 @@ struct kvm_xen_hvm_attr {
 	} u;
 };
 
+/* Available with KVM_CAP_XEN_HVM_GUEST */
 #define KVM_XEN_ATTR_TYPE_SHARED_INFO       0x0
 #define KVM_XEN_ATTR_TYPE_VCPU_INFO         0x1
 #define KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO    0x2
