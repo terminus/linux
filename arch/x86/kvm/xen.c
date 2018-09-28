@@ -1684,6 +1684,69 @@ out:
 	return 0;
 }
 
+static int shim_hcall_gntunmap(struct kvm_xen *xen,
+			       struct gnttab_unmap_grant_ref *op)
+{
+	struct kvm_grant_map *map, unmap;
+	struct grant_entry_v1 **rgt;
+	struct grant_entry_v1 *shah;
+	struct kvm *rd = NULL;
+	domid_t domid;
+	u32 ref;
+
+	domid = handle_get_domid(op->handle);
+	ref = handle_get_grant(op->handle);
+
+
+	rd = kvm_xen_find_vm(domid);
+	if (unlikely(!rd)) {
+		/* We already teardown all ongoing grant maps */
+		op->status = GNTST_okay;
+		return 0;
+	}
+
+	if (unlikely(ref >= gnttab_entries(rd))) {
+		pr_err("gnttab: bad ref %u\n", ref);
+		op->status = GNTST_bad_handle;
+		return 0;
+	}
+
+	rgt = rd->arch.xen.gnttab.frames_v1;
+	map = maptrack_entry(rd->arch.xen.gnttab.handle, ref);
+
+	/*
+	 * The test_and_clear_bit (below) serializes ownership of this
+	 * grant-entry.  After we clear it, there can be a grant-map on this
+	 * entry. So we cache the unmap entry before relinquishing ownership.
+	 */
+	unmap = *map;
+
+	if (!test_and_clear_bit(_KVM_GNTMAP_ACTIVE,
+				(unsigned long *) &map->flags)) {
+		pr_err("gnttab: bad flags for %u (dom %u ref %u) flags %x\n",
+			op->handle, domid, ref, unmap.flags);
+		op->status = GNTST_bad_handle;
+		return 0;
+	}
+
+	/* Give up the reference taken in get_user_pages_remote(). */
+	put_page(virt_to_page(unmap.gpa));
+
+	shah = shared_entry(rgt, unmap.ref);
+
+	/*
+	 * We have cleared _KVM_GNTMAP_ACTIVE, so a simultaneous grant-map
+	 * could update the shah and we would stomp all over it but the
+	 * guest deserves it.
+	 */
+	if (!(unmap.flags & GNTMAP_readonly))
+		clear_bit(_GTF_writing, (unsigned long *) &shah->flags);
+	clear_bit(_GTF_reading, (unsigned long *) &shah->flags);
+
+	op->status = GNTST_okay;
+	return 0;
+}
+
 static int shim_hcall_gnttab(int op, void *p, int count)
 {
 	int ret = -ENOSYS;
@@ -1695,6 +1758,16 @@ static int shim_hcall_gnttab(int op, void *p, int count)
 
 		for (i = 0; i < count; i++)
 			shim_hcall_gntmap(xen_shim, ref + i);
+		ret = 0;
+		break;
+	}
+	case GNTTABOP_unmap_grant_ref: {
+		struct gnttab_unmap_grant_ref *ref = p;
+
+		for (i = 0; i < count; i++) {
+			shim_hcall_gntunmap(xen_shim, ref + i);
+			ref[i].host_addr = 0;
+		}
 		ret = 0;
 		break;
 	}
