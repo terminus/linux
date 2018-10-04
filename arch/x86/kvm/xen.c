@@ -10,6 +10,7 @@
 #include "ioapic.h"
 
 #include <linux/mman.h>
+#include <linux/highmem.h>
 #include <linux/kvm_host.h>
 #include <linux/eventfd.h>
 #include <linux/sched/stat.h>
@@ -1747,6 +1748,148 @@ static int shim_hcall_gntunmap(struct kvm_xen *xen,
 	return 0;
 }
 
+static unsigned long __kvm_gfn_to_hva(struct kvm_vcpu *vcpu, gfn_t gfn)
+{
+	struct kvm_xen *xen = vcpu ? &vcpu->kvm->arch.xen : xen_shim;
+	unsigned long hva;
+
+	if (xen->domid == 0)
+		return (unsigned long) page_to_virt(pfn_to_page(gfn));
+
+	hva = gfn_to_hva(vcpu->kvm, gfn);
+	if (unlikely(kvm_is_error_hva(hva)))
+		return 0;
+
+	return hva;
+}
+
+static int __kvm_gref_to_page(struct kvm_vcpu *vcpu, grant_ref_t ref,
+			      domid_t domid, struct page **page,
+			      int16_t *status)
+{
+	struct kvm_xen *source = vcpu ? &vcpu->kvm->arch.xen : xen_shim;
+	struct grant_entry_v1 *shah;
+	struct grant_entry_v1 **gt;
+	struct kvm *dest;
+
+	dest = kvm_xen_find_vm(domid);
+	if (unlikely(!dest)) {
+		pr_err("gnttab: could not find domain %u\n", domid);
+		*status = GNTST_bad_domain;
+		return 0;
+	}
+
+	if (unlikely(ref >= gnttab_entries(dest))) {
+		pr_err("gnttab: bad ref %u\n", ref);
+		*status = GNTST_bad_gntref;
+		return 0;
+	}
+
+	gt = dest->arch.xen.gnttab.frames_v1;
+	shah = shared_entry(gt, ref);
+	if (unlikely(shah->domid != source->domid)) {
+		pr_err("gnttab: bad domain (%u != %u)\n",
+			shah->domid, source->domid);
+		*status = GNTST_bad_gntref;
+		return 0;
+	}
+
+	(void) map_grant_nosleep(dest, shah->frame, 0, page, status);
+
+	return 0;
+}
+
+static int shim_hcall_gntcopy(struct kvm_vcpu *vcpu,
+				   struct gnttab_copy *op)
+{
+	void *saddr = NULL, *daddr = NULL;
+	struct page *spage = NULL, *dpage = NULL;
+	unsigned long hva;
+	int err = -ENOSYS;
+	gfn_t gfn;
+
+	if (!(op->flags & GNTCOPY_source_gref) &&
+	    (op->source.domid == DOMID_SELF)) {
+		gfn = op->source.u.gmfn;
+		hva = __kvm_gfn_to_hva(vcpu, gfn);
+		if (unlikely(!hva)) {
+			pr_err("gnttab: bad source gfn:%llx\n", gfn);
+			op->status = GNTST_general_error;
+			err = 0;
+			return 0;
+		}
+
+		saddr = (void *) (((unsigned long) hva) + op->source.offset);
+	} else if (op->flags & GNTCOPY_source_gref) {
+		op->status = GNTST_okay;
+		if (__kvm_gref_to_page(vcpu, op->source.u.ref,
+				       op->source.domid, &spage, &op->status))
+			return -EFAULT;
+
+		if (!spage || op->status != GNTST_okay) {
+			pr_err("gnttab: failed to get page for source gref:%x\n",
+			       op->source.u.ref);
+			err = 0;
+			goto out;
+		}
+
+		saddr = kmap(spage);
+		saddr = (void *) (((unsigned long) saddr) + op->source.offset);
+	}
+
+	if (!(op->flags & GNTCOPY_dest_gref) &&
+	    (op->dest.domid == DOMID_SELF)) {
+		gfn = op->dest.u.gmfn;
+		hva = __kvm_gfn_to_hva(vcpu, gfn);
+		if (unlikely(!hva)) {
+			pr_err("gnttab: bad dest gfn:%llx\n", gfn);
+			op->status = GNTST_general_error;
+			err = 0;
+			return 0;
+		}
+
+		daddr = (void *) (((unsigned long) hva) + op->dest.offset);
+	} else if (op->flags & GNTCOPY_dest_gref) {
+		op->status = GNTST_okay;
+		if (__kvm_gref_to_page(vcpu, op->dest.u.ref,
+				       op->dest.domid, &dpage, &op->status))
+			return -EFAULT;
+
+		if (!dpage || op->status != GNTST_okay) {
+			pr_err("gnttab: failed to get page for dest gref:%x\n",
+			       op->dest.u.ref);
+			err = 0;
+			goto out;
+		}
+
+		daddr = kmap(dpage);
+		daddr = (void *) (((unsigned long) daddr) + op->dest.offset);
+	}
+
+	if (unlikely(!daddr || !saddr)) {
+		op->status = GNTST_general_error;
+		err = 0;
+		goto out;
+	}
+
+	memcpy(daddr, saddr, op->len);
+
+	if (spage)
+		kunmap(spage);
+	if (dpage)
+		kunmap(dpage);
+
+
+	err = 0;
+	op->status = GNTST_okay;
+out:
+	if (spage)
+		put_page(spage);
+	if (dpage)
+		put_page(dpage);
+	return err;
+}
+
 static int shim_hcall_gnttab(int op, void *p, int count)
 {
 	int ret = -ENOSYS;
@@ -1768,6 +1911,14 @@ static int shim_hcall_gnttab(int op, void *p, int count)
 			shim_hcall_gntunmap(xen_shim, ref + i);
 			ref[i].host_addr = 0;
 		}
+		ret = 0;
+		break;
+	}
+	case GNTTABOP_copy: {
+		struct gnttab_copy *op = p;
+
+		for (i = 0; i < count; i++)
+			shim_hcall_gntcopy(NULL, op + i);
 		ret = 0;
 		break;
 	}
