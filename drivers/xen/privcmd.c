@@ -999,12 +999,13 @@ static int __init privcmd_init(void)
 {
 	int err;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain_get())
 		return -ENODEV;
 
 	err = misc_register(&privcmd_dev);
 	if (err != 0) {
 		pr_err("Could not register Xen privcmd device\n");
+		xen_shim_domain_put();
 		return err;
 	}
 
@@ -1012,6 +1013,7 @@ static int __init privcmd_init(void)
 	if (err != 0) {
 		pr_err("Could not register Xen hypercall-buf device\n");
 		misc_deregister(&privcmd_dev);
+		xen_shim_domain_put();
 		return err;
 	}
 
@@ -1022,6 +1024,7 @@ static void __exit privcmd_exit(void)
 {
 	misc_deregister(&privcmd_dev);
 	misc_deregister(&xen_privcmdbuf_dev);
+	xen_shim_domain_put();
 }
 
 module_init(privcmd_init);

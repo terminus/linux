@@ -64,7 +64,8 @@ static int xenfs_fill_super(struct super_block *sb, void *data, int silent)
 	};
 
 	return simple_fill_super(sb, XENFS_SUPER_MAGIC,
-			xen_initial_domain() ? xenfs_init_files : xenfs_files);
+			xen_initial_domain() || xen_shim_domain() ?
+				xenfs_init_files : xenfs_files);
 }
 
 static struct dentry *xenfs_mount(struct file_system_type *fs_type,
@@ -84,7 +85,7 @@ MODULE_ALIAS_FS("xenfs");
 
 static int __init xenfs_init(void)
 {
-	if (xen_domain())
+	if (xen_domain() || xen_shim_domain())
 		return register_filesystem(&xenfs_type);
 
 	return 0;
@@ -92,7 +93,7 @@ static int __init xenfs_init(void)
 
 static void __exit xenfs_exit(void)
 {
-	if (xen_domain())
+	if (xen_domain() || xen_shim_domain())
 		unregister_filesystem(&xenfs_type);
 }
 

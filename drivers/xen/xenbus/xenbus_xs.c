@@ -735,7 +735,7 @@ static void xs_reset_watches(void)
 {
 	int err;
 
-	if (!xen_hvm_domain() || xen_initial_domain())
+	if (!xen_hvm_domain() || xen_initial_domain() || xen_shim_domain())
 		return;
 
 	if (xen_strict_xenbus_quirk())

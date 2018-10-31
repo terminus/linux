@@ -708,13 +708,14 @@ static int __init evtchn_init(void)
 {
 	int err;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain_get())
 		return -ENODEV;
 
 	/* Create '/dev/xen/evtchn'. */
 	err = misc_register(&evtchn_miscdev);
 	if (err != 0) {
 		pr_err("Could not register /dev/xen/evtchn\n");
+		xen_shim_domain_put();
 		return err;
 	}
 
@@ -726,6 +727,7 @@ static int __init evtchn_init(void)
 static void __exit evtchn_cleanup(void)
 {
 	misc_deregister(&evtchn_miscdev);
+	xen_shim_domain_put();
 }
 
 module_init(evtchn_init);

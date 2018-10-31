@@ -8,6 +8,7 @@
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>
 #include <xen/xen-ops.h>
+#include <xen/xen.h>
 #include "xenfs.h"
 
 
@@ -113,6 +114,9 @@ static int xensyms_open(struct inode *inode, struct file *file)
 	struct seq_file *m;
 	struct xensyms *xs;
 	int ret;
+
+	if (xen_shim_domain())
+		return -EINVAL;
 
 	ret = seq_open_private(file, &xensyms_seq_ops,
 			       sizeof(struct xensyms));
