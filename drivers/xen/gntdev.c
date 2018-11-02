@@ -351,6 +351,8 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 		}
 
 		map->unmap_ops[i].handle = map->map_ops[i].handle;
+		if (xen_shim_domain())
+			map->unmap_ops[i].host_addr = map->map_ops[i].host_addr;
 		if (use_ptemod)
 			map->kunmap_ops[i].handle = map->kmap_ops[i].handle;
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
@@ -1122,7 +1124,9 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
 				(map->flags & GNTMAP_readonly))
 			goto out_unlock_put;
 	} else {
-		map->flags = GNTMAP_host_map;
+		map->flags = 0;
+		if (!xen_shim_domain())
+			map->flags = GNTMAP_host_map;
 		if (!(vma->vm_flags & VM_WRITE))
 			map->flags |= GNTMAP_readonly;
 	}
@@ -1207,7 +1211,7 @@ static int __init gntdev_init(void)
 {
 	int err;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain_get())
 		return -ENODEV;
 
 	use_ptemod = !xen_feature(XENFEAT_auto_translated_physmap);
@@ -1215,6 +1219,7 @@ static int __init gntdev_init(void)
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
 		pr_err("Could not register gntdev device\n");
+		xen_shim_domain_put();
 		return err;
 	}
 	return 0;
@@ -1223,6 +1228,7 @@ static int __init gntdev_init(void)
 static void __exit gntdev_exit(void)
 {
 	misc_deregister(&gntdev_miscdev);
+	xen_shim_domain_put();
 }
 
 module_init(gntdev_init);
