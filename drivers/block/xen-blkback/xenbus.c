@@ -871,7 +871,8 @@ again:
 
 	xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u", 1);
+	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u",
+			    !xen_shim_domain());
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/feature-persistent",
 				 dev->nodename);
@@ -1059,7 +1060,7 @@ static int connect_ring(struct backend_info *be)
 	}
 	pers_grants = xenbus_read_unsigned(dev->otherend, "feature-persistent",
 					   0);
-	be->blkif->vbd.feature_gnt_persistent = pers_grants;
+	be->blkif->vbd.feature_gnt_persistent = pers_grants && !xen_shim_domain();
 	be->blkif->vbd.overflow_max_grants = 0;
 
 	/*

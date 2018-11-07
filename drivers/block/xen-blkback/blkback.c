@@ -167,6 +167,15 @@ static inline void put_free_pages(struct xen_blkif_ring *ring, struct page **pag
 	unsigned long flags;
 	int i;
 
+	/*
+	 * We don't own the struct page after unmap has been called.
+	 * Reallocation is cheap anyway for the shim domain case, so free it.
+	 */
+	if (xen_shim_domain()) {
+		gnttab_free_pages(num, page);
+		return;
+	}
+
 	spin_lock_irqsave(&ring->free_pages_lock, flags);
 	for (i = 0; i < num; i++)
 		list_add(&page[i]->lru, &ring->free_pages);
@@ -825,7 +834,7 @@ static int xen_blkbk_map(struct xen_blkif_ring *ring,
 	 */
 again:
 	for (i = map_until; i < num; i++) {
-		uint32_t flags;
+		uint32_t flags = 0;
 
 		if (use_persistent_gnts) {
 			persistent_gnt = get_persistent_gnt(
@@ -846,7 +855,8 @@ again:
 			addr = vaddr(pages[i]->page);
 			pages_to_gnt[segs_to_map] = pages[i]->page;
 			pages[i]->persistent_gnt = NULL;
-			flags = GNTMAP_host_map;
+			if (!xen_shim_domain())
+				flags = GNTMAP_host_map;
 			if (!use_persistent_gnts && ro)
 				flags |= GNTMAP_readonly;
 			gnttab_set_map_op(&map[segs_to_map++], addr,
@@ -880,6 +890,8 @@ again:
 				goto next;
 			}
 			pages[seg_idx]->handle = map[new_map_idx].handle;
+			if (xen_shim_domain())
+				pages[seg_idx]->page = pages_to_gnt[new_map_idx];
 		} else {
 			continue;
 		}
@@ -1478,7 +1490,7 @@ static int __init xen_blkif_init(void)
 {
 	int rc = 0;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain_get())
 		return -ENODEV;
 
 	if (xen_blkif_max_ring_order > XENBUS_MAX_RING_GRANT_ORDER) {
@@ -1508,6 +1520,7 @@ static void __exit xen_blkif_exit(void)
 {
 	xen_blkif_interface_exit();
 	xen_blkif_xenbus_exit();
+	xen_shim_domain_put();
 }
 
 module_exit(xen_blkif_exit);
