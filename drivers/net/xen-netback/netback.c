@@ -324,6 +324,9 @@ struct xenvif_tx_cb {
 
 #define XENVIF_TX_CB(skb) ((struct xenvif_tx_cb *)(skb)->cb)
 
+/* Selects host map only if on native Xen */
+#define GNTTAB_host_map (xen_shim_domain() ? 0 : GNTMAP_host_map)
+
 static inline void xenvif_tx_create_map_op(struct xenvif_queue *queue,
 					   u16 pending_idx,
 					   struct xen_netif_tx_request *txp,
@@ -332,8 +335,11 @@ static inline void xenvif_tx_create_map_op(struct xenvif_queue *queue,
 {
 	queue->pages_to_map[mop-queue->tx_map_ops] = queue->mmap_pages[pending_idx];
 	gnttab_set_map_op(mop, idx_to_kaddr(queue, pending_idx),
-			  GNTMAP_host_map | GNTMAP_readonly,
+			  GNTTAB_host_map | GNTMAP_readonly,
 			  txp->gref, queue->vif->domid);
+
+	if (xen_shim_domain())
+		mop->host_addr = 0;
 
 	memcpy(&queue->pending_tx_info[pending_idx].req, txp,
 	       sizeof(*txp));
@@ -403,6 +409,12 @@ static struct gnttab_map_grant_ref *xenvif_get_requests(struct xenvif_queue *que
 	}
 
 	return gop;
+}
+
+static inline void xenvif_grant_replace_page(struct xenvif_queue *queue,
+					     u16 pending_idx, u32 mapping_idx)
+{
+	queue->mmap_pages[pending_idx] = queue->pages_to_map[mapping_idx];
 }
 
 static inline void xenvif_grant_handle_set(struct xenvif_queue *queue,
@@ -481,6 +493,10 @@ check_frags:
 			xenvif_grant_handle_set(queue,
 						pending_idx,
 						gop_map->handle);
+
+			if (!err && xen_shim_domain())
+				xenvif_grant_replace_page(queue, pending_idx,
+						    gop_map - queue->tx_map_ops);
 			/* Had a previous error? Invalidate this fragment. */
 			if (unlikely(err)) {
 				xenvif_idx_unmap(queue, pending_idx);
@@ -1268,7 +1284,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 				queue->mmap_pages[pending_idx];
 			gnttab_set_unmap_op(gop,
 					    idx_to_kaddr(queue, pending_idx),
-					    GNTMAP_host_map,
+					    GNTTAB_host_map,
 					    queue->grant_tx_handle[pending_idx]);
 			xenvif_grant_handle_reset(queue, pending_idx);
 			++gop;
@@ -1394,7 +1410,7 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 
 	gnttab_set_unmap_op(&tx_unmap_op,
 			    idx_to_kaddr(queue, pending_idx),
-			    GNTMAP_host_map,
+			    GNTTAB_host_map,
 			    queue->grant_tx_handle[pending_idx]);
 	xenvif_grant_handle_reset(queue, pending_idx);
 
@@ -1622,7 +1638,7 @@ static int __init netback_init(void)
 {
 	int rc = 0;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain_get())
 		return -ENODEV;
 
 	/* Allow as many queues as there are CPUs but max. 8 if user has not
@@ -1663,6 +1679,7 @@ static void __exit netback_fini(void)
 	debugfs_remove_recursive(xen_netback_dbg_root);
 #endif /* CONFIG_DEBUG_FS */
 	xenvif_xenbus_fini();
+	xen_shim_domain_put();
 }
 module_exit(netback_fini);
 
