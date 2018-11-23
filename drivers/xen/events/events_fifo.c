@@ -430,7 +430,7 @@ static int xen_evtchn_cpu_dead(unsigned int cpu)
 	return 0;
 }
 
-int __init xen_evtchn_fifo_init(void)
+int xen_evtchn_fifo_init(void)
 {
 	int cpu = smp_processor_id();
 	int ret;

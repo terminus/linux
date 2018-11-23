@@ -50,6 +50,8 @@ DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 /* Linux <-> Xen vCPU id mapping */
 DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
 EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
+EXPORT_PER_CPU_SYMBOL(xen_vcpu);
+EXPORT_PER_CPU_SYMBOL(xen_vcpu_info);
 
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
@@ -79,6 +81,7 @@ EXPORT_SYMBOL(xen_start_flags);
  * page as soon as fixmap is up and running.
  */
 struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
+EXPORT_SYMBOL_GPL(HYPERVISOR_shared_info);
 
 /*
  * Flag to determine whether vcpu info placement is available on all

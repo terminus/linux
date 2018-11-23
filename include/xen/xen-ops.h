@@ -10,7 +10,7 @@
 #include <xen/interface/vcpu.h>
 
 DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
-
+DECLARE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 DECLARE_PER_CPU(uint32_t, xen_vcpu_id);
 static inline uint32_t xen_vcpu_nr(int cpu)
 {
