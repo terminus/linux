@@ -1483,8 +1483,10 @@ struct kvm_xen_hvm_attr {
 		} vcpu_attr;
 		struct kvm_xen_eventfd {
 
-#define XEN_EVTCHN_TYPE_VIRQ 0
-#define XEN_EVTCHN_TYPE_IPI  1
+#define XEN_EVTCHN_TYPE_VIRQ      0
+#define XEN_EVTCHN_TYPE_IPI       1
+#define XEN_EVTCHN_TYPE_INTERDOM  2
+#define XEN_EVTCHN_TYPE_UNBOUND   3
 			__u32 type;
 			__u32 port;
 			__u32 vcpu;
@@ -1497,6 +1499,10 @@ struct kvm_xen_hvm_attr {
 				struct {
 					__u8 type;
 				} virq;
+				struct {
+					__u16 domid;
+					__u32 port;
+				} remote;
 				__u32 padding[2];
 			};
 		} evtchn;

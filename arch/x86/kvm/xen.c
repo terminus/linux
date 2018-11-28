@@ -27,6 +27,10 @@
 #include <xen/features.h>
 #include <asm/xen/hypercall.h>
 
+#include <xen/xen.h>
+#include <xen/events.h>
+#include <xen/xen-ops.h>
+
 #include "trace.h"
 
 /* Grant v1 references per 4K page */
@@ -46,12 +50,18 @@ struct evtchnfd {
 		struct {
 			u8 type;
 		} virq;
+		struct {
+			domid_t dom;
+			struct kvm *vm;
+			u32 port;
+		} remote;
 	};
 };
 
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port);
-static void *xen_vcpu_info(struct kvm_vcpu *v);
+static void *vcpu_to_xen_vcpu_info(struct kvm_vcpu *v);
 static void kvm_xen_gnttab_free(struct kvm_xen *xen);
+static int kvm_xen_evtchn_send_shim(struct kvm_xen *shim, struct evtchnfd *evt);
 static int shim_hypercall(u64 code, u64 a0, u64 a1, u64 a2, u64 a3, u64 a4);
 
 #define XEN_DOMID_MIN	1
@@ -114,7 +124,7 @@ int kvm_xen_free_domid(struct kvm *kvm)
 int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
-	struct vcpu_info *vcpu_info = xen_vcpu_info(vcpu);
+	struct vcpu_info *vcpu_info = vcpu_to_xen_vcpu_info(vcpu);
 
 	if (!!atomic_read(&vcpu_xen->cb.queued) || (vcpu_info &&
 	    test_bit(0, (unsigned long *) &vcpu_info->evtchn_upcall_pending)))
@@ -386,7 +396,7 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	return 0;
 }
 
-static void *xen_vcpu_info(struct kvm_vcpu *v)
+static void *vcpu_to_xen_vcpu_info(struct kvm_vcpu *v)
 {
 	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
 	struct kvm_xen *kvm = &v->kvm->arch.xen;
@@ -478,7 +488,7 @@ void kvm_xen_setup_pvclock_page(struct kvm_vcpu *v)
 {
 	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(v);
 	struct pvclock_vcpu_time_info *guest_hv_clock;
-	void *hva = xen_vcpu_info(v);
+	void *hva = vcpu_to_xen_vcpu_info(v);
 	unsigned int offset;
 
 	offset = offsetof(struct vcpu_info, time);
@@ -638,8 +648,6 @@ static int kvm_xen_evtchn_2l_set_pending(struct shared_info *shared_info,
 	return 1;
 }
 
-#undef BITS_PER_EVTCHN_WORD
-
 static int kvm_xen_evtchn_set_pending(struct kvm_vcpu *svcpu,
 				      struct evtchnfd *evfd)
 {
@@ -670,8 +678,44 @@ static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
 		wake_up(&vcpu_xen->sched_waitq);
 }
 
+static void kvm_xen_evtchn_2l_reset_port(struct shared_info *shared_info,
+					 int port)
+{
+	clear_bit(port, (unsigned long *) shared_info->evtchn_pending);
+	clear_bit(port, (unsigned long *) shared_info->evtchn_mask);
+}
+
+static inline struct evtchnfd *port_to_evtchn(struct kvm *kvm, int port)
+{
+	struct kvm_xen *xen = kvm ? &kvm->arch.xen : xen_shim;
+
+	return idr_find(&xen->port_to_evt, port);
+}
+
+static struct kvm_vcpu *get_remote_vcpu(struct evtchnfd *source)
+{
+	struct kvm *rkvm = source->remote.vm;
+	int rport = source->remote.port;
+	struct evtchnfd *dest = NULL;
+	struct kvm_vcpu *vcpu = NULL;
+
+	WARN_ON(source->type <= XEN_EVTCHN_TYPE_IPI);
+
+	if (!rkvm)
+		return NULL;
+
+	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	dest = port_to_evtchn(rkvm, rport);
+	if (!dest)
+		return NULL;
+
+	vcpu = kvm_get_vcpu(rkvm, dest->vcpu);
+	return vcpu;
+}
+
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port)
 {
+	struct kvm_vcpu *target = vcpu;
 	struct eventfd_ctx *eventfd;
 	struct evtchnfd *evtchnfd;
 
@@ -680,10 +724,19 @@ static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port)
 	if (!evtchnfd)
 		return -ENOENT;
 
+	if (evtchnfd->type == XEN_EVTCHN_TYPE_INTERDOM ||
+	    evtchnfd->type == XEN_EVTCHN_TYPE_UNBOUND) {
+		target = get_remote_vcpu(evtchnfd);
+		port = evtchnfd->remote.port;
+
+		if (!target && !evtchnfd->remote.dom)
+			return kvm_xen_evtchn_send_shim(xen_shim, evtchnfd);
+	}
+
 	eventfd = evtchnfd->ctx;
-	if (!kvm_xen_evtchn_set_pending(vcpu, evtchnfd)) {
+	if (!kvm_xen_evtchn_set_pending(target, evtchnfd)) {
 		if (!eventfd)
-			kvm_xen_evtchnfd_upcall(vcpu, evtchnfd);
+			kvm_xen_evtchnfd_upcall(target, evtchnfd);
 		else
 			eventfd_signal(eventfd, 1);
 	}
@@ -894,6 +947,67 @@ static int kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param)
 	return ret;
 }
 
+static void kvm_xen_call_function_deliver(void *_)
+{
+	xen_hvm_evtchn_do_upcall();
+}
+
+static inline int kvm_xen_evtchn_call_function(struct evtchnfd *event)
+{
+	int ret;
+
+	if (!irqs_disabled())
+		return smp_call_function_single(event->vcpu,
+						kvm_xen_call_function_deliver,
+						NULL, 0);
+
+	local_irq_enable();
+	ret = smp_call_function_single(event->vcpu,
+				       kvm_xen_call_function_deliver, NULL, 0);
+	local_irq_disable();
+
+	return ret;
+}
+
+static int kvm_xen_evtchn_send_shim(struct kvm_xen *dom0, struct evtchnfd *e)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	struct evtchnfd *remote;
+	int pending;
+
+	remote = idr_find(&dom0->port_to_evt, e->remote.port);
+	if (!remote)
+		return -ENOENT;
+
+	pending = kvm_xen_evtchn_2l_set_pending(s,
+						per_cpu(xen_vcpu, remote->vcpu),
+						remote->port);
+	return kvm_xen_evtchn_call_function(remote);
+}
+
+static int __kvm_xen_evtchn_send_guest(struct kvm_vcpu *vcpu, int port)
+{
+	struct evtchnfd *evtchnfd;
+	struct eventfd_ctx *eventfd;
+
+	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	evtchnfd = idr_find(&vcpu->kvm->arch.xen.port_to_evt, port);
+	if (!evtchnfd)
+		return -ENOENT;
+
+	eventfd = evtchnfd->ctx;
+	if (!kvm_xen_evtchn_set_pending(vcpu, evtchnfd))
+		kvm_xen_evtchnfd_upcall(vcpu, evtchnfd);
+
+	kvm_xen_check_poller(kvm_get_vcpu(vcpu->kvm, evtchnfd->vcpu), port);
+	return 0;
+}
+
+static int kvm_xen_evtchn_send_guest(struct evtchnfd *evt, int port)
+{
+	return __kvm_xen_evtchn_send_guest(get_remote_vcpu(evt), port);
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
@@ -1045,13 +1159,15 @@ static int kvm_xen_eventfd_update(struct kvm *kvm, struct idr *port_to_evt,
 	return 0;
 }
 
-static int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
-				  struct mutex *port_lock,
-				  struct kvm_xen_eventfd *args)
+int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
+			   struct mutex *port_lock,
+			   struct kvm_xen_eventfd *args)
 {
+	struct evtchnfd *evtchnfd, *unbound = NULL;
 	struct eventfd_ctx *eventfd = NULL;
-	struct evtchnfd *evtchnfd;
+	struct kvm *remote_vm = NULL;
 	u32 port = args->port;
+	u32 endport = 0;
 	int ret;
 
 	if (args->fd != -1) {
@@ -1064,25 +1180,56 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
 	    args->virq.type >= KVM_XEN_NR_VIRQS)
 		return -EINVAL;
 
+	if (args->remote.domid == DOMID_SELF)
+		remote_vm = kvm;
+	else if (args->remote.domid == xen_shim->domid)
+		remote_vm = NULL;
+	else if ((args->type == XEN_EVTCHN_TYPE_INTERDOM ||
+		  args->type == XEN_EVTCHN_TYPE_UNBOUND)) {
+		remote_vm = kvm_xen_find_vm(args->remote.domid);
+		if (!remote_vm)
+			return -ENOENT;
+	}
+
+	if (args->type == XEN_EVTCHN_TYPE_INTERDOM) {
+		unbound = port_to_evtchn(remote_vm, args->remote.port);
+		if (!unbound)
+			return -ENOENT;
+	}
+
 	evtchnfd =  kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
 	if (!evtchnfd)
 		return -ENOMEM;
 
 	evtchnfd->ctx = eventfd;
-	evtchnfd->port = port;
 	evtchnfd->vcpu = args->vcpu;
 	evtchnfd->type = args->type;
+
 	if (evtchnfd->type == XEN_EVTCHN_TYPE_VIRQ)
 		evtchnfd->virq.type = args->virq.type;
+	else if ((evtchnfd->type == XEN_EVTCHN_TYPE_UNBOUND) ||
+		 (evtchnfd->type == XEN_EVTCHN_TYPE_INTERDOM)) {
+		evtchnfd->remote.dom = args->remote.domid;
+		evtchnfd->remote.vm = remote_vm;
+		evtchnfd->remote.port = args->remote.port;
+	}
+
+	if (port == 0)
+		port = 1; /* evtchns in range (0..INT_MAX] */
+	else
+		endport = port + 1;
 
 	mutex_lock(port_lock);
-	ret = idr_alloc(port_to_evt, evtchnfd, port, port + 1,
+	ret = idr_alloc(port_to_evt, evtchnfd, port, endport,
 			GFP_KERNEL);
 	mutex_unlock(port_lock);
 
 	if (ret >= 0) {
-		if (evtchnfd->type == XEN_EVTCHN_TYPE_VIRQ)
+		evtchnfd->port = args->port = ret;
+		if (kvm && evtchnfd->type == XEN_EVTCHN_TYPE_VIRQ)
 			kvm_xen_set_virq(kvm, evtchnfd);
+		else if (evtchnfd->type == XEN_EVTCHN_TYPE_INTERDOM)
+			unbound->remote.port = ret;
 		return 0;
 	}
 
@@ -1107,8 +1254,14 @@ static int kvm_xen_eventfd_deassign(struct kvm *kvm, struct idr *port_to_evt,
 	if (!evtchnfd)
 		return -ENOENT;
 
-	if (kvm)
+	if (!kvm) {
+		struct shared_info *shinfo = HYPERVISOR_shared_info;
+
+		kvm_xen_evtchn_2l_reset_port(shinfo, port);
+	} else {
 		synchronize_srcu(&kvm->srcu);
+	}
+
 	if (evtchnfd->ctx)
 		eventfd_ctx_put(evtchnfd->ctx);
 	kfree(evtchnfd);
@@ -1930,6 +2083,89 @@ static int shim_hcall_gnttab(int op, void *p, int count)
 	return ret;
 }
 
+static int shim_hcall_evtchn_send(struct kvm_xen *dom0, struct evtchn_send *snd)
+{
+	struct evtchnfd *event;
+
+	event = idr_find(&dom0->port_to_evt, snd->port);
+	if (!event)
+		return -ENOENT;
+
+	if (event->remote.vm == NULL)
+		return kvm_xen_evtchn_send_shim(xen_shim, event);
+	else if (event->type == XEN_EVTCHN_TYPE_INTERDOM ||
+		 event->type == XEN_EVTCHN_TYPE_UNBOUND)
+		return kvm_xen_evtchn_send_guest(event, event->remote.port);
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int shim_hcall_evtchn(int op, void *p)
+{
+	int ret;
+	struct kvm_xen_eventfd evt;
+
+	if (p == NULL)
+		return -EINVAL;
+
+	memset(&evt, 0, sizeof(evt));
+
+	switch (op) {
+	case EVTCHNOP_bind_interdomain: {
+		struct evtchn_bind_interdomain *un;
+
+		un = (struct evtchn_bind_interdomain *) p;
+
+		evt.fd = -1;
+		evt.port = 0;
+		if (un->remote_port == 0) {
+			evt.type = XEN_EVTCHN_TYPE_UNBOUND;
+			evt.remote.domid = un->remote_dom;
+		} else {
+			evt.type = XEN_EVTCHN_TYPE_INTERDOM;
+			evt.remote.domid = un->remote_dom;
+			evt.remote.port = un->remote_port;
+		}
+
+		ret = kvm_xen_eventfd_assign(NULL, &xen_shim->port_to_evt,
+					     &xen_shim->xen_lock, &evt);
+		un->local_port = evt.port;
+		break;
+	}
+	case EVTCHNOP_alloc_unbound: {
+		struct evtchn_alloc_unbound *un;
+
+		un = (struct evtchn_alloc_unbound *) p;
+
+		if (un->dom != DOMID_SELF || un->remote_dom != DOMID_SELF)
+			return -EINVAL;
+		evt.fd = -1;
+		evt.port = 0;
+		evt.type = XEN_EVTCHN_TYPE_UNBOUND;
+		evt.remote.domid = DOMID_SELF;
+
+		ret = kvm_xen_eventfd_assign(NULL, &xen_shim->port_to_evt,
+					     &xen_shim->xen_lock, &evt);
+		un->port = evt.port;
+		break;
+	}
+	case EVTCHNOP_send: {
+		struct evtchn_send *send;
+
+		send = (struct evtchn_send *) p;
+		ret = shim_hcall_evtchn_send(xen_shim, send);
+		break;
+	}
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static int shim_hcall_version(int op, struct xen_feature_info *fi)
 {
 	if (op != XENVER_get_features || !fi || fi->submap_idx != 0)
@@ -1947,6 +2183,9 @@ static int shim_hypercall(u64 code, u64 a0, u64 a1, u64 a2, u64 a3, u64 a4)
 	int ret = -ENOSYS;
 
 	switch (code) {
+	case __HYPERVISOR_event_channel_op:
+		ret = shim_hcall_evtchn((int) a0, (void *)a1);
+		break;
 	case __HYPERVISOR_grant_table_op:
 		ret = shim_hcall_gnttab((int) a0, (void *) a1, (int) a2);
 		break;
