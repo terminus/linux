@@ -2102,6 +2102,29 @@ static int shim_hcall_evtchn_send(struct kvm_xen *dom0, struct evtchn_send *snd)
 	return 0;
 }
 
+static int shim_hcall_evtchn_unmask(struct kvm_xen *dom0, int port)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	struct evtchnfd *evtchnfd;
+	struct vcpu_info *v;
+
+	evtchnfd = idr_find(&dom0->port_to_evt, port);
+	if (!evtchnfd)
+		return -ENOENT;
+
+	v = per_cpu(xen_vcpu, evtchnfd->vcpu);
+
+	if (test_and_clear_bit(port, (unsigned long *) s->evtchn_mask) &&
+	    test_bit(port, (unsigned long *) s->evtchn_pending) &&
+	    !test_and_set_bit(port / BITS_PER_EVTCHN_WORD,
+			      (unsigned long *) &v->evtchn_pending_sel)) {
+		kvm_xen_evtchn_2l_vcpu_set_pending(v);
+		return kvm_xen_evtchn_call_function(evtchnfd);
+	}
+
+	return 0;
+}
+
 static int shim_hcall_evtchn(int op, void *p)
 {
 	int ret;
@@ -2149,6 +2172,13 @@ static int shim_hcall_evtchn(int op, void *p)
 		ret = kvm_xen_eventfd_assign(NULL, &xen_shim->port_to_evt,
 					     &xen_shim->xen_lock, &evt);
 		un->port = evt.port;
+		break;
+	}
+	case EVTCHNOP_unmask: {
+		struct evtchn_unmask *unmask;
+
+		unmask = (struct evtchn_unmask *) p;
+		ret = shim_hcall_evtchn_unmask(xen_shim, unmask->port);
 		break;
 	}
 	case EVTCHNOP_send: {
