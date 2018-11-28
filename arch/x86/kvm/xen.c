@@ -2188,6 +2188,38 @@ static int shim_hcall_evtchn(int op, void *p)
 		ret = shim_hcall_evtchn_send(xen_shim, send);
 		break;
 	}
+	case EVTCHNOP_bind_virq: {
+		struct evtchn_bind_virq *un;
+
+		un = (struct evtchn_bind_virq *) p;
+
+		evt.fd = -1;
+		evt.port = 0;
+		evt.type = XEN_EVTCHN_TYPE_VIRQ;
+		ret = kvm_xen_eventfd_assign(NULL, &xen_shim->port_to_evt,
+					     &xen_shim->xen_lock, &evt);
+		un->port = evt.port;
+		break;
+	}
+	case EVTCHNOP_bind_vcpu: {
+		struct evtchn_bind_vcpu *bind_vcpu;
+
+		bind_vcpu = (struct evtchn_bind_vcpu *) p;
+
+		evt.port = bind_vcpu->port;
+		evt.vcpu = bind_vcpu->vcpu;
+		ret = kvm_xen_eventfd_update(NULL, &xen_shim->port_to_evt,
+					     &xen_shim->xen_lock, &evt);
+		break;
+	}
+	case EVTCHNOP_close: {
+		struct evtchn_close *cls;
+
+		cls = (struct evtchn_close *) p;
+		ret = kvm_xen_eventfd_deassign(NULL, &xen_shim->port_to_evt,
+					       &xen_shim->xen_lock, cls->port);
+		break;
+	}
 	default:
 		ret = -EINVAL;
 		break;
