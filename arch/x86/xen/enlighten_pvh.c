@@ -30,8 +30,9 @@ void __init xen_pvh_init(void)
 	xen_start_flags = pvh_start_info.flags;
 
 	msr = cpuid_ebx(xen_cpuid_base() + 2);
-	pfn = __pa(hypercall_page);
+	pfn = __pa(xen_hypercall_page);
 	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+	hypercall_page = xen_hypercall_page;
 }
 
 void __init mem_map_via_hcall(struct boot_params *boot_params_p)

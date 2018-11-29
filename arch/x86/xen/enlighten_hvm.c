@@ -105,8 +105,9 @@ static void __init init_hvm_pv_info(void)
 
 		pv_info.name = "Xen HVM";
 		msr = cpuid_ebx(base + 2);
-		pfn = __pa(hypercall_page);
+		pfn = __pa(xen_hypercall_page);
 		wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+		hypercall_page = xen_hypercall_page;
 	}
 
 	xen_setup_features();

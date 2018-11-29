@@ -121,7 +121,7 @@ xen_iret_end_crit:
 
 hyper_iret:
 	/* put this out of line since its very rarely used */
-	jmp hypercall_page + __HYPERVISOR_iret * 32
+	jmp xen_hypercall_page + __HYPERVISOR_iret * 32
 
 	.globl xen_iret_start_crit, xen_iret_end_crit
 

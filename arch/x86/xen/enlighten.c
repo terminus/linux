@@ -20,6 +20,7 @@
 #include "smp.h"
 #include "pmu.h"
 
+struct hypercall_entry *hypercall_page;
 EXPORT_SYMBOL_GPL(hypercall_page);
 
 /*
