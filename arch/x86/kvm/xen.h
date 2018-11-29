@@ -3,6 +3,8 @@
 #ifndef __ARCH_X86_KVM_XEN_H__
 #define __ARCH_X86_KVM_XEN_H__
 
+#include <asm/xen/hypercall.h>
+
 static inline struct kvm_vcpu_xen *vcpu_to_xen_vcpu(struct kvm_vcpu *vcpu)
 {
 	return &vcpu->arch.xen;
@@ -47,5 +49,7 @@ void __kvm_migrate_xen_timer(struct kvm_vcpu *vcpu);
 int kvm_xen_has_pending_timer(struct kvm_vcpu *vcpu);
 void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu);
 bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu);
+
+extern struct hypercall_entry kvm_xen_hypercall_page[128];
 
 #endif

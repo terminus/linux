@@ -12,6 +12,7 @@
 #include <linux/kvm_host.h>
 #include <linux/eventfd.h>
 #include <linux/sched/stat.h>
+#include <linux/linkage.h>
 
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
@@ -19,6 +20,10 @@
 #include <xen/interface/event_channel.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/sched.h>
+#include <xen/interface/version.h>
+#include <xen/xen.h>
+#include <xen/features.h>
+#include <asm/xen/hypercall.h>
 
 #include "trace.h"
 
@@ -43,12 +48,16 @@ struct evtchnfd {
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port);
 static void *xen_vcpu_info(struct kvm_vcpu *v);
 static void kvm_xen_gnttab_free(struct kvm_xen *xen);
+static int shim_hypercall(u64 code, u64 a0, u64 a1, u64 a2, u64 a3, u64 a4);
 
 #define XEN_DOMID_MIN	1
 #define XEN_DOMID_MAX	(DOMID_FIRST_RESERVED - 1)
 
 static rwlock_t domid_lock;
 static struct idr domid_to_kvm;
+
+static struct hypercall_entry *hypercall_page_save;
+static struct kvm_xen *xen_shim __read_mostly;
 
 static int kvm_xen_domid_init(struct kvm *kvm, bool any, domid_t domid)
 {
@@ -1270,4 +1279,63 @@ int kvm_vm_ioctl_xen_gnttab(struct kvm *kvm, struct kvm_xen_gnttab *op)
 	}
 
 	return r;
+}
+
+asmlinkage int kvm_xen_host_hcall(void)
+{
+	register unsigned long a0 asm(__HYPERCALL_RETREG);
+	register unsigned long a1 asm(__HYPERCALL_ARG1REG);
+	register unsigned long a2 asm(__HYPERCALL_ARG2REG);
+	register unsigned long a3 asm(__HYPERCALL_ARG3REG);
+	register unsigned long a4 asm(__HYPERCALL_ARG4REG);
+	register unsigned long a5 asm(__HYPERCALL_ARG5REG);
+	int ret;
+
+	preempt_disable();
+	ret = shim_hypercall(a0, a1, a2, a3, a4, a5);
+	preempt_enable();
+
+	return ret;
+}
+
+void kvm_xen_register_lcall(struct kvm_xen *shim)
+{
+	hypercall_page_save = hypercall_page;
+	hypercall_page = kvm_xen_hypercall_page;
+	xen_shim = shim;
+}
+EXPORT_SYMBOL_GPL(kvm_xen_register_lcall);
+
+void kvm_xen_unregister_lcall(void)
+{
+	hypercall_page = hypercall_page_save;
+	hypercall_page_save = NULL;
+}
+EXPORT_SYMBOL_GPL(kvm_xen_unregister_lcall);
+
+static int shim_hcall_version(int op, struct xen_feature_info *fi)
+{
+	if (op != XENVER_get_features || !fi || fi->submap_idx != 0)
+		return -EINVAL;
+
+	/*
+	 * We need a limited set of features for a pseudo dom0.
+	 */
+	fi->submap = (1U << XENFEAT_auto_translated_physmap);
+	return 0;
+}
+
+static int shim_hypercall(u64 code, u64 a0, u64 a1, u64 a2, u64 a3, u64 a4)
+{
+	int ret = -ENOSYS;
+
+	switch (code) {
+	case __HYPERVISOR_xen_version:
+		ret = shim_hcall_version((int)a0, (void *)a1);
+		break;
+	default:
+		break;
+	}
+
+	return ret;
 }
