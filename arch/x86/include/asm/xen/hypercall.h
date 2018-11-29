@@ -86,11 +86,13 @@ struct xen_dm_op_buf;
  * there aren't more than 5 arguments...)
  */
 
-extern struct { char _entry[32]; } hypercall_page[];
+struct hypercall_entry { char _entry[32]; };
+extern struct hypercall_entry xen_hypercall_page[128];
+extern struct hypercall_entry *hypercall_page;
 
-#define __HYPERCALL		"call hypercall_page+%c[offset]"
+#define __HYPERCALL	CALL_NOSPEC
 #define __HYPERCALL_ENTRY(x)						\
-	[offset] "i" (__HYPERVISOR_##x * sizeof(hypercall_page[0]))
+	[thunk_target] "0" (hypercall_page + __HYPERVISOR_##x)
 
 #ifdef CONFIG_X86_32
 #define __HYPERCALL_RETREG	"eax"
@@ -116,7 +118,7 @@ extern struct { char _entry[32]; } hypercall_page[];
 	register unsigned long __arg4 asm(__HYPERCALL_ARG4REG) = __arg4; \
 	register unsigned long __arg5 asm(__HYPERCALL_ARG5REG) = __arg5;
 
-#define __HYPERCALL_0PARAM	"=r" (__res), ASM_CALL_CONSTRAINT
+#define __HYPERCALL_0PARAM	"=&r" (__res), ASM_CALL_CONSTRAINT
 #define __HYPERCALL_1PARAM	__HYPERCALL_0PARAM, "+r" (__arg1)
 #define __HYPERCALL_2PARAM	__HYPERCALL_1PARAM, "+r" (__arg2)
 #define __HYPERCALL_3PARAM	__HYPERCALL_2PARAM, "+r" (__arg3)
@@ -208,7 +210,7 @@ xen_single_call(unsigned int call,
 
 	asm volatile(CALL_NOSPEC
 		     : __HYPERCALL_5PARAM
-		     : [thunk_target] "a" (&hypercall_page[call])
+		     : [thunk_target] "0" (hypercall_page + call)
 		     : __HYPERCALL_CLOBBER5);
 
 	return (long)__res;

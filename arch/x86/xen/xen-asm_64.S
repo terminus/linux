@@ -70,7 +70,7 @@ ENTRY(xen_early_idt_handler_array)
 END(xen_early_idt_handler_array)
 	__FINIT
 
-hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
+hypercall_iret = xen_hypercall_page + __HYPERVISOR_iret * 32
 /*
  * Xen64 iret frame:
  *

@@ -1217,6 +1217,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	if (!xen_start_info)
 		return;
+	hypercall_page = xen_hypercall_page;
 
 	xenhost_register(xenhost_r1, &xh_pv_ops);
 
