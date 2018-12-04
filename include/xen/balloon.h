@@ -24,8 +24,8 @@ extern struct balloon_stats balloon_stats;
 
 void balloon_set_new_target(unsigned long target);
 
-int alloc_xenballooned_pages(int nr_pages, struct page **pages);
-void free_xenballooned_pages(int nr_pages, struct page **pages);
+int alloc_xenballooned_pages(xenhost_t *xh, int nr_pages, struct page **pages);
+void free_xenballooned_pages(xenhost_t *xh, int nr_pages, struct page **pages);
 
 struct device;
 #ifdef CONFIG_XEN_SELFBALLOONING

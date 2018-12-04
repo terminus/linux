@@ -130,9 +130,16 @@ xenhost_ops_t xh_hvm_ops = {
 	.setup_shared_info = xen_hvm_init_shared_info,
 	.reset_shared_info = xen_hvm_reset_shared_info,
 	.probe_vcpu_id = xen_hvm_probe_vcpu_id,
+
+	/* We just use the default method of ballooning. */
+	.alloc_ballooned_pages = NULL,
+	.free_ballooned_pages = NULL,
 };
 
 xenhost_ops_t xh_hvm_nested_ops = {
+	/* Nested xenhosts, are disallowed ballooning */
+	.alloc_ballooned_pages = NULL,
+	.free_ballooned_pages = NULL,
 };
 
 static void __init init_hvm_pv_info(void)

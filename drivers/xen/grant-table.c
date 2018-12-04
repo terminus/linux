@@ -804,7 +804,7 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
 {
 	int ret;
 
-	ret = alloc_xenballooned_pages(nr_pages, pages);
+	ret = alloc_xenballooned_pages(xh_default, nr_pages, pages);
 	if (ret < 0)
 		return ret;
 
@@ -839,7 +839,7 @@ EXPORT_SYMBOL_GPL(gnttab_pages_clear_private);
 void gnttab_free_pages(int nr_pages, struct page **pages)
 {
 	gnttab_pages_clear_private(nr_pages, pages);
-	free_xenballooned_pages(nr_pages, pages);
+	free_xenballooned_pages(xh_default, nr_pages, pages);
 }
 EXPORT_SYMBOL_GPL(gnttab_free_pages);
 

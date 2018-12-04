@@ -198,6 +198,25 @@ typedef struct xenhost_ops {
 	 * get accessed via pv_ops.irq.* and the evtchn logic.
 	 */
 	void (*probe_vcpu_id)(xenhost_t *xenhost, int cpu);
+
+	/*
+	 * We only want to do ballooning with the default xenhost -- two
+	 * hypervisors managing a guest's memory is unlikely to lead anywhere
+	 * good and xenballooned frames obtained from the default xenhost can
+	 * be just as well populated by the remote xenhost (which is what we
+	 * will need it for.)
+	 *
+	 * xenhost_r1: unchanged from before.
+	 * xenhost_r2: disallowed.
+	 * xenhost_r0: for a local xenhost, unlike Xen, there's no external entity
+	 *  which can remap pages, so the balloon alocation here just returns page-0.
+	 *  When the allocated page is used (in GNTTABOP_map_grant_ref), we fix this
+	 *  up by returning the correct page.
+	 */
+
+	int (*alloc_ballooned_pages)(xenhost_t *xh, int nr_pages, struct page **pages);
+	void (*free_ballooned_pages)(xenhost_t *xh, int nr_pages, struct page **pages);
+
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;

@@ -63,6 +63,7 @@
 #include <asm/tlb.h>
 
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -583,11 +584,20 @@ static int add_ballooned_pages(int nr_pages)
  * @pages: pages returned
  * @return 0 on success, error otherwise
  */
-int alloc_xenballooned_pages(int nr_pages, struct page **pages)
+int alloc_xenballooned_pages(xenhost_t *xh, int nr_pages, struct page **pages)
 {
 	int pgno = 0;
 	struct page *page;
 	int ret;
+
+	/*
+	 * xenmem transactions for remote xenhost are disallowed.
+	 */
+	if (xh->type == xenhost_r2)
+		return -EINVAL;
+
+	if (xh->ops->alloc_ballooned_pages)
+		return xh->ops->alloc_ballooned_pages(xh, nr_pages, pages);
 
 	mutex_lock(&balloon_mutex);
 
@@ -620,7 +630,7 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 	return 0;
  out_undo:
 	mutex_unlock(&balloon_mutex);
-	free_xenballooned_pages(pgno, pages);
+	free_xenballooned_pages(xh, pgno, pages);
 	return ret;
 }
 EXPORT_SYMBOL(alloc_xenballooned_pages);
@@ -630,9 +640,12 @@ EXPORT_SYMBOL(alloc_xenballooned_pages);
  * @nr_pages: Number of pages
  * @pages: pages to return
  */
-void free_xenballooned_pages(int nr_pages, struct page **pages)
+void free_xenballooned_pages(xenhost_t *xh, int nr_pages, struct page **pages)
 {
 	int i;
+
+	if (xh->ops->free_ballooned_pages)
+		return xh->ops->free_ballooned_pages(xh, nr_pages, pages);
 
 	mutex_lock(&balloon_mutex);
 

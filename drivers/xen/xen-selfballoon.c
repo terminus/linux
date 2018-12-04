@@ -74,6 +74,8 @@
 #include <linux/mman.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
+#include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <xen/balloon.h>
 #include <xen/tmem.h>
 #include <xen/xen.h>

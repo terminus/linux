@@ -1247,11 +1247,19 @@ xenhost_ops_t xh_pv_ops = {
 	.reset_shared_info = xen_pv_reset_shared_info,
 
 	.probe_vcpu_id = xen_pv_probe_vcpu_id,
+
+	/* We just use the default method of ballooning. */
+	.alloc_ballooned_pages = NULL,
+	.free_ballooned_pages = NULL,
 };
 
 xenhost_ops_t xh_pv_nested_ops = {
 	.cpuid_base = xen_pv_nested_cpuid_base,
 	.setup_hypercall_page = NULL,
+
+	/* Nested xenhosts, are disallowed ballooning */
+	.alloc_ballooned_pages = NULL,
+	.free_ballooned_pages = NULL,
 };
 
 /* First C function to be called on Xen boot */
