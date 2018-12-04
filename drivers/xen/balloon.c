@@ -138,7 +138,7 @@ enum bp_state {
 
 static DEFINE_MUTEX(balloon_mutex);
 
-struct balloon_stats balloon_stats;
+struct balloon_stats balloon_stats __read_mostly;
 EXPORT_SYMBOL_GPL(balloon_stats);
 
 /* We increase/decrease in batches which fit in a page */
@@ -157,6 +157,9 @@ static DECLARE_DELAYED_WORK(balloon_worker, balloon_process);
    want the kernel to try too hard since that can trigger the oom killer. */
 #define GFP_BALLOON \
 	(GFP_HIGHUSER | __GFP_NOWARN | __GFP_NORETRY | __GFP_NOMEMALLOC)
+
+struct xen_balloon_ops *xen_balloon_ops;
+EXPORT_SYMBOL(xen_balloon_ops);
 
 /* balloon_append: add the given page to the balloon. */
 static void __balloon_append(struct page *page)
@@ -589,6 +592,11 @@ int alloc_xenballooned_pages(int nr_pages, struct page **pages)
 	struct page *page;
 	int ret;
 
+	if (xen_shim_domain() && xen_balloon_ops)
+		return xen_balloon_ops->alloc_pages(nr_pages, pages);
+
+	WARN_ON_ONCE(xen_shim_domain());
+
 	mutex_lock(&balloon_mutex);
 
 	balloon_stats.target_unpopulated += nr_pages;
@@ -633,6 +641,11 @@ EXPORT_SYMBOL(alloc_xenballooned_pages);
 void free_xenballooned_pages(int nr_pages, struct page **pages)
 {
 	int i;
+
+	if (xen_shim_domain() && xen_balloon_ops)
+		return xen_balloon_ops->free_pages(nr_pages, pages);
+
+	WARN_ON_ONCE(xen_shim_domain());
 
 	mutex_lock(&balloon_mutex);
 

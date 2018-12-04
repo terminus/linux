@@ -13,10 +13,39 @@
 #include <xen/xen-ops.h>
 #include <xen/events.h>
 #include <xen/xenbus.h>
+#include <xen/balloon.h>
 
 #define BITS_PER_EVTCHN_WORD (sizeof(xen_ulong_t)*8)
 
 static struct kvm_xen shim = { .domid = XEN_SHIM_DOMID };
+
+static int shim_alloc_pages(int nr_pages, struct page **pages)
+{
+	int i;
+
+	/*
+	 * We provide page 0 instead of NULL because we'll effectively
+	 * do the inverse operation while deriving the pfn to pass to
+	 * xen for mapping.
+	 */
+	for (i = 0; i < nr_pages; i++)
+		pages[i] = pfn_to_page(0);
+
+	return 0;
+}
+
+static void shim_free_pages(int nr_pages, struct page **pages)
+{
+	int i;
+
+	for (i = 0; i < nr_pages; i++)
+		pages[i] = NULL;
+}
+
+static struct xen_balloon_ops shim_balloon_ops = {
+	.alloc_pages = shim_alloc_pages,
+	.free_pages = shim_free_pages,
+};
 
 static void shim_evtchn_setup(struct shared_info *s)
 {
@@ -65,6 +94,7 @@ static int __init shim_register(void)
 	mutex_init(&shim.xen_lock);
 
 	kvm_xen_register_lcall(&shim);
+	xen_balloon_ops = &shim_balloon_ops;
 
 	/* We can handle hypercalls after this point */
 	xen_shim_domain = 1;
@@ -94,6 +124,7 @@ static void __exit shim_exit(void)
 	xen_shim_domain = 0;
 
 	kvm_xen_unregister_lcall();
+	xen_balloon_ops = NULL;
 	HYPERVISOR_shared_info = NULL;
 	free_page((unsigned long) shim.shinfo);
 	shim.shinfo = NULL;
