@@ -866,6 +866,7 @@ static int xenwatch_thread(void *unused)
 
 	for (;;) {
 		wait_event_interruptible(watch_events_waitq,
+					 kthread_should_stop() ||
 					 !list_empty(&watch_events));
 
 		if (kthread_should_stop())
@@ -917,6 +918,8 @@ static struct notifier_block xs_reboot_nb = {
 	.notifier_call = xs_reboot_notify,
 };
 
+static struct task_struct *xenwatch_task;
+
 int xs_init(void)
 {
 	int err;
@@ -932,9 +935,44 @@ int xs_init(void)
 	task = kthread_run(xenwatch_thread, NULL, "xenwatch");
 	if (IS_ERR(task))
 		return PTR_ERR(task);
+	xenwatch_task = task;
 
 	/* shutdown watches for kexec boot */
 	xs_reset_watches();
 
 	return 0;
+}
+
+void cancel_watches(void)
+{
+	struct xs_watch_event *event, *tmp;
+
+	/* Cancel pending watch events. */
+	spin_lock(&watch_events_lock);
+	list_for_each_entry_safe(event, tmp, &watch_events, list) {
+		list_del(&event->list);
+		kfree(event);
+	}
+	spin_unlock(&watch_events_lock);
+}
+
+void delete_watches(void)
+{
+	struct xenbus_watch *watch, *tmp;
+
+	spin_lock(&watches_lock);
+	list_for_each_entry_safe(watch, tmp, &watches, list) {
+		list_del(&watch->list);
+	}
+	spin_unlock(&watches_lock);
+}
+
+void xs_deinit(void)
+{
+	kthread_stop(xenwatch_task);
+	xenwatch_task = NULL;
+	xb_deinit_comms();
+	unregister_reboot_notifier(&xs_reboot_nb);
+	cancel_watches();
+	delete_watches();
 }

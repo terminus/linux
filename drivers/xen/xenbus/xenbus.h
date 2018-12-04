@@ -96,6 +96,7 @@ extern wait_queue_head_t xb_waitq;
 extern struct mutex xb_write_mutex;
 
 int xs_init(void);
+void xs_deinit(void);
 int xb_init_comms(void);
 void xb_deinit_comms(void);
 int xs_watch_msg(struct xs_watch_event *event);
@@ -129,6 +130,7 @@ int xenbus_read_otherend_details(struct xenbus_device *xendev,
 				 char *id_node, char *path_node);
 
 void xenbus_ring_ops_init(void);
+void xenbus_ring_ops_deinit(void);
 
 int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par);
 void xenbus_dev_queue_reply(struct xb_req_data *req);

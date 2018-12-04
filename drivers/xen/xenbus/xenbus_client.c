@@ -935,3 +935,8 @@ void __init xenbus_ring_ops_init(void)
 #endif
 		ring_ops = &ring_ops_hvm;
 }
+
+void xenbus_ring_ops_deinit(void)
+{
+	ring_ops = NULL;
+}

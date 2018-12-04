@@ -741,6 +741,21 @@ static int __init xenstored_local_init(void)
 	return err;
 }
 
+static void xenstored_local_deinit(void)
+{
+	struct evtchn_close close;
+	void *page = NULL;
+
+	page = gfn_to_virt(xen_store_gfn);
+	free_page((unsigned long)page);
+
+	close.port = xen_store_evtchn;
+
+	HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
+
+	xen_store_evtchn = 0;
+}
+
 static int xenbus_resume_cb(struct notifier_block *nb,
 			    unsigned long action, void *data)
 {
@@ -765,7 +780,11 @@ static struct notifier_block xenbus_resume_nb = {
 	.notifier_call = xenbus_resume_cb,
 };
 
-static int __init xenbus_init(void)
+#ifdef CONFIG_XEN_COMPAT_XENFS
+struct proc_dir_entry *xen_procfs;
+#endif
+
+int xenbus_init(void)
 {
 	int err = 0;
 	uint64_t v = 0;
@@ -833,13 +852,39 @@ static int __init xenbus_init(void)
 	 * Create xenfs mountpoint in /proc for compatibility with
 	 * utilities that expect to find "xenbus" under "/proc/xen".
 	 */
-	proc_create_mount_point("xen");
+	xen_procfs = proc_create_mount_point("xen");
 #endif
 
 out_error:
 	return err;
 }
-
+EXPORT_SYMBOL_GPL(xenbus_init);
 postcore_initcall(xenbus_init);
+
+void xenbus_deinit(void)
+{
+	if (!xen_domain())
+		return;
+
+#ifdef CONFIG_XEN_COMPAT_XENFS
+	proc_remove(xen_procfs);
+	xen_procfs = NULL;
+#endif
+
+	xs_deinit();
+	xenstored_ready = 0;
+
+	switch (xen_store_domain_type) {
+	case XS_LOCAL:
+		xenstored_local_deinit();
+		xen_store_interface = NULL;
+		break;
+	default:
+		pr_warn("Xenstore state unknown\n");
+		break;
+	}
+	xenbus_ring_ops_deinit();
+}
+EXPORT_SYMBOL_GPL(xenbus_deinit);
 
 MODULE_LICENSE("GPL");
