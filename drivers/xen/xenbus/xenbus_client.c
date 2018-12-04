@@ -487,8 +487,11 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 					 "mapping in shared page %d from domain %d",
 					 gnt_refs[i], dev->otherend_id);
 			goto fail;
-		} else
+		} else {
 			handles[i] = map[i].handle;
+			if (xen_shim_domain())
+				addrs[i] = map[i].host_addr;
+		}
 	}
 
 	return GNTST_okay;
@@ -498,7 +501,8 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 		if (handles[i] != INVALID_GRANT_HANDLE) {
 			memset(&unmap[j], 0, sizeof(unmap[j]));
 			gnttab_set_unmap_op(&unmap[j], (phys_addr_t)addrs[i],
-					    GNTMAP_host_map, handles[i]);
+					    !xen_shim_domain()?GNTMAP_host_map:0,
+					    handles[i]);
 			j++;
 		}
 	}
@@ -546,7 +550,7 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 				      void **vaddr)
 {
 	struct xenbus_map_node *node;
-	int err;
+	int i, err;
 	void *addr;
 	bool leaked = false;
 	struct map_ring_valloc_hvm info = {
@@ -572,8 +576,15 @@ static int xenbus_map_ring_valloc_hvm(struct xenbus_device *dev,
 			     &info);
 
 	err = __xenbus_map_ring(dev, gnt_ref, nr_grefs, node->handles,
-				info.phys_addrs, GNTMAP_host_map, &leaked);
+				info.phys_addrs,
+				!xen_shim_domain() ? GNTMAP_host_map : 0,
+				&leaked);
 	node->nr_handles = nr_grefs;
+
+	if (xen_shim_domain()) {
+		for (i = 0; i < nr_grefs; i++)
+			node->hvm.pages[i] = virt_to_page(info.phys_addrs[i]);
+	}
 
 	if (err)
 		goto out_free_ballooned_pages;
@@ -882,7 +893,7 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 
 	for (i = 0; i < nr_handles; i++)
 		gnttab_set_unmap_op(&unmap[i], vaddrs[i],
-				    GNTMAP_host_map, handles[i]);
+				    !xen_shim_domain()?GNTMAP_host_map:0, handles[i]);
 
 	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
 		BUG();
@@ -926,7 +937,7 @@ static const struct xenbus_ring_ops ring_ops_hvm = {
 	.unmap = xenbus_unmap_ring_vfree_hvm,
 };
 
-void __init xenbus_ring_ops_init(void)
+void xenbus_ring_ops_init(void)
 {
 #ifdef CONFIG_XEN_PV
 	if (!xen_feature(XENFEAT_auto_translated_physmap))

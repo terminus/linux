@@ -680,11 +680,11 @@ static struct miscdevice xenbus_dev = {
 	.fops = &xen_xenbus_fops,
 };
 
-static int __init xenbus_frontend_init(void)
+static int xenbus_frontend_init(void)
 {
 	int err;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain())
 		return -ENODEV;
 
 	err = misc_register(&xenbus_dev);

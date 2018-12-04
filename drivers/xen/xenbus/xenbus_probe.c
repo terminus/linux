@@ -693,7 +693,7 @@ EXPORT_SYMBOL_GPL(xenbus_probe);
 
 static int __init xenbus_probe_initcall(void)
 {
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain())
 		return -ENODEV;
 
 	if (xen_initial_domain() || xen_hvm_domain())
@@ -790,7 +790,7 @@ int xenbus_init(void)
 	uint64_t v = 0;
 	xen_store_domain_type = XS_UNKNOWN;
 
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain())
 		return -ENODEV;
 
 	xenbus_ring_ops_init();
@@ -799,7 +799,7 @@ int xenbus_init(void)
 		xen_store_domain_type = XS_PV;
 	if (xen_hvm_domain())
 		xen_store_domain_type = XS_HVM;
-	if (xen_hvm_domain() && xen_initial_domain())
+	if ((xen_hvm_domain() && xen_initial_domain()) || xen_shim_domain())
 		xen_store_domain_type = XS_LOCAL;
 	if (xen_pv_domain() && !xen_start_info->store_evtchn)
 		xen_store_domain_type = XS_LOCAL;
@@ -863,7 +863,7 @@ postcore_initcall(xenbus_init);
 
 void xenbus_deinit(void)
 {
-	if (!xen_domain())
+	if (!xen_domain() && !xen_shim_domain())
 		return;
 
 #ifdef CONFIG_XEN_COMPAT_XENFS
