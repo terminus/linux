@@ -181,6 +181,8 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	init_completion(&blkif->drain_complete);
 	INIT_WORK(&blkif->free_work, xen_blkif_deferred_free);
 
+	__module_get(THIS_MODULE);
+
 	return blkif;
 }
 
@@ -328,6 +330,8 @@ static void xen_blkif_free(struct xen_blkif *blkif)
 
 	/* Make sure everything is drained before shutting down */
 	kmem_cache_free(xen_blkif_cachep, blkif);
+
+	module_put(THIS_MODULE);
 }
 
 int __init xen_blkif_interface_init(void)
@@ -339,6 +343,11 @@ int __init xen_blkif_interface_init(void)
 		return -ENOMEM;
 
 	return 0;
+}
+
+void xen_blkif_interface_exit(void)
+{
+	kmem_cache_destroy(xen_blkif_cachep);
 }
 
 /*
@@ -1114,4 +1123,9 @@ static struct xenbus_driver xen_blkbk_driver = {
 int xen_blkif_xenbus_init(void)
 {
 	return xenbus_register_backend(&xen_blkbk_driver);
+}
+
+void xen_blkif_xenbus_exit(void)
+{
+	xenbus_unregister_driver(&xen_blkbk_driver);
 }
