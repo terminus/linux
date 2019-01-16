@@ -554,6 +554,8 @@ struct kvm_vcpu_xen {
 	unsigned int virq_to_port[KVM_XEN_NR_VIRQS];
 	struct hrtimer timer;
 	atomic_t timer_pending;
+	wait_queue_head_t sched_waitq;
+	int poll_evtchn;
 };
 
 struct kvm_vcpu_arch {
@@ -865,6 +867,7 @@ struct kvm_xen {
 	struct shared_info *shinfo;
 
 	struct idr port_to_evt;
+	unsigned long poll_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	struct mutex xen_lock;
 };
 

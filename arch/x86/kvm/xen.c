@@ -563,6 +563,16 @@ static int kvm_xen_evtchn_set_pending(struct kvm_vcpu *svcpu,
 					     evfd->port);
 }
 
+static void kvm_xen_check_poller(struct kvm_vcpu *vcpu, int port)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	if ((vcpu_xen->poll_evtchn == port ||
+	     vcpu_xen->poll_evtchn == -1) &&
+	    test_and_clear_bit(vcpu->vcpu_id, vcpu->kvm->arch.xen.poll_mask))
+		wake_up(&vcpu_xen->sched_waitq);
+}
+
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port)
 {
 	struct eventfd_ctx *eventfd;
@@ -580,6 +590,8 @@ static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port)
 		else
 			eventfd_signal(eventfd, 1);
 	}
+
+	kvm_xen_check_poller(kvm_get_vcpu(vcpu->kvm, evtchnfd->vcpu), port);
 
 	return 0;
 }
@@ -669,6 +681,94 @@ static int kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout)
 	return 0;
 }
 
+static bool wait_pending_event(struct kvm_vcpu *vcpu, int nr_ports,
+			       evtchn_port_t *ports)
+{
+	int i;
+	struct shared_info *shared_info =
+		(struct shared_info *)vcpu->kvm->arch.xen.shinfo;
+
+	for (i = 0; i < nr_ports; i++)
+		if (test_bit(ports[i],
+			     (unsigned long *)shared_info->evtchn_pending))
+			return true;
+
+	return false;
+}
+
+static int kvm_xen_schedop_poll(struct kvm_vcpu *vcpu, gpa_t gpa)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	int idx, i;
+	struct sched_poll sched_poll;
+	evtchn_port_t port, *ports;
+	struct shared_info *shared_info;
+	struct evtchnfd *evtchnfd;
+	int ret = 0;
+
+	if (kvm_vcpu_read_guest(vcpu, gpa,
+				&sched_poll, sizeof(sched_poll)))
+		return -EFAULT;
+
+	shared_info = (struct shared_info *)vcpu->kvm->arch.xen.shinfo;
+
+	if (unlikely(sched_poll.nr_ports > 1)) {
+		/* Xen (unofficially) limits number of pollers to 128 */
+		if (sched_poll.nr_ports > 128)
+			return -EINVAL;
+
+		ports = kmalloc_array(sched_poll.nr_ports,
+				      sizeof(*ports), GFP_KERNEL);
+		if (!ports)
+			return -ENOMEM;
+	} else
+		ports = &port;
+
+	set_bit(vcpu->vcpu_id, vcpu->kvm->arch.xen.poll_mask);
+
+	for (i = 0; i < sched_poll.nr_ports; i++) {
+		idx = srcu_read_lock(&vcpu->kvm->srcu);
+		gpa = kvm_mmu_gva_to_gpa_system(vcpu,
+						(gva_t)(sched_poll.ports + i),
+						NULL);
+		srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+		if (!gpa || kvm_vcpu_read_guest(vcpu, gpa,
+						&ports[i], sizeof(port))) {
+			ret = -EFAULT;
+			goto out;
+		}
+
+		evtchnfd = idr_find(&vcpu->kvm->arch.xen.port_to_evt,
+				    ports[i]);
+		if (!evtchnfd) {
+			ret = -ENOENT;
+			goto out;
+		}
+	}
+
+	if (sched_poll.nr_ports == 1)
+		vcpu_xen->poll_evtchn = port;
+	else
+		vcpu_xen->poll_evtchn = -1;
+
+	if (!wait_pending_event(vcpu, sched_poll.nr_ports, ports))
+		wait_event_interruptible_timeout(
+			 vcpu_xen->sched_waitq,
+			 wait_pending_event(vcpu, sched_poll.nr_ports, ports),
+			 sched_poll.timeout ?: KTIME_MAX);
+
+	vcpu_xen->poll_evtchn = 0;
+
+out:
+	/* Really, this is only needed in case of timeout */
+	clear_bit(vcpu->vcpu_id, vcpu->kvm->arch.xen.poll_mask);
+
+	if (unlikely(sched_poll.nr_ports > 1))
+		kfree(ports);
+	return ret;
+}
+
 static int kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param)
 {
 	int ret = -ENOSYS;
@@ -686,6 +786,9 @@ static int kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param)
 	case SCHEDOP_yield:
 		kvm_vcpu_on_spin(vcpu, true);
 		ret = 0;
+		break;
+	case SCHEDOP_poll:
+		ret = kvm_xen_schedop_poll(vcpu, gpa);
 		break;
 	default:
 		break;
@@ -744,6 +847,9 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		r = kvm_xen_hcall_sched_op(vcpu, params[0], params[1]);
 		if (!r)
 			goto hcall_success;
+		else if (params[0] == SCHEDOP_poll)
+			/* SCHEDOP_poll should be handled in kernel */
+			return r;
 		break;
 	/* fallthrough */
 	default:
@@ -770,6 +876,8 @@ hcall_success:
 
 void kvm_xen_vcpu_init(struct kvm_vcpu *vcpu)
 {
+	init_waitqueue_head(&vcpu->arch.xen.sched_waitq);
+	vcpu->arch.xen.poll_evtchn = 0;
 }
 
 void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
