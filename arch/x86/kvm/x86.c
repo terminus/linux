@@ -2211,6 +2211,8 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 
 	if (vcpu->pv_time_enabled)
 		kvm_setup_pvclock_page(v);
+	if (ka->xen.shinfo)
+		kvm_xen_setup_pvclock_page(v);
 	if (v == kvm_get_vcpu(v->kvm, 0))
 		kvm_hv_setup_tsc_page(v->kvm, &vcpu->hv_clock);
 	return 0;

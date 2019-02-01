@@ -29,7 +29,54 @@ static int kvm_xen_shared_info_init(struct kvm *kvm, gfn_t gfn)
 	shared_info = page_to_virt(page);
 	memset(shared_info, 0, sizeof(struct shared_info));
 	kvm->arch.xen.shinfo = shared_info;
+
+	kvm_make_all_cpus_request(kvm, KVM_REQ_MASTERCLOCK_UPDATE);
 	return 0;
+}
+
+void kvm_xen_setup_pvclock_page(struct kvm_vcpu *v)
+{
+	struct kvm_vcpu_arch *vcpu = &v->arch;
+	struct pvclock_vcpu_time_info *guest_hv_clock;
+	unsigned int offset;
+
+	if (v->vcpu_id >= MAX_VIRT_CPUS)
+		return;
+
+	offset = offsetof(struct vcpu_info, time);
+	offset += offsetof(struct shared_info, vcpu_info);
+	offset += v->vcpu_id * sizeof(struct vcpu_info);
+
+	guest_hv_clock = (struct pvclock_vcpu_time_info *)
+		(((void *)v->kvm->arch.xen.shinfo) + offset);
+
+	BUILD_BUG_ON(offsetof(struct pvclock_vcpu_time_info, version) != 0);
+
+	if (guest_hv_clock->version & 1)
+		++guest_hv_clock->version;  /* first time write, random junk */
+
+	vcpu->hv_clock.version = guest_hv_clock->version + 1;
+	guest_hv_clock->version = vcpu->hv_clock.version;
+
+	smp_wmb();
+
+	/* retain PVCLOCK_GUEST_STOPPED if set in guest copy */
+	vcpu->hv_clock.flags |= (guest_hv_clock->flags & PVCLOCK_GUEST_STOPPED);
+
+	if (vcpu->pvclock_set_guest_stopped_request) {
+		vcpu->hv_clock.flags |= PVCLOCK_GUEST_STOPPED;
+		vcpu->pvclock_set_guest_stopped_request = false;
+	}
+
+	trace_kvm_pvclock_update(v->vcpu_id, &vcpu->hv_clock);
+
+	*guest_hv_clock = vcpu->hv_clock;
+
+	smp_wmb();
+
+	vcpu->hv_clock.version++;
+
+	guest_hv_clock->version = vcpu->hv_clock.version;
 }
 
 int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
