@@ -859,6 +859,9 @@ struct kvm_xen {
 
 	gfn_t shinfo_addr;
 	struct shared_info *shinfo;
+
+	struct idr port_to_evt;
+	struct mutex xen_lock;
 };
 
 enum kvm_xen_callback_via {

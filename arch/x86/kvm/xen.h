@@ -34,7 +34,9 @@ int kvm_xen_set_evtchn(struct kvm_kernel_irq_routing_entry *e,
 int kvm_xen_setup_evtchn(struct kvm *kvm,
 			 struct kvm_kernel_irq_routing_entry *e);
 
+void kvm_xen_init_vm(struct kvm *kvm);
 void kvm_xen_destroy_vm(struct kvm *kvm);
+int kvm_vm_ioctl_xen_eventfd(struct kvm *kvm, struct kvm_xen_eventfd *args);
 void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu);
 
 #endif

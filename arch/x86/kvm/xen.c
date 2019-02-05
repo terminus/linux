@@ -10,13 +10,27 @@
 #include "ioapic.h"
 
 #include <linux/kvm_host.h>
+#include <linux/eventfd.h>
 #include <linux/sched/stat.h>
 
 #include <trace/events/kvm.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
+#include <xen/interface/event_channel.h>
 
 #include "trace.h"
+
+struct evtchnfd {
+	struct eventfd_ctx *ctx;
+	u32 vcpu;
+	u32 port;
+	u32 type;
+	union {
+		struct {
+			u8 type;
+		} virq;
+	};
+};
 
 static void *xen_vcpu_info(struct kvm_vcpu *v);
 
@@ -78,6 +92,13 @@ static int kvm_xen_do_upcall(struct kvm *kvm, u32 dest_vcpu,
 	}
 
 	return 0;
+}
+
+static void kvm_xen_evtchnfd_upcall(struct kvm_vcpu *vcpu, struct evtchnfd *e)
+{
+	struct kvm_vcpu_xen *vx = vcpu_to_xen_vcpu(vcpu);
+
+	kvm_xen_do_upcall(vcpu->kvm, e->vcpu, vx->cb.via, vx->cb.vector, 0);
 }
 
 int kvm_xen_set_evtchn(struct kvm_kernel_irq_routing_entry *e,
@@ -329,6 +350,12 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = 0;
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_EVTCHN: {
+		struct kvm_xen_eventfd xevfd = data->u.evtchn;
+
+		r = kvm_vm_ioctl_xen_eventfd(kvm, &xevfd);
+		break;
+	}
 	default:
 		break;
 	}
@@ -388,10 +415,96 @@ static int kvm_xen_hypercall_complete_userspace(struct kvm_vcpu *vcpu)
 	return kvm_skip_emulated_instruction(vcpu);
 }
 
+static int kvm_xen_evtchn_2l_vcpu_set_pending(struct vcpu_info *v)
+{
+	return test_and_set_bit(0, (unsigned long *) &v->evtchn_upcall_pending);
+}
+
+#define BITS_PER_EVTCHN_WORD (sizeof(xen_ulong_t)*8)
+
+static int kvm_xen_evtchn_2l_set_pending(struct shared_info *shared_info,
+					 struct vcpu_info *vcpu_info,
+					 int p)
+{
+	if (test_and_set_bit(p, (unsigned long *) shared_info->evtchn_pending))
+		return 1;
+
+	if (!test_bit(p, (unsigned long *) shared_info->evtchn_mask) &&
+	    !test_and_set_bit(p / BITS_PER_EVTCHN_WORD,
+			      (unsigned long *) &vcpu_info->evtchn_pending_sel))
+		return kvm_xen_evtchn_2l_vcpu_set_pending(vcpu_info);
+
+	return 1;
+}
+
+#undef BITS_PER_EVTCHN_WORD
+
+static int kvm_xen_evtchn_set_pending(struct kvm_vcpu *svcpu,
+				      struct evtchnfd *evfd)
+{
+	struct kvm_vcpu_xen *vcpu_xen;
+	struct vcpu_info *vcpu_info;
+	struct shared_info *shared_info;
+	struct kvm_vcpu *vcpu;
+
+	vcpu = kvm_get_vcpu(svcpu->kvm, evfd->vcpu);
+	if (!vcpu)
+		return -ENOENT;
+
+	vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	shared_info = (struct shared_info *) vcpu->kvm->arch.xen.shinfo;
+	vcpu_info = (struct vcpu_info *) vcpu_xen->vcpu_info;
+
+	return kvm_xen_evtchn_2l_set_pending(shared_info, vcpu_info,
+					     evfd->port);
+}
+
+static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port)
+{
+	struct eventfd_ctx *eventfd;
+	struct evtchnfd *evtchnfd;
+
+	/* conn_to_evt is protected by vcpu->kvm->srcu */
+	evtchnfd = idr_find(&vcpu->kvm->arch.xen.port_to_evt, port);
+	if (!evtchnfd)
+		return -ENOENT;
+
+	eventfd = evtchnfd->ctx;
+	if (!kvm_xen_evtchn_set_pending(vcpu, evtchnfd)) {
+		if (!eventfd)
+			kvm_xen_evtchnfd_upcall(vcpu, evtchnfd);
+		else
+			eventfd_signal(eventfd, 1);
+	}
+
+	return 0;
+}
+
+static int kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, int cmd, u64 param)
+{
+	struct evtchn_send send;
+	gpa_t gpa;
+	int idx;
+
+	/* Port management is done in userspace */
+	if (cmd != EVTCHNOP_send)
+		return -EINVAL;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!gpa || kvm_vcpu_read_guest(vcpu, gpa, &send, sizeof(send)))
+		return -EFAULT;
+
+	return kvm_xen_evtchn_send(vcpu, send.port);
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
 	u64 input, params[5];
+	int r;
 
 	input = (u64)kvm_register_read(vcpu, VCPU_REGS_RAX);
 
@@ -414,6 +527,19 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 #endif
 	trace_kvm_xen_hypercall(input, params[0], params[1], params[2],
 				params[3], params[4]);
+
+	switch (input) {
+	case __HYPERVISOR_event_channel_op:
+		r = kvm_xen_hcall_evtchn_send(vcpu, params[0],
+					      params[1]);
+		if (!r) {
+			kvm_xen_hypercall_set_result(vcpu, r);
+			return kvm_skip_emulated_instruction(vcpu);
+		}
+	/* fallthrough */
+	default:
+		break;
+	}
 
 	vcpu->run->exit_reason = KVM_EXIT_XEN;
 	vcpu->run->xen.type = KVM_EXIT_XEN_HCALL;
@@ -441,10 +567,122 @@ void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
 		put_page(virt_to_page(vcpu_xen->steal_time));
 }
 
+void kvm_xen_init_vm(struct kvm *kvm)
+{
+	mutex_init(&kvm->arch.xen.xen_lock);
+	idr_init(&kvm->arch.xen.port_to_evt);
+}
+
 void kvm_xen_destroy_vm(struct kvm *kvm)
 {
 	struct kvm_xen *xen = &kvm->arch.xen;
 
 	if (xen->shinfo)
 		put_page(virt_to_page(xen->shinfo));
+}
+
+static int kvm_xen_eventfd_update(struct kvm *kvm, struct idr *port_to_evt,
+				  struct mutex *port_lock,
+				  struct kvm_xen_eventfd *args)
+{
+	struct eventfd_ctx *eventfd = NULL;
+	struct evtchnfd *evtchnfd;
+
+	mutex_lock(port_lock);
+	evtchnfd = idr_find(port_to_evt, args->port);
+	mutex_unlock(port_lock);
+
+	if (!evtchnfd)
+		return -ENOENT;
+
+	if (args->fd != -1) {
+		eventfd = eventfd_ctx_fdget(args->fd);
+		if (IS_ERR(eventfd))
+			return PTR_ERR(eventfd);
+	}
+
+	evtchnfd->vcpu = args->vcpu;
+	return 0;
+}
+
+static int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
+				  struct mutex *port_lock,
+				  struct kvm_xen_eventfd *args)
+{
+	struct eventfd_ctx *eventfd = NULL;
+	struct evtchnfd *evtchnfd;
+	u32 port = args->port;
+	int ret;
+
+	if (args->fd != -1) {
+		eventfd = eventfd_ctx_fdget(args->fd);
+		if (IS_ERR(eventfd))
+			return PTR_ERR(eventfd);
+	}
+
+	evtchnfd =  kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
+	if (!evtchnfd)
+		return -ENOMEM;
+
+	evtchnfd->ctx = eventfd;
+	evtchnfd->port = port;
+	evtchnfd->vcpu = args->vcpu;
+	evtchnfd->type = args->type;
+	if (evtchnfd->type == XEN_EVTCHN_TYPE_VIRQ)
+		evtchnfd->virq.type = args->virq.type;
+
+	mutex_lock(port_lock);
+	ret = idr_alloc(port_to_evt, evtchnfd, port, port + 1,
+			GFP_KERNEL);
+	mutex_unlock(port_lock);
+
+	if (ret >= 0)
+		return 0;
+
+	if (ret == -ENOSPC)
+		ret = -EEXIST;
+
+	if (eventfd)
+		eventfd_ctx_put(eventfd);
+	kfree(evtchnfd);
+	return ret;
+}
+
+static int kvm_xen_eventfd_deassign(struct kvm *kvm, struct idr *port_to_evt,
+				  struct mutex *port_lock, u32 port)
+{
+	struct evtchnfd *evtchnfd;
+
+	mutex_lock(port_lock);
+	evtchnfd = idr_remove(port_to_evt, port);
+	mutex_unlock(port_lock);
+
+	if (!evtchnfd)
+		return -ENOENT;
+
+	if (kvm)
+		synchronize_srcu(&kvm->srcu);
+	if (evtchnfd->ctx)
+		eventfd_ctx_put(evtchnfd->ctx);
+	kfree(evtchnfd);
+	return 0;
+}
+
+int kvm_vm_ioctl_xen_eventfd(struct kvm *kvm, struct kvm_xen_eventfd *args)
+{
+	struct kvm_xen *xen = &kvm->arch.xen;
+	int allowed_flags = (KVM_XEN_EVENTFD_DEASSIGN | KVM_XEN_EVENTFD_UPDATE);
+
+	if ((args->flags & (~allowed_flags)) ||
+	    (args->port <= 0))
+		return -EINVAL;
+
+	if (args->flags == KVM_XEN_EVENTFD_DEASSIGN)
+		return kvm_xen_eventfd_deassign(kvm, &xen->port_to_evt,
+						&xen->xen_lock, args->port);
+	if (args->flags == KVM_XEN_EVENTFD_UPDATE)
+		return kvm_xen_eventfd_update(kvm, &xen->port_to_evt,
+					      &xen->xen_lock, args);
+	return kvm_xen_eventfd_assign(kvm, &xen->port_to_evt,
+				      &xen->xen_lock, args);
 }
