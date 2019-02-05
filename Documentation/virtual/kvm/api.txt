@@ -5037,3 +5037,12 @@ Architectures: x86
 
 This capability indicates that KVM supports Xen HVM guests.
 This includes KVM_IRQ_ROUTING_XEN_EVTCHN as well.
+
+8.23 KVM_CAP_XEN_HVM_EVTCHN
+
+Architectures: x86
+
+This capability indicates KVM's support for the event channel offload.
+Implies support for KVM_IRQ_ROUTING_XEN_EVTCHN irq routing, and
+for attribute KVM_XEN_ATTR_TYPE_EVTCHN in KVM_XEN_HVM_GET_ATTR or
+KVM_XEN_HVM_SET_ATTR.

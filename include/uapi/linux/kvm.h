@@ -1004,6 +1004,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_MANUAL_DIRTY_LOG_PROTECT 166
 #define KVM_CAP_HYPERV_CPUID 167
 #define KVM_CAP_XEN_HVM_GUEST 168
+#define KVM_CAP_XEN_HVM_EVTCHN 169
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1046,6 +1047,7 @@ struct kvm_irq_routing_xen_evtchn {
 #define KVM_IRQ_ROUTING_MSI 2
 #define KVM_IRQ_ROUTING_S390_ADAPTER 3
 #define KVM_IRQ_ROUTING_HV_SINT 4
+/* Available with KVM_CAP_XEN_HVM_EVTCHN */
 #define KVM_IRQ_ROUTING_XEN_EVTCHN 5
 
 struct kvm_irq_routing_entry {
@@ -1506,6 +1508,7 @@ struct kvm_xen_hvm_attr {
 #define KVM_XEN_ATTR_TYPE_VCPU_INFO         0x1
 #define KVM_XEN_ATTR_TYPE_VCPU_TIME_INFO    0x2
 #define KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE     0x3
+/* Available with KVM_CAP_XEN_HVM_EVTCHN */
 #define KVM_XEN_ATTR_TYPE_EVTCHN            0x4
 
 /* Secure Encrypted Virtualization command */
