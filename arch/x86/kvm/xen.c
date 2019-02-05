@@ -32,6 +32,7 @@ struct evtchnfd {
 	};
 };
 
+static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port);
 static void *xen_vcpu_info(struct kvm_vcpu *v);
 
 int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
@@ -101,6 +102,91 @@ static void kvm_xen_evtchnfd_upcall(struct kvm_vcpu *vcpu, struct evtchnfd *e)
 	kvm_xen_do_upcall(vcpu->kvm, e->vcpu, vx->cb.via, vx->cb.vector, 0);
 }
 
+int kvm_xen_has_pending_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	if (kvm_xen_hypercall_enabled(vcpu->kvm) && kvm_xen_timer_enabled(vcpu))
+		return atomic_read(&vcpu_xen->timer_pending);
+
+	return 0;
+}
+
+void kvm_xen_inject_timer_irqs(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	if (atomic_read(&vcpu_xen->timer_pending) > 0) {
+		kvm_xen_evtchn_send(vcpu, vcpu_xen->virq_to_port[VIRQ_TIMER]);
+
+		atomic_set(&vcpu_xen->timer_pending, 0);
+	}
+}
+
+static enum hrtimer_restart xen_timer_callback(struct hrtimer *timer)
+{
+	struct kvm_vcpu_xen *vcpu_xen =
+		container_of(timer, struct kvm_vcpu_xen, timer);
+	struct kvm_vcpu *vcpu = xen_vcpu_to_vcpu(vcpu_xen);
+	struct swait_queue_head *wq = &vcpu->wq;
+
+	if (atomic_read(&vcpu_xen->timer_pending))
+		return HRTIMER_NORESTART;
+
+	atomic_inc(&vcpu_xen->timer_pending);
+	kvm_set_pending_timer(vcpu);
+
+	if (swait_active(wq))
+		swake_up_one(wq);
+
+	return HRTIMER_NORESTART;
+}
+
+void __kvm_migrate_xen_timer(struct kvm_vcpu *vcpu)
+{
+	struct hrtimer *timer;
+
+	if (!kvm_xen_timer_enabled(vcpu))
+		return;
+
+	timer = &vcpu->arch.xen.timer;
+	if (hrtimer_cancel(timer))
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS_PINNED);
+}
+
+static void kvm_xen_start_timer(struct kvm_vcpu *vcpu, u64 delta_ns)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	struct hrtimer *timer = &vcpu_xen->timer;
+	ktime_t ktime_now;
+
+	atomic_set(&vcpu_xen->timer_pending, 0);
+	ktime_now = ktime_get();
+	hrtimer_start(timer, ktime_add_ns(ktime_now, delta_ns),
+		      HRTIMER_MODE_ABS_PINNED);
+}
+
+static void kvm_xen_stop_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	hrtimer_cancel(&vcpu_xen->timer);
+}
+
+void kvm_xen_init_timer(struct kvm_vcpu *vcpu)
+{
+	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+
+	hrtimer_init(&vcpu_xen->timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_ABS_PINNED);
+	vcpu_xen->timer.function = xen_timer_callback;
+}
+
+bool kvm_xen_timer_enabled(struct kvm_vcpu *vcpu)
+{
+	return !!vcpu->arch.xen.virq_to_port[VIRQ_TIMER];
+}
+
 void kvm_xen_set_virq(struct kvm *kvm, struct evtchnfd *evt)
 {
 	int virq = evt->virq.type;
@@ -110,6 +196,9 @@ void kvm_xen_set_virq(struct kvm *kvm, struct evtchnfd *evt)
 	vcpu = kvm_get_vcpu(kvm, evt->vcpu);
 	if (!vcpu)
 		return;
+
+	if (virq == VIRQ_TIMER)
+		kvm_xen_init_timer(vcpu);
 
 	vcpu_xen = vcpu_to_xen_vcpu(vcpu);
 	vcpu_xen->virq_to_port[virq] = evt->port;
@@ -514,6 +603,71 @@ static int kvm_xen_hcall_evtchn_send(struct kvm_vcpu *vcpu, int cmd, u64 param)
 	return kvm_xen_evtchn_send(vcpu, send.port);
 }
 
+static int kvm_xen_hcall_vcpu_op(struct kvm_vcpu *vcpu, int cmd, int vcpu_id,
+				 u64 param)
+{
+	struct vcpu_set_singleshot_timer oneshot;
+	int ret = -EINVAL;
+	long delta;
+	gpa_t gpa;
+	int idx;
+
+	/* Only process timer ops with commands 6 to 9 */
+	if (cmd < VCPUOP_set_periodic_timer ||
+	    cmd > VCPUOP_stop_singleshot_timer)
+		return ret;
+
+	if (!kvm_xen_timer_enabled(vcpu))
+		return ret;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!gpa)
+		return ret;
+
+	switch (cmd) {
+	case VCPUOP_set_singleshot_timer:
+		if (kvm_vcpu_read_guest(vcpu, gpa, &oneshot,
+					sizeof(oneshot)))
+			return -EFAULT;
+
+		delta = oneshot.timeout_abs_ns - get_kvmclock_ns(vcpu->kvm);
+		kvm_xen_start_timer(vcpu, delta);
+		ret = 0;
+		break;
+	case VCPUOP_stop_singleshot_timer:
+		kvm_xen_stop_timer(vcpu);
+		ret = 0;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static int kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout)
+{
+	ktime_t ktime_now = ktime_get();
+	long delta = timeout - get_kvmclock_ns(vcpu->kvm);
+
+	if (!kvm_xen_timer_enabled(vcpu))
+		return -EINVAL;
+
+	if (timeout == 0) {
+		kvm_xen_stop_timer(vcpu);
+	} else if (unlikely(timeout < ktime_now) ||
+		   ((uint32_t) (delta >> 50) != 0)) {
+		kvm_xen_start_timer(vcpu, 50000000);
+	} else {
+		kvm_xen_start_timer(vcpu, delta);
+	}
+
+	return 0;
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
@@ -546,10 +700,20 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 	case __HYPERVISOR_event_channel_op:
 		r = kvm_xen_hcall_evtchn_send(vcpu, params[0],
 					      params[1]);
-		if (!r) {
-			kvm_xen_hypercall_set_result(vcpu, r);
-			return kvm_skip_emulated_instruction(vcpu);
-		}
+		if (!r)
+			goto hcall_success;
+		break;
+	case __HYPERVISOR_vcpu_op:
+		r = kvm_xen_hcall_vcpu_op(vcpu, params[0], params[1],
+					  params[2]);
+		if (!r)
+			goto hcall_success;
+		break;
+	case __HYPERVISOR_set_timer_op:
+		r = kvm_xen_hcall_set_timer_op(vcpu, params[0]);
+		if (!r)
+			goto hcall_success;
+		break;
 	/* fallthrough */
 	default:
 		break;
@@ -567,6 +731,14 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		kvm_xen_hypercall_complete_userspace;
 
 	return 0;
+
+hcall_success:
+	kvm_xen_hypercall_set_result(vcpu, r);
+	return kvm_skip_emulated_instruction(vcpu);
+}
+
+void kvm_xen_vcpu_init(struct kvm_vcpu *vcpu)
+{
 }
 
 void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
@@ -579,6 +751,11 @@ void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu)
 		put_page(virt_to_page(vcpu_xen->pv_time));
 	if (vcpu_xen->steal_time)
 		put_page(virt_to_page(vcpu_xen->steal_time));
+
+	if (!kvm_xen_timer_enabled(vcpu))
+		return;
+
+	kvm_xen_stop_timer(vcpu);
 }
 
 void kvm_xen_init_vm(struct kvm *kvm)

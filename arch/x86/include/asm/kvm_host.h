@@ -552,6 +552,8 @@ struct kvm_vcpu_xen {
 	struct kvm_xen_callback cb;
 #define KVM_XEN_NR_VIRQS 24
 	unsigned int virq_to_port[KVM_XEN_NR_VIRQS];
+	struct hrtimer timer;
+	atomic_t timer_pending;
 };
 
 struct kvm_vcpu_arch {

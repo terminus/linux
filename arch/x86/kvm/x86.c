@@ -9115,6 +9115,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	vcpu->arch.preempted_in_kernel = false;
 
 	kvm_hv_vcpu_init(vcpu);
+	kvm_xen_vcpu_init(vcpu);
 
 	return 0;
 
@@ -9564,6 +9565,9 @@ static inline bool kvm_vcpu_has_events(struct kvm_vcpu *vcpu)
 		return true;
 
 	if (kvm_hv_has_stimer_pending(vcpu))
+		return true;
+
+	if (kvm_xen_has_pending_timer(vcpu))
 		return true;
 
 	return false;
