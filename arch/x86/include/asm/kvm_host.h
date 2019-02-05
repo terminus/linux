@@ -550,6 +550,8 @@ struct kvm_vcpu_xen {
 	gpa_t steal_time_addr;
 	struct vcpu_runstate_info *steal_time;
 	struct kvm_xen_callback cb;
+#define KVM_XEN_NR_VIRQS 24
+	unsigned int virq_to_port[KVM_XEN_NR_VIRQS];
 };
 
 struct kvm_vcpu_arch {

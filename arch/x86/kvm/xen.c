@@ -101,6 +101,20 @@ static void kvm_xen_evtchnfd_upcall(struct kvm_vcpu *vcpu, struct evtchnfd *e)
 	kvm_xen_do_upcall(vcpu->kvm, e->vcpu, vx->cb.via, vx->cb.vector, 0);
 }
 
+void kvm_xen_set_virq(struct kvm *kvm, struct evtchnfd *evt)
+{
+	int virq = evt->virq.type;
+	struct kvm_vcpu_xen *vcpu_xen;
+	struct kvm_vcpu *vcpu;
+
+	vcpu = kvm_get_vcpu(kvm, evt->vcpu);
+	if (!vcpu)
+		return;
+
+	vcpu_xen = vcpu_to_xen_vcpu(vcpu);
+	vcpu_xen->virq_to_port[virq] = evt->port;
+}
+
 int kvm_xen_set_evtchn(struct kvm_kernel_irq_routing_entry *e,
 		   struct kvm *kvm, int irq_source_id, int level,
 		   bool line_status)
@@ -620,6 +634,10 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
 			return PTR_ERR(eventfd);
 	}
 
+	if (args->type == XEN_EVTCHN_TYPE_VIRQ &&
+	    args->virq.type >= KVM_XEN_NR_VIRQS)
+		return -EINVAL;
+
 	evtchnfd =  kzalloc(sizeof(struct evtchnfd), GFP_KERNEL);
 	if (!evtchnfd)
 		return -ENOMEM;
@@ -636,8 +654,11 @@ static int kvm_xen_eventfd_assign(struct kvm *kvm, struct idr *port_to_evt,
 			GFP_KERNEL);
 	mutex_unlock(port_lock);
 
-	if (ret >= 0)
+	if (ret >= 0) {
+		if (evtchnfd->type == XEN_EVTCHN_TYPE_VIRQ)
+			kvm_xen_set_virq(kvm, evtchnfd);
 		return 0;
+	}
 
 	if (ret == -ENOSPC)
 		ret = -EEXIST;
