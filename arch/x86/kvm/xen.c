@@ -17,6 +17,7 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/event_channel.h>
+#include <xen/interface/sched.h>
 
 #include "trace.h"
 
@@ -668,6 +669,31 @@ static int kvm_xen_hcall_set_timer_op(struct kvm_vcpu *vcpu, uint64_t timeout)
 	return 0;
 }
 
+static int kvm_xen_hcall_sched_op(struct kvm_vcpu *vcpu, int cmd, u64 param)
+{
+	int ret = -ENOSYS;
+	gpa_t gpa;
+	int idx;
+
+	idx = srcu_read_lock(&vcpu->kvm->srcu);
+	gpa = kvm_mmu_gva_to_gpa_system(vcpu, param, NULL);
+	srcu_read_unlock(&vcpu->kvm->srcu, idx);
+
+	if (!gpa)
+		return -EFAULT;
+
+	switch (cmd) {
+	case SCHEDOP_yield:
+		kvm_vcpu_on_spin(vcpu, true);
+		ret = 0;
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
 int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 {
 	bool longmode;
@@ -711,6 +737,11 @@ int kvm_xen_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	case __HYPERVISOR_set_timer_op:
 		r = kvm_xen_hcall_set_timer_op(vcpu, params[0]);
+		if (!r)
+			goto hcall_success;
+		break;
+	case __HYPERVISOR_sched_op:
+		r = kvm_xen_hcall_sched_op(vcpu, params[0], params[1]);
 		if (!r)
 			goto hcall_success;
 		break;
