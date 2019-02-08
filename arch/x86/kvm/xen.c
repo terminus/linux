@@ -17,6 +17,7 @@
 #include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 #include <xen/interface/event_channel.h>
+#include <xen/interface/grant_table.h>
 #include <xen/interface/sched.h>
 
 #include "trace.h"
@@ -35,6 +36,7 @@ struct evtchnfd {
 
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port);
 static void *xen_vcpu_info(struct kvm_vcpu *v);
+static void kvm_xen_gnttab_free(struct kvm_xen *xen);
 
 #define XEN_DOMID_MIN	1
 #define XEN_DOMID_MAX	(DOMID_FIRST_RESERVED - 1)
@@ -513,6 +515,12 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = kvm_xen_domid_init(kvm, any, domid);
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_GNTTAB: {
+		struct kvm_xen_gnttab xevfd = data->u.gnttab;
+
+		r = kvm_vm_ioctl_xen_gnttab(kvm, &xevfd);
+		break;
+	}
 	default:
 		break;
 	}
@@ -969,6 +977,7 @@ void kvm_xen_destroy_vm(struct kvm *kvm)
 		put_page(virt_to_page(xen->shinfo));
 
 	kvm_xen_free_domid(kvm);
+	kvm_xen_gnttab_free(&kvm->arch.xen);
 }
 
 void kvm_xen_init(void)
@@ -1092,4 +1101,83 @@ int kvm_vm_ioctl_xen_eventfd(struct kvm *kvm, struct kvm_xen_eventfd *args)
 					      &xen->xen_lock, args);
 	return kvm_xen_eventfd_assign(kvm, &xen->port_to_evt,
 				      &xen->xen_lock, args);
+}
+
+int kvm_xen_gnttab_init(struct kvm *kvm, struct kvm_xen *xen,
+			struct kvm_xen_gnttab *op, int dom0)
+{
+	u32 max_mt_frames = op->init.max_maptrack_frames;
+	unsigned long initial = op->init.initial_frame;
+	struct kvm_grant_table *gnttab = &xen->gnttab;
+	u32 max_frames = op->init.max_frames;
+	struct page *page = NULL;
+	void *addr;
+
+	if (!dom0) {
+		if (!op->init.initial_frame ||
+		    offset_in_page(op->init.initial_frame))
+			return -EINVAL;
+
+		if (get_user_pages_fast(initial, 1, 1, &page) != 1)
+			return -EFAULT;
+
+		gnttab->initial_addr = initial;
+		gnttab->initial = page_to_virt(page);
+		put_page(page);
+	}
+
+	addr = kcalloc(max_frames, sizeof(gfn_t), GFP_KERNEL);
+	if (!addr)
+		goto out;
+	xen->gnttab.frames_addr = addr;
+
+	addr = kcalloc(max_frames, sizeof(addr), GFP_KERNEL);
+	if (!addr)
+		goto out;
+
+	gnttab->frames = addr;
+	gnttab->frames[0] = xen->gnttab.initial;
+	gnttab->max_nr_frames = max_frames;
+	gnttab->max_mt_frames = max_mt_frames;
+	gnttab->nr_mt_frames = 1;
+	gnttab->nr_frames = 0;
+
+	pr_debug("kvm_xen: dom%u: grant table limits (gnttab:%d maptrack:%d)\n",
+		 xen->domid, gnttab->max_nr_frames, gnttab->max_mt_frames);
+	return 0;
+
+out:
+	kfree(xen->gnttab.frames);
+	kfree(xen->gnttab.frames_addr);
+	if (page)
+		put_page(page);
+	memset(&xen->gnttab, 0, sizeof(xen->gnttab));
+	return -ENOMEM;
+}
+
+void kvm_xen_gnttab_free(struct kvm_xen *xen)
+{
+	struct kvm_grant_table *gnttab = &xen->gnttab;
+
+	kfree(gnttab->frames);
+	kfree(gnttab->frames_addr);
+}
+
+int kvm_vm_ioctl_xen_gnttab(struct kvm *kvm, struct kvm_xen_gnttab *op)
+{
+	int r = -EINVAL;
+
+	if (!op)
+		return r;
+
+	switch (op->flags) {
+	case KVM_XEN_GNTTAB_F_INIT:
+		r = kvm_xen_gnttab_init(kvm, &kvm->arch.xen, op, 0);
+		break;
+	default:
+		r = -ENOSYS;
+		break;
+	}
+
+	return r;
 }

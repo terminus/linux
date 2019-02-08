@@ -860,6 +860,23 @@ struct kvm_hv {
 	atomic_t num_mismatched_vp_indexes;
 };
 
+/* Xen grant table */
+struct kvm_grant_table {
+	u32 nr_frames;
+	u32 max_nr_frames;
+	union {
+		void **frames;
+		struct grant_entry_v1 **frames_v1;
+	};
+	gfn_t *frames_addr;
+	gpa_t initial_addr;
+	struct grant_entry_v1 *initial;
+
+	/* maptrack limits */
+	u32 max_mt_frames;
+	u32 nr_mt_frames;
+};
+
 /* Xen emulation context */
 struct kvm_xen {
 	u64 xen_hypercall;
@@ -871,6 +888,8 @@ struct kvm_xen {
 	struct idr port_to_evt;
 	unsigned long poll_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 	struct mutex xen_lock;
+
+	struct kvm_grant_table gnttab;
 };
 
 enum kvm_xen_callback_via {

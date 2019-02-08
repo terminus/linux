@@ -37,6 +37,7 @@ int kvm_xen_setup_evtchn(struct kvm *kvm,
 void kvm_xen_init_vm(struct kvm *kvm);
 void kvm_xen_destroy_vm(struct kvm *kvm);
 int kvm_vm_ioctl_xen_eventfd(struct kvm *kvm, struct kvm_xen_eventfd *args);
+int kvm_vm_ioctl_xen_gnttab(struct kvm *kvm, struct kvm_xen_gnttab *op);
 void kvm_xen_vcpu_init(struct kvm_vcpu *vcpu);
 void kvm_xen_vcpu_uninit(struct kvm_vcpu *vcpu);
 void kvm_xen_init(void);
