@@ -1500,6 +1500,9 @@ struct kvm_xen_hvm_attr {
 				__u32 padding[2];
 			};
 		} evtchn;
+		struct {
+			__s32 domid;
+		} dom;
 	} u;
 };
 
@@ -1510,6 +1513,7 @@ struct kvm_xen_hvm_attr {
 #define KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE     0x3
 /* Available with KVM_CAP_XEN_HVM_EVTCHN */
 #define KVM_XEN_ATTR_TYPE_EVTCHN            0x4
+#define KVM_XEN_ATTR_TYPE_DOMID             0x5
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {

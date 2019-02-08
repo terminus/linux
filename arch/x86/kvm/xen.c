@@ -36,6 +36,48 @@ struct evtchnfd {
 static int kvm_xen_evtchn_send(struct kvm_vcpu *vcpu, int port);
 static void *xen_vcpu_info(struct kvm_vcpu *v);
 
+#define XEN_DOMID_MIN	1
+#define XEN_DOMID_MAX	(DOMID_FIRST_RESERVED - 1)
+
+static rwlock_t domid_lock;
+static struct idr domid_to_kvm;
+
+static int kvm_xen_domid_init(struct kvm *kvm, bool any, domid_t domid)
+{
+	u16 min = XEN_DOMID_MIN, max = XEN_DOMID_MAX;
+	struct kvm_xen *xen = &kvm->arch.xen;
+	int ret;
+
+	if (!any) {
+		min = domid;
+		max = domid + 1;
+	}
+
+	write_lock_bh(&domid_lock);
+	ret = idr_alloc(&domid_to_kvm, kvm, min, max, GFP_ATOMIC);
+	write_unlock_bh(&domid_lock);
+
+	if (ret < 0)
+		return ret;
+
+	xen->domid = ret;
+	return 0;
+}
+
+int kvm_xen_free_domid(struct kvm *kvm)
+{
+	struct kvm_xen *xen = &kvm->arch.xen;
+	struct kvm *vm;
+
+	write_lock_bh(&domid_lock);
+	vm = idr_remove(&domid_to_kvm, xen->domid);
+	write_unlock_bh(&domid_lock);
+
+	synchronize_srcu(&kvm->srcu);
+
+	return vm == kvm;
+}
+
 int kvm_xen_has_interrupt(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_xen *vcpu_xen = vcpu_to_xen_vcpu(vcpu);
@@ -460,6 +502,17 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		r = kvm_vm_ioctl_xen_eventfd(kvm, &xevfd);
 		break;
 	}
+	case KVM_XEN_ATTR_TYPE_DOMID: {
+		domid_t domid = (u16) data->u.dom.domid;
+		bool any = (data->u.dom.domid < 0);
+
+		/* Domain ID 0 or >= 0x7ff0 are reserved */
+		if (!any && (!domid || (domid >= XEN_DOMID_MAX)))
+			return -EINVAL;
+
+		r = kvm_xen_domid_init(kvm, any, domid);
+		break;
+	}
 	default:
 		break;
 	}
@@ -486,6 +539,11 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 			return -EINVAL;
 
 		data->u.vcpu_attr.gpa = get_vcpu_attr(v, data->type);
+		r = 0;
+		break;
+	}
+	case KVM_XEN_ATTR_TYPE_DOMID: {
+		data->u.dom.domid = kvm->arch.xen.domid;
 		r = 0;
 		break;
 	}
@@ -909,6 +967,18 @@ void kvm_xen_destroy_vm(struct kvm *kvm)
 
 	if (xen->shinfo)
 		put_page(virt_to_page(xen->shinfo));
+
+	kvm_xen_free_domid(kvm);
+}
+
+void kvm_xen_init(void)
+{
+	idr_init(&domid_to_kvm);
+	rwlock_init(&domid_lock);
+}
+
+void kvm_xen_exit(void)
+{
 }
 
 static int kvm_xen_eventfd_update(struct kvm *kvm, struct idr *port_to_evt,

@@ -6986,6 +6986,7 @@ int kvm_arch_init(void *opaque)
 	if (hypervisor_is_type(X86_HYPER_MS_HYPERV))
 		set_hv_tscchange_cb(kvm_hyperv_tsc_notifier);
 #endif
+	kvm_xen_init();
 
 	return 0;
 
@@ -6999,6 +7000,7 @@ out:
 
 void kvm_arch_exit(void)
 {
+	kvm_xen_exit();
 #ifdef CONFIG_X86_64
 	if (hypervisor_is_type(X86_HYPER_MS_HYPERV))
 		clear_hv_tscchange_cb();

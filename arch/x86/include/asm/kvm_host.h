@@ -27,6 +27,7 @@
 #include <linux/clocksource.h>
 #include <linux/irqbypass.h>
 #include <linux/hyperv.h>
+#include <xen/interface/xen.h>
 
 #include <asm/apic.h>
 #include <asm/pvclock-abi.h>
@@ -862,6 +863,7 @@ struct kvm_hv {
 /* Xen emulation context */
 struct kvm_xen {
 	u64 xen_hypercall;
+	domid_t domid;
 
 	gfn_t shinfo_addr;
 	struct shared_info *shinfo;
