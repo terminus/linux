@@ -1505,6 +1505,7 @@ struct kvm_xen_hvm_attr {
 		} dom;
 		struct kvm_xen_gnttab {
 #define KVM_XEN_GNTTAB_F_INIT		0
+#define KVM_XEN_GNTTAB_F_GROW		(1 << 0)
 			__u32 flags;
 			union {
 				struct {
@@ -1512,6 +1513,10 @@ struct kvm_xen_hvm_attr {
 					__u32 max_maptrack_frames;
 					__u64 initial_frame;
 				} init;
+				struct {
+					__u32 idx;
+					__u64 gfn;
+				} grow;
 				__u32 padding[4];
 			};
 		} gnttab;

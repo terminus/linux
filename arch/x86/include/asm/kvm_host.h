@@ -860,6 +860,21 @@ struct kvm_hv {
 	atomic_t num_mismatched_vp_indexes;
 };
 
+struct kvm_grant_map {
+	u64 gpa;
+	union {
+		struct {
+
+#define _KVM_GNTMAP_ACTIVE      (15)
+#define KVM_GNTMAP_ACTIVE       (1 << _KVM_GNTMAP_ACTIVE)
+			u16 flags;
+			u16 ref;
+			u32 domid;
+		};
+		u64 fields;
+	};
+};
+
 /* Xen grant table */
 struct kvm_grant_table {
 	u32 nr_frames;
@@ -871,6 +886,7 @@ struct kvm_grant_table {
 	gfn_t *frames_addr;
 	gpa_t initial_addr;
 	struct grant_entry_v1 *initial;
+	struct kvm_grant_map **handle;
 
 	/* maptrack limits */
 	u32 max_mt_frames;

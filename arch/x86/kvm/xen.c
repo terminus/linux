@@ -22,6 +22,12 @@
 
 #include "trace.h"
 
+/* Grant v1 references per 4K page */
+#define GPP_V1 (PAGE_SIZE / sizeof(struct grant_entry_v1))
+
+/* Grant mappings per 4K page */
+#define MPP    (PAGE_SIZE / sizeof(struct kvm_grant_map))
+
 struct evtchnfd {
 	struct eventfd_ctx *ctx;
 	u32 vcpu;
@@ -1158,9 +1164,90 @@ out:
 void kvm_xen_gnttab_free(struct kvm_xen *xen)
 {
 	struct kvm_grant_table *gnttab = &xen->gnttab;
+	int i;
+
+	for (i = 0; i < gnttab->nr_frames; i++)
+		put_page(virt_to_page(gnttab->frames[i]));
 
 	kfree(gnttab->frames);
 	kfree(gnttab->frames_addr);
+}
+
+int kvm_xen_gnttab_copy_initial_frame(struct kvm *kvm)
+{
+	struct kvm_grant_table *gnttab = &kvm->arch.xen.gnttab;
+	int idx = 0;
+
+	/* Only meant to copy the first gpa being populated */
+	if (!gnttab->initial_addr || !gnttab->frames[idx])
+		return -EINVAL;
+
+	memcpy(gnttab->frames[idx], gnttab->initial, PAGE_SIZE);
+	return 0;
+}
+
+int kvm_xen_maptrack_grow(struct kvm_xen *xen, u32 target)
+{
+	u32 max_entries = target * GPP_V1;
+	u32 nr_entries = xen->gnttab.nr_mt_frames * MPP;
+	int i, j, err = 0;
+	void *addr;
+
+	for (i = nr_entries, j = xen->gnttab.nr_mt_frames;
+	     i < max_entries; i += MPP, j++) {
+		addr = (void *) get_zeroed_page(GFP_KERNEL);
+		if (!addr) {
+			err = -ENOMEM;
+			break;
+		}
+
+		xen->gnttab.handle[j] = addr;
+	}
+
+	xen->gnttab.nr_mt_frames = j;
+	xen->gnttab.nr_frames = target;
+	return err;
+}
+
+int kvm_xen_gnttab_grow(struct kvm *kvm, struct kvm_xen_gnttab *op)
+{
+	struct kvm_xen *xen = &kvm->arch.xen;
+	struct kvm_grant_table *gnttab = &xen->gnttab;
+	gfn_t *map = gnttab->frames_addr;
+	u64 gfn = op->grow.gfn;
+	u32 idx = op->grow.idx;
+	struct page *page;
+
+	if (idx < gnttab->nr_frames || idx >= gnttab->max_nr_frames)
+		return -EINVAL;
+
+	if (!idx && !gnttab->nr_frames &&
+	    !gnttab->initial) {
+		return -EINVAL;
+	}
+
+	page = gfn_to_page(kvm, gfn);
+	if (is_error_page(page))
+		return -EINVAL;
+
+	map[idx] = gfn;
+
+	gnttab->frames[idx] = page_to_virt(page);
+	if (!idx && !gnttab->nr_frames &&
+	    kvm_xen_gnttab_copy_initial_frame(kvm)) {
+		pr_err("kvm_xen: dom%u: failed to copy initial frame\n",
+			xen->domid);
+		return -EFAULT;
+	}
+
+	if (kvm_xen_maptrack_grow(xen, gnttab->nr_frames + 1)) {
+		pr_warn("kvm_xen: dom%u: cannot grow maptrack\n", xen->domid);
+		return -EFAULT;
+	}
+
+	pr_debug("kvm_xen: dom%u: grant table grow frames:%d/%d\n", xen->domid,
+		 gnttab->nr_frames, gnttab->max_nr_frames);
+	return 0;
 }
 
 int kvm_vm_ioctl_xen_gnttab(struct kvm *kvm, struct kvm_xen_gnttab *op)
@@ -1173,6 +1260,9 @@ int kvm_vm_ioctl_xen_gnttab(struct kvm *kvm, struct kvm_xen_gnttab *op)
 	switch (op->flags) {
 	case KVM_XEN_GNTTAB_F_INIT:
 		r = kvm_xen_gnttab_init(kvm, &kvm->arch.xen, op, 0);
+		break;
+	case KVM_XEN_GNTTAB_F_GROW:
+		r = kvm_xen_gnttab_grow(kvm, op);
 		break;
 	default:
 		r = -ENOSYS;
