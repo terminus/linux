@@ -804,7 +804,7 @@ int gnttab_alloc_pages(int nr_pages, struct page **pages)
 	int ret;
 
 	ret = alloc_xenballooned_pages(nr_pages, pages);
-	if (ret < 0)
+	if (ret < 0 || xen_shim_domain())
 		return ret;
 
 	ret = gnttab_pages_set_private(nr_pages, pages);
@@ -1045,6 +1045,11 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		{
 			struct xen_page_foreign *foreign;
 
+			if (xen_shim_domain()) {
+				pages[i] = virt_to_page(map_ops[i].host_addr);
+				continue;
+			}
+
 			SetPageForeign(pages[i]);
 			foreign = xen_page_foreign(pages[i]);
 			foreign->domid = map_ops[i].dom;
@@ -1085,8 +1090,10 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (ret)
 		return ret;
 
-	for (i = 0; i < count; i++)
-		ClearPageForeign(pages[i]);
+	for (i = 0; i < count; i++) {
+		if (!xen_shim_domain())
+			ClearPageForeign(pages[i]);
+	}
 
 	return clear_foreign_p2m_mapping(unmap_ops, kunmap_ops, pages, count);
 }
@@ -1113,7 +1120,7 @@ static void __gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item)
 	int pc;
 
 	for (pc = 0; pc < item->count; pc++) {
-		if (page_count(item->pages[pc]) > 1) {
+		if (page_count(item->pages[pc]) > 1 && !xen_shim_domain()) {
 			unsigned long delay = GNTTAB_UNMAP_REFS_DELAY * (item->age + 1);
 			schedule_delayed_work(&item->gnttab_work,
 					      msecs_to_jiffies(delay));
