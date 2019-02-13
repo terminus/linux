@@ -896,6 +896,8 @@ struct kvm_grant_table {
 /* Xen emulation context */
 struct kvm_xen {
 	u64 xen_hypercall;
+
+#define XEN_SHIM_DOMID	0
 	domid_t domid;
 
 	gfn_t shinfo_addr;

@@ -31,3 +31,4 @@ void xen_setup_features(void)
 			xen_features[i * 32 + j] = !!(fi.submap & 1<<j);
 	}
 }
+EXPORT_SYMBOL_GPL(xen_setup_features);

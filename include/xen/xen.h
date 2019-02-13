@@ -10,8 +10,12 @@ enum xen_domain_type {
 
 #ifdef CONFIG_XEN
 extern enum xen_domain_type xen_domain_type;
+extern int xen_shim_domain;
+extern bool xen_shim_domain_get(void);
+extern void xen_shim_domain_put(void);
 #else
 #define xen_domain_type		XEN_NATIVE
+#define xen_shim_domain      0
 #endif
 
 #ifdef CONFIG_XEN_PVH
@@ -24,6 +28,7 @@ extern bool xen_pvh;
 #define xen_pv_domain()		(xen_domain_type == XEN_PV_DOMAIN)
 #define xen_hvm_domain()	(xen_domain_type == XEN_HVM_DOMAIN)
 #define xen_pvh_domain()	(xen_pvh)
+#define xen_shim_domain()	(!xen_domain() && xen_shim_domain)
 
 #include <linux/types.h>
 

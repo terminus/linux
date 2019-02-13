@@ -96,6 +96,16 @@ config KVM_MMU_AUDIT
 	 This option adds a R/W kVM module parameter 'mmu_audit', which allows
 	 auditing of KVM MMU events at runtime.
 
+config XEN_SHIM
+       tristate "Xen hypercall emulation shim"
+       depends on KVM
+       depends on XEN
+       default m
+       help
+	Shim to support Xen hypercalls on non-Xen hosts. It intercepts grant
+	table and event channels hypercalls same way as Xen hypervisor. This is
+	useful for having Xen backend drivers work on KVM.
+
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source "drivers/vhost/Kconfig"

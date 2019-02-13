@@ -233,4 +233,7 @@ extern const struct file_operations xen_xenbus_fops;
 extern struct xenstore_domain_interface *xen_store_interface;
 extern int xen_store_evtchn;
 
+int xenbus_init(void);
+void xenbus_deinit(void);
+
 #endif /* _XEN_XENBUS_H */

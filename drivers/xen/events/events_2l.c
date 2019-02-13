@@ -89,7 +89,7 @@ static void evtchn_2l_unmask(unsigned port)
 	unsigned int cpu = get_cpu();
 	int do_hypercall = 0, evtchn_pending = 0;
 
-	BUG_ON(!irqs_disabled());
+	WARN_ON(!irqs_disabled());
 
 	if (unlikely((cpu != cpu_from_evtchn(port))))
 		do_hypercall = 1;

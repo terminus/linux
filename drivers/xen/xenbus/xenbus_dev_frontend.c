@@ -680,7 +680,7 @@ static struct miscdevice xenbus_dev = {
 	.fops = &xen_xenbus_fops,
 };
 
-static int __init xenbus_init(void)
+static int __init xenbus_frontend_init(void)
 {
 	int err;
 
@@ -692,4 +692,4 @@ static int __init xenbus_init(void)
 		pr_err("Could not register xenbus frontend device\n");
 	return err;
 }
-device_initcall(xenbus_init);
+device_initcall(xenbus_frontend_init);

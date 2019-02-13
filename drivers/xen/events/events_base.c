@@ -1665,7 +1665,7 @@ void xen_callback_vector(void) {}
 static bool fifo_events = true;
 module_param(fifo_events, bool, 0);
 
-void __init xen_init_IRQ(void)
+void xen_init_IRQ(void)
 {
 	int ret = -EINVAL;
 	unsigned int evtchn;
@@ -1682,6 +1682,9 @@ void __init xen_init_IRQ(void)
 	/* No event channels are 'live' right now. */
 	for (evtchn = 0; evtchn < xen_evtchn_nr_channels(); evtchn++)
 		mask_evtchn(evtchn);
+
+	if (xen_shim_domain())
+		return;
 
 	pirq_needs_eoi = pirq_needs_eoi_flag;
 
@@ -1714,3 +1717,4 @@ void __init xen_init_IRQ(void)
 	}
 #endif
 }
+EXPORT_SYMBOL_GPL(xen_init_IRQ);

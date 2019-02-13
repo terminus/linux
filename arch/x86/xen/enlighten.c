@@ -57,6 +57,9 @@ EXPORT_PER_CPU_SYMBOL(xen_vcpu_info);
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
 
+int xen_shim_domain;
+EXPORT_SYMBOL_GPL(xen_shim_domain);
+
 unsigned long *machine_to_phys_mapping = (void *)MACH2PHYS_VIRT_START;
 EXPORT_SYMBOL(machine_to_phys_mapping);
 unsigned long  machine_to_phys_nr;
@@ -349,3 +352,45 @@ void xen_arch_unregister_cpu(int num)
 }
 EXPORT_SYMBOL(xen_arch_unregister_cpu);
 #endif
+
+static struct module *find_module_shim(void)
+{
+	static const char name[] = "xen_shim";
+	struct module *module;
+
+	mutex_lock(&module_mutex);
+	module = find_module(name);
+	mutex_unlock(&module_mutex);
+
+	return module;
+}
+
+bool xen_shim_domain_get(void)
+{
+	struct module *shim;
+
+	if (!xen_shim_domain())
+		return false;
+
+	shim = find_module_shim();
+	if (!shim)
+		return false;
+
+	return try_module_get(shim);
+}
+EXPORT_SYMBOL(xen_shim_domain_get);
+
+void xen_shim_domain_put(void)
+{
+	struct module *shim;
+
+	if (!xen_shim_domain())
+		return;
+
+	shim = find_module_shim();
+	if (!shim)
+		return;
+
+	module_put(shim);
+}
+EXPORT_SYMBOL(xen_shim_domain_put);
