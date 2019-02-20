@@ -71,6 +71,7 @@
 #include <asm/mshyperv.h>
 #include <asm/hypervisor.h>
 #include <asm/intel_pt.h>
+#include <xen/xen.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
@@ -3048,6 +3049,9 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		break;
 	case KVM_CAP_ADJUST_CLOCK:
 		r = KVM_CLOCK_TSC_STABLE;
+		break;
+	case KVM_CAP_XEN_HVM_DOM0:
+		r = xen_shim_domain();
 		break;
 	case KVM_CAP_X86_DISABLE_EXITS:
 		r |=  KVM_X86_DISABLE_EXITS_HLT | KVM_X86_DISABLE_EXITS_PAUSE;

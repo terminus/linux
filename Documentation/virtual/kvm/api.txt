@@ -5046,3 +5046,13 @@ This capability indicates KVM's support for the event channel offload.
 Implies support for KVM_IRQ_ROUTING_XEN_EVTCHN irq routing, and
 for attribute KVM_XEN_ATTR_TYPE_EVTCHN in KVM_XEN_HVM_GET_ATTR or
 KVM_XEN_HVM_SET_ATTR.
+
+8.24 KVM_CAP_XEN_HVM_DOM0
+
+Architectures: x86
+
+This capability indicates support for assigning domid and handling kernel
+backends in the hypervisor. Also implies that attributes
+KVM_XEN_ATTR_TYPE_DOMID, KVM_XEN_ATTR_TYPE_GNTTAB are supported.  For the
+existing KVM_XEN_ATTR_TYPE_EVTCHN attribute, it indicates support for
+interdomain and unbound event channels.

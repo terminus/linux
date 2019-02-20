@@ -1005,6 +1005,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_HYPERV_CPUID 167
 #define KVM_CAP_XEN_HVM_GUEST 168
 #define KVM_CAP_XEN_HVM_EVTCHN 169
+#define KVM_CAP_XEN_HVM_DOM0 170
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1485,6 +1486,7 @@ struct kvm_xen_hvm_attr {
 
 #define XEN_EVTCHN_TYPE_VIRQ      0
 #define XEN_EVTCHN_TYPE_IPI       1
+/* Available with KVM_CAP_XEN_HVM_DOM0 */
 #define XEN_EVTCHN_TYPE_INTERDOM  2
 #define XEN_EVTCHN_TYPE_UNBOUND   3
 			__u32 type;
@@ -1536,6 +1538,7 @@ struct kvm_xen_hvm_attr {
 #define KVM_XEN_ATTR_TYPE_VCPU_RUNSTATE     0x3
 /* Available with KVM_CAP_XEN_HVM_EVTCHN */
 #define KVM_XEN_ATTR_TYPE_EVTCHN            0x4
+/* Available with KVM_CAP_XEN_HVM_DOM0 */
 #define KVM_XEN_ATTR_TYPE_DOMID             0x5
 #define KVM_XEN_ATTR_TYPE_GNTTAB            0x6
 
