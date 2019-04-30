@@ -431,7 +431,7 @@ void __init xen_msi_init(void)
 		 * event channels for MSI handling and instead use regular
 		 * APIC processing
 		 */
-		uint32_t eax = cpuid_eax(xen_cpuid_base() + 4);
+		uint32_t eax = cpuid_eax(xenhost_cpuid_base(xh_default) + 4);
 
 		if (((eax & XEN_HVM_CPUID_X2APIC_VIRT) && x2apic_mode) ||
 		    ((eax & XEN_HVM_CPUID_APIC_ACCESS_VIRT) && boot_cpu_has(X86_FEATURE_APIC)))

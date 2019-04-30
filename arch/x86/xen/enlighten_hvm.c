@@ -83,7 +83,10 @@ static void __init xen_hvm_init_mem_mapping(void)
 	xen_vcpu_info_reset(0);
 }
 
+extern uint32_t xen_pv_cpuid_base(xenhost_t *xh);
+
 xenhost_ops_t xh_hvm_ops = {
+	.cpuid_base = xen_pv_cpuid_base,
 };
 
 xenhost_ops_t xh_hvm_nested_ops = {
@@ -94,7 +97,7 @@ static void __init init_hvm_pv_info(void)
 	int major, minor;
 	uint32_t eax, ebx, ecx, edx, base;
 
-	base = xen_cpuid_base();
+	base = xenhost_cpuid_base(xh_default);
 	eax = cpuid_eax(base + 1);
 
 	major = eax >> 16;
@@ -250,7 +253,7 @@ static uint32_t __init xen_platform_hvm(void)
 	if (xen_pv_domain() || xen_nopv)
 		return 0;
 
-	return xen_cpuid_base();
+	return xenhost_cpuid_base(xh_default);
 }
 
 static __init void xen_hvm_guest_late_init(void)

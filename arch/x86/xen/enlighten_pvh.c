@@ -29,6 +29,10 @@ void __init xen_pvh_init(void)
 	u32 msr;
 	u64 pfn;
 
+	/*
+	 * Note: we have already called xen_cpuid_base() in
+	 * hypervisor_specific_init()
+	 */
 	xenhost_register(xenhost_r1, &xh_hvm_ops);
 
 	/*

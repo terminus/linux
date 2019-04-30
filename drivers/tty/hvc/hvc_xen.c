@@ -595,7 +595,7 @@ console_initcall(xen_cons_init);
 #ifdef CONFIG_X86
 static void xen_hvm_early_write(uint32_t vtermno, const char *str, int len)
 {
-	if (xen_cpuid_base())
+	if (xen_cpuid_base(xh_default))
 		outsb(0xe9, str, len);
 }
 #else

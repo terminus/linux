@@ -49,6 +49,7 @@
 #include <asm/xen/hypervisor.h>
 #include <xen/xenbus.h>
 #include <xen/xen.h>
+#include <xen/xenhost.h>
 #include "xenbus.h"
 
 /*
@@ -722,7 +723,7 @@ static bool xen_strict_xenbus_quirk(void)
 #ifdef CONFIG_X86
 	uint32_t eax, ebx, ecx, edx, base;
 
-	base = xen_cpuid_base();
+	base = xenhost_cpuid_base(xh_default);
 	cpuid(base + 1, &eax, &ebx, &ecx, &edx);
 
 	if ((eax >> 16) < 4)

@@ -1,6 +1,9 @@
 #ifndef __XENHOST_H
 #define __XENHOST_H
 
+#include <xen/interface/features.h>
+#include <xen/interface/xen.h>
+#include <asm/xen/hypervisor.h>
 /*
  * Xenhost abstracts out the Xen interface. It co-exists with the PV/HVM/PVH
  * abstractions (x86_init, hypervisor_x86, pv_ops etc) and is meant to
@@ -70,6 +73,16 @@ typedef struct {
 } xenhost_t;
 
 typedef struct xenhost_ops {
+	/*
+	 * xen_cpuid is used to probe features early.
+	 * xenhost_r0:
+	 *   Implementation could not use cpuid at all: it's difficult to
+	 *   intercept cpuid instruction locally.
+	 * xenhost_r1:
+	 * xenhost_r2:
+	 *   Separate cpuid-leafs?
+	 */
+	uint32_t (*cpuid_base)(xenhost_t *xenhost);
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;
@@ -91,5 +104,13 @@ void __xenhost_unregister(enum xenhost_type type);
 #define for_each_xenhost(xh) \
 	for ((xh) = (xenhost_t **) &xenhosts[0];	\
 		(((xh) - (xenhost_t **)&xenhosts) < 2) && (*xh)->type != xenhost_invalid; (xh)++)
+
+static inline uint32_t xenhost_cpuid_base(xenhost_t *xh)
+{
+	if (xh)
+		return (xh->ops->cpuid_base)(xh);
+	else
+		return xen_cpuid_base();
+}
 
 #endif /* __XENHOST_H */

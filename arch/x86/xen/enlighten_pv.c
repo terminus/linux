@@ -1189,10 +1189,23 @@ static void __init xen_dom0_set_legacy_features(void)
 	x86_platform.legacy.rtc = 1;
 }
 
+uint32_t xen_pv_cpuid_base(xenhost_t *xh)
+{
+	return hypervisor_cpuid_base("XenVMMXenVMM", 2);
+}
+
+uint32_t xen_pv_nested_cpuid_base(xenhost_t *xh)
+{
+	return hypervisor_cpuid_base("XenVMMXenVMM",
+				2 /* nested specific leaf? */);
+}
+
 xenhost_ops_t xh_pv_ops = {
+	.cpuid_base = xen_pv_cpuid_base,
 };
 
 xenhost_ops_t xh_pv_nested_ops = {
+	.cpuid_base = xen_pv_nested_cpuid_base,
 };
 
 /* First C function to be called on Xen boot */
@@ -1469,7 +1482,8 @@ static int xen_cpu_dead_pv(unsigned int cpu)
 static uint32_t __init xen_platform_pv(void)
 {
 	if (xen_pv_domain())
-		return xen_cpuid_base();
+		/* xenhost is setup in xen_start_kernel. */
+		return xenhost_cpuid_base(xh_default);
 
 	return 0;
 }

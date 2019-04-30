@@ -50,6 +50,7 @@
 #endif
 
 #include <xen/xen.h>
+#include <xen/xenhost.h>
 #include <xen/interface/xen.h>
 #include <xen/page.h>
 #include <xen/grant_table.h>
@@ -1318,7 +1319,7 @@ static bool gnttab_need_v2(void)
 	uint32_t base, width;
 
 	if (xen_pv_domain()) {
-		base = xen_cpuid_base();
+		base = xenhost_cpuid_base(xh_default);
 		if (cpuid_eax(base) < 5)
 			return false;	/* Information not available, use V1. */
 		width = cpuid_ebx(base + 5) &

@@ -53,7 +53,7 @@ static inline bool xen_x2apic_para_available(void)
 #else
 static inline bool xen_x2apic_para_available(void)
 {
-	return (xen_cpuid_base() != 0);
+	return (xen_cpuid_base(NULL) != 0);
 }
 #endif
 
