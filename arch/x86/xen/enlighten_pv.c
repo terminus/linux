@@ -36,6 +36,7 @@
 
 #include <xen/xen.h>
 #include <xen/events.h>
+#include <xen/xenhost.h>
 #include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
@@ -1188,6 +1189,12 @@ static void __init xen_dom0_set_legacy_features(void)
 	x86_platform.legacy.rtc = 1;
 }
 
+xenhost_ops_t xh_pv_ops = {
+};
+
+xenhost_ops_t xh_pv_nested_ops = {
+};
+
 /* First C function to be called on Xen boot */
 asmlinkage __visible void __init xen_start_kernel(void)
 {
@@ -1197,6 +1204,15 @@ asmlinkage __visible void __init xen_start_kernel(void)
 
 	if (!xen_start_info)
 		return;
+
+	xenhost_register(xenhost_r1, &xh_pv_ops);
+
+	/*
+	 * Detect in some implementation defined manner whether this is
+	 * nested or not.
+	 */
+	if (xen_driver_domain() && xen_nested())
+		xenhost_register(xenhost_r2, &xh_pv_nested_ops);
 
 	xen_domain_type = XEN_PV_DOMAIN;
 	xen_start_flags = xen_start_info->flags;

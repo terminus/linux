@@ -42,6 +42,9 @@ extern struct hvm_start_info pvh_start_info;
 #define xen_initial_domain()	(0)
 #endif	/* CONFIG_XEN_DOM0 */
 
+#define xen_driver_domain()	xen_initial_domain()
+#define xen_nested()	0
+
 struct bio_vec;
 bool xen_biovec_phys_mergeable(const struct bio_vec *vec1,
 		const struct bio_vec *vec2);

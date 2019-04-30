@@ -5,6 +5,7 @@
 #include <linux/kexec.h>
 #include <linux/memblock.h>
 
+#include <xen/xenhost.h>
 #include <xen/features.h>
 #include <xen/events.h>
 #include <xen/interface/memory.h>
@@ -81,6 +82,12 @@ static void __init xen_hvm_init_mem_mapping(void)
 	 */
 	xen_vcpu_info_reset(0);
 }
+
+xenhost_ops_t xh_hvm_ops = {
+};
+
+xenhost_ops_t xh_hvm_nested_ops = {
+};
 
 static void __init init_hvm_pv_info(void)
 {
@@ -179,6 +186,12 @@ static void __init xen_hvm_guest_init(void)
 {
 	if (xen_pv_domain())
 		return;
+	/*
+	 * We need only xenhost_r1 for HVM guests since they cannot be
+	 * driver domain (?) or dom0.
+	 */
+	if (!xen_pvh_domain())
+		xenhost_register(xenhost_r1, &xh_hvm_ops);
 
 	init_hvm_pv_info();
 

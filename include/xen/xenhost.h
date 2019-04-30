@@ -1,0 +1,95 @@
+#ifndef __XENHOST_H
+#define __XENHOST_H
+
+/*
+ * Xenhost abstracts out the Xen interface. It co-exists with the PV/HVM/PVH
+ * abstractions (x86_init, hypervisor_x86, pv_ops etc) and is meant to
+ * expose ops for communication between the guest and Xen (hypercall, cpuid,
+ * shared_info/vcpu_info, evtchn, grant-table and on top of those, xenbus, ballooning),
+ * so these could differ based on the kind of underlying Xen: regular, local,
+ * and nested.
+ *
+ * Any call-sites which initiate communication with the hypervisor take
+ * xenhost_t * as a parameter and use the appropriate xenhost interface.
+ *
+ * Note, that the init for the nested xenhost (in the nested dom0 case,
+ * there are two) happens for each operation alongside the default xenhost
+ * (which remains similar to the one now) and is not deferred for later.
+ * This allows us to piggy-back on the non-trivial sequencing, inter-locking
+ * logic in the init of the default xenhost.
+ */
+
+/*
+ * xenhost_type: specifies the controlling Xen interface. The notation,
+ * xenhost_r0, xenhost_r1, xenhost_r2 is meant to invoke hypervisor distance
+ * from the guest.
+ *
+ * Note that the distance is relative, and so does not identify a specific
+ * hypervisor, just the role played by the interface: so, instance for L0-guest
+ * xenhost_r1 would be L0-Xen and for an L1-guest, L1-Xen.
+ */
+enum xenhost_type {
+	xenhost_invalid = 0,
+	/*
+	 * xenhost_r1: the guest's frontend or backend drivers talking
+	 * to a hypervisor one level removed.
+	 * This is the ordinary, non-nested configuration as well as for the
+	 * typical nested frontends and backends.
+	 *
+	 * The corresponding xenhost_t would continue to use the current
+	 * interfaces, via a redirection layer.
+	 */
+	xenhost_r1,
+
+	/*
+	 * xenhost_r2: frontend drivers communicating with a hypervisor two
+	 * levels removed: so L1-dom0-frontends communicating with L0-Xen.
+	 *
+	 * This is the nested-Xen configuration: L1-dom0-frontend drivers can
+	 * now talk to L0-dom0-backend drivers via a separate xenhost_t.
+	 */
+	xenhost_r2,
+
+	/*
+	 * Local/Co-located case: backend drivers now run in the same address
+	 * space as the hypervisor. The driver model remains same as
+	 * xenhost_r1, but with slightly different interfaces.
+	 *
+	 * Any frontend guests of this hypervisor will continue to be
+	 * xenhost_r1.
+	 */
+	xenhost_r0,
+};
+
+struct xenhost_ops;
+
+typedef struct {
+	enum xenhost_type type;
+
+	struct xenhost_ops *ops;
+} xenhost_t;
+
+typedef struct xenhost_ops {
+} xenhost_ops_t;
+
+extern xenhost_t *xh_default, *xh_remote;
+extern xenhost_t xenhosts[2];
+
+/*
+ * xenhost_register(): is called early in the guest's xen-init, after it detects
+ * in some implementation defined manner what kind of underlying xenhost or
+ * xenhosts exist.
+ * Specifies the type of xenhost being registered and the ops for that.
+ */
+void xenhost_register(enum xenhost_type type, xenhost_ops_t *ops);
+void __xenhost_unregister(enum xenhost_type type);
+
+
+/*
+ * Convoluted interface so we can do this without adding a loop counter.
+ */
+#define for_each_xenhost(xh) \
+	for ((xh) = (xenhost_t **) &xenhosts[0];	\
+		(((xh) - (xenhost_t **)&xenhosts) < 2) && (*xh)->type != xenhost_invalid; (xh)++)
+
+#endif /* __XENHOST_H */
