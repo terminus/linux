@@ -70,6 +70,9 @@ ENTRY(xen_hypercall_page)
 #include <asm/xen-hypercalls.h>
 #undef HYPERCALL
 END(xen_hypercall_page)
+/*
+ * Add xen_hypercall_page2 for remote xenhost?
+ */
 .popsection
 
 	ELFNOTE(Xen, XEN_ELFNOTE_GUEST_OS,       .asciz "linux")

@@ -26,8 +26,7 @@ extern xenhost_ops_t xh_hvm_ops, xh_hvm_nested_ops;
 
 void __init xen_pvh_init(void)
 {
-	u32 msr;
-	u64 pfn;
+	xenhost_t **xh;
 
 	/*
 	 * Note: we have already called xen_cpuid_base() in
@@ -45,10 +44,8 @@ void __init xen_pvh_init(void)
 	xen_pvh = 1;
 	xen_start_flags = pvh_start_info.flags;
 
-	msr = cpuid_ebx(xen_cpuid_base() + 2);
-	pfn = __pa(xen_hypercall_page);
-	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-	hypercall_page = xen_hypercall_page;
+	for_each_xenhost(xh)
+		xenhost_setup_hypercall_page(*xh);
 }
 
 void __init mem_map_via_hcall(struct boot_params *boot_params_p)

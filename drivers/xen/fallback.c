@@ -5,14 +5,14 @@
 #include <asm/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
-int xen_event_channel_op_compat(int cmd, void *arg)
+int xen_event_channel_op_compat(xenhost_t *xh, int cmd, void *arg)
 {
 	struct evtchn_op op;
 	int rc;
 
 	op.cmd = cmd;
 	memcpy(&op.u, arg, sizeof(op.u));
-	rc = _hypercall1(int, event_channel_op_compat, &op);
+	rc = _hypercall1(xh, int, event_channel_op_compat, &op);
 
 	switch (cmd) {
 	case EVTCHNOP_close:
@@ -44,14 +44,14 @@ int xen_event_channel_op_compat(int cmd, void *arg)
 }
 EXPORT_SYMBOL_GPL(xen_event_channel_op_compat);
 
-int xen_physdev_op_compat(int cmd, void *arg)
+int xen_physdev_op_compat(xenhost_t *xh, int cmd, void *arg)
 {
 	struct physdev_op op;
 	int rc;
 
 	op.cmd = cmd;
 	memcpy(&op.u, arg, sizeof(op.u));
-	rc = _hypercall1(int, physdev_op_compat, &op);
+	rc = _hypercall1(xh, int, physdev_op_compat, &op);
 
 	switch (cmd) {
 	case PHYSDEVOP_IRQ_UNMASK_NOTIFY:

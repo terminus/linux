@@ -51,6 +51,7 @@
 #include <xen/interface/physdev.h>
 #include <xen/interface/platform.h>
 #include <xen/interface/xen-mca.h>
+#include <xen/xenhost.h>
 
 struct xen_dm_op_buf;
 
@@ -88,11 +89,11 @@ struct xen_dm_op_buf;
 
 struct hypercall_entry { char _entry[32]; };
 extern struct hypercall_entry xen_hypercall_page[128];
-extern struct hypercall_entry *hypercall_page;
+extern struct hypercall_entry xen_hypercall_page2[128];
 
 #define __HYPERCALL	CALL_NOSPEC
-#define __HYPERCALL_ENTRY(x)						\
-	[thunk_target] "0" (hypercall_page + __HYPERVISOR_##x)
+#define __HYPERCALL_ENTRY(xh, x)						\
+	[thunk_target] "0" (xh->hypercall_page + __HYPERVISOR_##x)
 
 #ifdef CONFIG_X86_32
 #define __HYPERCALL_RETREG	"eax"
@@ -144,57 +145,57 @@ extern struct hypercall_entry *hypercall_page;
 #define __HYPERCALL_CLOBBER1	__HYPERCALL_CLOBBER2, __HYPERCALL_ARG2REG
 #define __HYPERCALL_CLOBBER0	__HYPERCALL_CLOBBER1, __HYPERCALL_ARG1REG
 
-#define _hypercall0(type, name)						\
+#define _hypercall0(xh, type, name)					\
 ({									\
 	__HYPERCALL_DECLS;						\
 	__HYPERCALL_0ARG();						\
 	asm volatile (__HYPERCALL					\
 		      : __HYPERCALL_0PARAM				\
-		      : __HYPERCALL_ENTRY(name)				\
+		      : __HYPERCALL_ENTRY(xh, name)			\
 		      : __HYPERCALL_CLOBBER0);				\
 	(type)__res;							\
 })
 
-#define _hypercall1(type, name, a1)					\
+#define _hypercall1(xh, type, name, a1)					\
 ({									\
 	__HYPERCALL_DECLS;						\
 	__HYPERCALL_1ARG(a1);						\
 	asm volatile (__HYPERCALL					\
 		      : __HYPERCALL_1PARAM				\
-		      : __HYPERCALL_ENTRY(name)				\
+		      : __HYPERCALL_ENTRY(xh, name)			\
 		      : __HYPERCALL_CLOBBER1);				\
 	(type)__res;							\
 })
 
-#define _hypercall2(type, name, a1, a2)					\
+#define _hypercall2(xh, type, name, a1, a2)				\
 ({									\
 	__HYPERCALL_DECLS;						\
 	__HYPERCALL_2ARG(a1, a2);					\
 	asm volatile (__HYPERCALL					\
 		      : __HYPERCALL_2PARAM				\
-		      : __HYPERCALL_ENTRY(name)				\
+		      : __HYPERCALL_ENTRY(xh, name)			\
 		      : __HYPERCALL_CLOBBER2);				\
 	(type)__res;							\
 })
 
-#define _hypercall3(type, name, a1, a2, a3)				\
+#define _hypercall3(xh, type, name, a1, a2, a3)				\
 ({									\
 	__HYPERCALL_DECLS;						\
 	__HYPERCALL_3ARG(a1, a2, a3);					\
 	asm volatile (__HYPERCALL					\
 		      : __HYPERCALL_3PARAM				\
-		      : __HYPERCALL_ENTRY(name)				\
+		      : __HYPERCALL_ENTRY(xh, name)			\
 		      : __HYPERCALL_CLOBBER3);				\
 	(type)__res;							\
 })
 
-#define _hypercall4(type, name, a1, a2, a3, a4)				\
+#define _hypercall4(xh, type, name, a1, a2, a3, a4)			\
 ({									\
 	__HYPERCALL_DECLS;						\
 	__HYPERCALL_4ARG(a1, a2, a3, a4);				\
 	asm volatile (__HYPERCALL					\
 		      : __HYPERCALL_4PARAM				\
-		      : __HYPERCALL_ENTRY(name)				\
+		      : __HYPERCALL_ENTRY(xh, name)			\
 		      : __HYPERCALL_CLOBBER4);				\
 	(type)__res;							\
 })
@@ -210,7 +211,7 @@ xen_single_call(unsigned int call,
 
 	asm volatile(CALL_NOSPEC
 		     : __HYPERCALL_5PARAM
-		     : [thunk_target] "0" (hypercall_page + call)
+		     : [thunk_target] "0" (xh_default->hypercall_page + call)
 		     : __HYPERCALL_CLOBBER5);
 
 	return (long)__res;
@@ -232,170 +233,235 @@ privcmd_call(unsigned int call,
 }
 
 static inline int
-HYPERVISOR_set_trap_table(struct trap_info *table)
+hypervisor_set_trap_table(xenhost_t *xh, struct trap_info *table)
 {
-	return _hypercall1(int, set_trap_table, table);
+	return _hypercall1(xh, int, set_trap_table, table);
 }
 
+#define HYPERVISOR_set_trap_table(table) \
+	hypervisor_set_trap_table(xh_default, table)
+
 static inline int
-HYPERVISOR_mmu_update(struct mmu_update *req, int count,
+hypervisor_mmu_update(xenhost_t *xh, struct mmu_update *req, int count,
 		      int *success_count, domid_t domid)
 {
-	return _hypercall4(int, mmu_update, req, count, success_count, domid);
+	return _hypercall4(xh, int, mmu_update, req, count, success_count, domid);
 }
+#define HYPERVISOR_mmu_update(req, count, success_count, domid)	\
+	hypervisor_mmu_update(xh_default, req, count, success_count, domid)
 
 static inline int
-HYPERVISOR_mmuext_op(struct mmuext_op *op, int count,
+hypervisor_mmuext_op(xenhost_t *xh, struct mmuext_op *op, int count,
 		     int *success_count, domid_t domid)
 {
-	return _hypercall4(int, mmuext_op, op, count, success_count, domid);
+	return _hypercall4(xh, int, mmuext_op, op, count, success_count, domid);
 }
 
-static inline int
-HYPERVISOR_set_gdt(unsigned long *frame_list, int entries)
-{
-	return _hypercall2(int, set_gdt, frame_list, entries);
-}
+#define HYPERVISOR_mmuext_op(op, count, success_count, domid)	\
+	hypervisor_mmuext_op(xh_default, op, count, success_count, domid)
 
 static inline int
-HYPERVISOR_callback_op(int cmd, void *arg)
+hypervisor_set_gdt(xenhost_t *xh, unsigned long *frame_list, int entries)
 {
-	return _hypercall2(int, callback_op, cmd, arg);
+	return _hypercall2(xh, int, set_gdt, frame_list, entries);
 }
 
+#define HYPERVISOR_set_gdt(frame_list, entries)		\
+	hypervisor_set_gdt(xh_default, frame_list, entries)
+
 static inline int
-HYPERVISOR_sched_op(int cmd, void *arg)
+hypervisor_callback_op(xenhost_t *xh, int cmd, void *arg)
 {
-	return _hypercall2(int, sched_op, cmd, arg);
+	return _hypercall2(xh, int, callback_op, cmd, arg);
 }
+
+#define HYPERVISOR_callback_op(cmd, arg)	\
+	hypervisor_callback_op(xh_default, cmd, arg)
+
+static inline int
+hypervisor_sched_op(xenhost_t *xh, int cmd, void *arg)
+{
+	return _hypercall2(xh, int, sched_op, cmd, arg);
+}
+
+#define HYPERVISOR_sched_op(cmd, arg)		\
+	 hypervisor_sched_op(xh_default, cmd, arg)
 
 static inline long
-HYPERVISOR_set_timer_op(u64 timeout)
+hypervisor_set_timer_op(xenhost_t *xh, u64 timeout)
 {
 	unsigned long timeout_hi = (unsigned long)(timeout>>32);
 	unsigned long timeout_lo = (unsigned long)timeout;
-	return _hypercall2(long, set_timer_op, timeout_lo, timeout_hi);
+	return _hypercall2(xh, long, set_timer_op, timeout_lo, timeout_hi);
 }
 
+#define HYPERVISOR_set_timer_op(timeout)	\
+	hypervisor_set_timer_op(xh_default, timeout)
+
 static inline int
-HYPERVISOR_mca(struct xen_mc *mc_op)
+hypervisor_mca(xenhost_t *xh, struct xen_mc *mc_op)
 {
 	mc_op->interface_version = XEN_MCA_INTERFACE_VERSION;
-	return _hypercall1(int, mca, mc_op);
+	return _hypercall1(xh, int, mca, mc_op);
 }
 
+#define HYPERVISOR_mca(mc_op)	\
+	hypervisor_mca(xh_default, mc_op)
+
 static inline int
-HYPERVISOR_platform_op(struct xen_platform_op *op)
+hypervisor_platform_op(xenhost_t *xh, struct xen_platform_op *op)
 {
 	op->interface_version = XENPF_INTERFACE_VERSION;
-	return _hypercall1(int, platform_op, op);
+	return _hypercall1(xh, int, platform_op, op);
 }
 
+#define HYPERVISOR_platform_op(op)	\
+	hypervisor_platform_op(xh_default, op)
+
 static inline int
-HYPERVISOR_set_debugreg(int reg, unsigned long value)
+hypervisor_set_debugreg(xenhost_t *xh, int reg, unsigned long value)
 {
-	return _hypercall2(int, set_debugreg, reg, value);
+	return _hypercall2(xh, int, set_debugreg, reg, value);
 }
+
+#define HYPERVISOR_set_debugreg(reg, value)	\
+	hypervisor_set_debugreg(xh_default, reg, value)
 
 static inline unsigned long
-HYPERVISOR_get_debugreg(int reg)
+hypervisor_get_debugreg(xenhost_t *xh, int reg)
 {
-	return _hypercall1(unsigned long, get_debugreg, reg);
+	return _hypercall1(xh, unsigned long, get_debugreg, reg);
 }
+#define HYPERVISOR_get_debugreg(reg)	\
+	hypervisor_get_debugreg(xh_default, reg)
 
 static inline int
-HYPERVISOR_update_descriptor(u64 ma, u64 desc)
+hypervisor_update_descriptor(xenhost_t *xh, u64 ma, u64 desc)
 {
 	if (sizeof(u64) == sizeof(long))
-		return _hypercall2(int, update_descriptor, ma, desc);
-	return _hypercall4(int, update_descriptor, ma, ma>>32, desc, desc>>32);
+		return _hypercall2(xh, int, update_descriptor, ma, desc);
+	return _hypercall4(xh, int, update_descriptor, ma, ma>>32, desc, desc>>32);
 }
+
+#define HYPERVISOR_update_descriptor(ma, desc)	\
+	hypervisor_update_descriptor(xh_default, ma, desc)
 
 static inline long
-HYPERVISOR_memory_op(unsigned int cmd, void *arg)
+hypervisor_memory_op(xenhost_t *xh, unsigned int cmd, void *arg)
 {
-	return _hypercall2(long, memory_op, cmd, arg);
+	return _hypercall2(xh, long, memory_op, cmd, arg);
 }
 
-static inline int
-HYPERVISOR_multicall(void *call_list, uint32_t nr_calls)
-{
-	return _hypercall2(int, multicall, call_list, nr_calls);
-}
+#define HYPERVISOR_memory_op(cmd, arg)	\
+	hypervisor_memory_op(xh_default, cmd, arg)	\
 
 static inline int
-HYPERVISOR_update_va_mapping(unsigned long va, pte_t new_val,
+hypervisor_multicall(xenhost_t *xh, void *call_list, uint32_t nr_calls)
+{
+	return _hypercall2(xh, int, multicall, call_list, nr_calls);
+}
+
+#define HYPERVISOR_multicall(call_list, nr_calls)	\
+	hypervisor_multicall(xh_default, call_list, nr_calls)
+
+static inline int
+hypervisor_update_va_mapping(xenhost_t *xh, unsigned long va, pte_t new_val,
 			     unsigned long flags)
 {
 	if (sizeof(new_val) == sizeof(long))
-		return _hypercall3(int, update_va_mapping, va,
+		return _hypercall3(xh, int, update_va_mapping, va,
 				   new_val.pte, flags);
 	else
-		return _hypercall4(int, update_va_mapping, va,
+		return _hypercall4(xh, int, update_va_mapping, va,
 				   new_val.pte, new_val.pte >> 32, flags);
 }
-extern int __must_check xen_event_channel_op_compat(int, void *);
+
+#define HYPERVISOR_update_va_mapping(va, new_val, flags)	\
+	hypervisor_update_va_mapping(xh_default, va, new_val, flags)
+
+extern int __must_check xen_event_channel_op_compat(xenhost_t *xh, int, void *);
 
 static inline int
-HYPERVISOR_event_channel_op(int cmd, void *arg)
+hypervisor_event_channel_op(xenhost_t *xh, int cmd, void *arg)
 {
-	int rc = _hypercall2(int, event_channel_op, cmd, arg);
+	int rc = _hypercall2(xh, int, event_channel_op, cmd, arg);
 	if (unlikely(rc == -ENOSYS))
-		rc = xen_event_channel_op_compat(cmd, arg);
+		rc = xen_event_channel_op_compat(xh, cmd, arg);
 	return rc;
 }
 
+#define HYPERVISOR_event_channel_op(cmd, arg)		\
+	hypervisor_event_channel_op(xh_default, cmd, arg)
+
 static inline int
-HYPERVISOR_xen_version(int cmd, void *arg)
+hypervisor_xen_version(xenhost_t *xh, int cmd, void *arg)
 {
-	return _hypercall2(int, xen_version, cmd, arg);
+	return _hypercall2(xh, int, xen_version, cmd, arg);
 }
 
+#define HYPERVISOR_xen_version(cmd, arg)	\
+	hypervisor_xen_version(xh_default, cmd, arg)
+
 static inline int
-HYPERVISOR_console_io(int cmd, int count, char *str)
+hypervisor_console_io(xenhost_t *xh, int cmd, int count, char *str)
 {
-	return _hypercall3(int, console_io, cmd, count, str);
+	return _hypercall3(xh, int, console_io, cmd, count, str);
 }
+#define HYPERVISOR_console_io(cmd, count, str) \
+	hypervisor_console_io(xh_default, cmd, count, str)
 
-extern int __must_check xen_physdev_op_compat(int, void *);
+extern int __must_check xen_physdev_op_compat(xenhost_t *xh, int, void *);
 
 static inline int
-HYPERVISOR_physdev_op(int cmd, void *arg)
+hypervisor_physdev_op(xenhost_t *xh, int cmd, void *arg)
 {
-	int rc = _hypercall2(int, physdev_op, cmd, arg);
+	int rc = _hypercall2(xh, int, physdev_op, cmd, arg);
 	if (unlikely(rc == -ENOSYS))
-		rc = xen_physdev_op_compat(cmd, arg);
+		rc = xen_physdev_op_compat(xh, cmd, arg);
 	return rc;
 }
+#define HYPERVISOR_physdev_op(cmd, arg)	\
+	hypervisor_physdev_op(xh_default, cmd, arg)
 
 static inline int
-HYPERVISOR_grant_table_op(unsigned int cmd, void *uop, unsigned int count)
+hypervisor_grant_table_op(xenhost_t *xh, unsigned int cmd, void *uop, unsigned int count)
 {
-	return _hypercall3(int, grant_table_op, cmd, uop, count);
+	return _hypercall3(xh, int, grant_table_op, cmd, uop, count);
 }
 
-static inline int
-HYPERVISOR_vm_assist(unsigned int cmd, unsigned int type)
-{
-	return _hypercall2(int, vm_assist, cmd, type);
-}
+#define HYPERVISOR_grant_table_op(cmd, uop, count)	\
+	hypervisor_grant_table_op(xh_default, cmd, uop, count)
 
 static inline int
-HYPERVISOR_vcpu_op(int cmd, int vcpuid, void *extra_args)
+hypervisor_vm_assist(xenhost_t *xh, unsigned int cmd, unsigned int type)
 {
-	return _hypercall3(int, vcpu_op, cmd, vcpuid, extra_args);
+	return _hypercall2(xh, int, vm_assist, cmd, type);
 }
+
+#define HYPERVISOR_vm_assist(cmd, type)		\
+	hypervisor_vm_assist(xh_default, cmd, type)
+
+static inline int
+hypervisor_vcpu_op(xenhost_t *xh, int cmd, int vcpuid, void *extra_args)
+{
+	return _hypercall3(xh, int, vcpu_op, cmd, vcpuid, extra_args);
+}
+
+#define HYPERVISOR_vcpu_op(cmd, vcpuid, extra_args)	\
+	hypervisor_vcpu_op(xh_default, cmd, vcpuid, extra_args)
 
 #ifdef CONFIG_X86_64
 static inline int
-HYPERVISOR_set_segment_base(int reg, unsigned long value)
+hypervisor_set_segment_base(xenhost_t *xh, int reg, unsigned long value)
 {
-	return _hypercall2(int, set_segment_base, reg, value);
+	return _hypercall2(xh, int, set_segment_base, reg, value);
 }
+#define HYPERVISOR_set_segment_base(reg, value)		\
+	hypervisor_set_segment_base(xh_default, reg, value)
 #endif
 
 static inline int
-HYPERVISOR_suspend(unsigned long start_info_mfn)
+hypervisor_suspend(xenhost_t *xh, unsigned long start_info_mfn)
 {
 	struct sched_shutdown r = { .reason = SHUTDOWN_suspend };
 
@@ -405,38 +471,53 @@ HYPERVISOR_suspend(unsigned long start_info_mfn)
 	 * hypercall calling convention this is the third hypercall
 	 * argument, which is start_info_mfn here.
 	 */
-	return _hypercall3(int, sched_op, SCHEDOP_shutdown, &r, start_info_mfn);
+	return _hypercall3(xh, int, sched_op, SCHEDOP_shutdown, &r, start_info_mfn);
 }
+#define HYPERVISOR_suspend(start_info_mfn)	\
+	hypervisor_suspend(xh_default, start_info_mfn)
 
 static inline unsigned long __must_check
-HYPERVISOR_hvm_op(int op, void *arg)
+hypervisor_hvm_op(xenhost_t *xh, int op, void *arg)
 {
-       return _hypercall2(unsigned long, hvm_op, op, arg);
+       return _hypercall2(xh, unsigned long, hvm_op, op, arg);
 }
 
+#define HYPERVISOR_hvm_op(op, arg)	\
+	hypervisor_hvm_op(xh_default, op, arg)
+
 static inline int
-HYPERVISOR_tmem_op(
+hypervisor_tmem_op(
+	xenhost_t *xh,
 	struct tmem_op *op)
 {
-	return _hypercall1(int, tmem_op, op);
+	return _hypercall1(xh, int, tmem_op, op);
 }
 
+#define HYPERVISOR_tmem_op(op)	\
+	hypervisor_tmem_op(xh_default, op)
+
 static inline int
-HYPERVISOR_xenpmu_op(unsigned int op, void *arg)
+hypervisor_xenpmu_op(xenhost_t *xh, unsigned int op, void *arg)
 {
-	return _hypercall2(int, xenpmu_op, op, arg);
+	return _hypercall2(xh, int, xenpmu_op, op, arg);
 }
 
+#define HYPERVISOR_xenpmu_op(op, arg) \
+	hypervisor_xenpmu_op(xh_default, op, arg)
+
 static inline int
-HYPERVISOR_dm_op(
+hypervisor_dm_op(
+	xenhost_t *xh,
 	domid_t dom, unsigned int nr_bufs, struct xen_dm_op_buf *bufs)
 {
 	int ret;
 	stac();
-	ret = _hypercall3(int, dm_op, dom, nr_bufs, bufs);
+	ret = _hypercall3(xh, int, dm_op, dom, nr_bufs, bufs);
 	clac();
 	return ret;
 }
+#define HYPERVISOR_dm_op(dom, nr_bufs, bufs)	\
+	hypervisor_dm_op(xh_default, dom, nr_bufs, bufs)
 
 static inline void
 MULTI_fpu_taskswitch(struct multicall_entry *mcl, int set)

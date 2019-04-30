@@ -85,8 +85,20 @@ static void __init xen_hvm_init_mem_mapping(void)
 
 extern uint32_t xen_pv_cpuid_base(xenhost_t *xh);
 
+void xen_hvm_setup_hypercall_page(xenhost_t *xh)
+{
+	u32 msr;
+	u64 pfn;
+
+	msr = cpuid_ebx(xenhost_cpuid_base(xh) + 2);
+	pfn = __pa(xen_hypercall_page);
+	wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
+	xh->hypercall_page = xen_hypercall_page;
+}
+
 xenhost_ops_t xh_hvm_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
+	.setup_hypercall_page = xen_hvm_setup_hypercall_page,
 };
 
 xenhost_ops_t xh_hvm_nested_ops = {
@@ -96,6 +108,7 @@ static void __init init_hvm_pv_info(void)
 {
 	int major, minor;
 	uint32_t eax, ebx, ecx, edx, base;
+	xenhost_t **xh;
 
 	base = xenhost_cpuid_base(xh_default);
 	eax = cpuid_eax(base + 1);
@@ -110,14 +123,10 @@ static void __init init_hvm_pv_info(void)
 	if (xen_pvh_domain())
 		pv_info.name = "Xen PVH";
 	else {
-		u64 pfn;
-		uint32_t msr;
-
 		pv_info.name = "Xen HVM";
-		msr = cpuid_ebx(base + 2);
-		pfn = __pa(xen_hypercall_page);
-		wrmsr_safe(msr, (u32)pfn, (u32)(pfn >> 32));
-		hypercall_page = xen_hypercall_page;
+
+		for_each_xenhost(xh)
+			xenhost_setup_hypercall_page(*xh);
 	}
 
 	xen_setup_features();

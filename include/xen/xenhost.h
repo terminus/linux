@@ -70,6 +70,8 @@ typedef struct {
 	enum xenhost_type type;
 
 	struct xenhost_ops *ops;
+
+	struct hypercall_entry *hypercall_page;
 } xenhost_t;
 
 typedef struct xenhost_ops {
@@ -83,6 +85,22 @@ typedef struct xenhost_ops {
 	 *   Separate cpuid-leafs?
 	 */
 	uint32_t (*cpuid_base)(xenhost_t *xenhost);
+
+	/*
+	 * Hypercall page is setup as the first thing once the PV/PVH/PVHVM
+	 * code detects that it is selected. The first use is in
+	 * xen_setup_features().
+	 *
+	 * PV/PVH/PVHVM set this up in different ways: hypervisor takes
+	 * care of this for PV, PVH and PVHVM use xen_cpuid.
+	 *
+	 *  xenhost_r0: point hypercall_page to external hypercall_page.
+	 *  xenhost_r1: what we do now.
+	 *  xenhost_r2: hypercall interface that bypasses L1-Xen to go from
+	 *    L1-guest to L0-Xen. The interface would allow L0-Xen to be able
+	 *    to decide which particular L1-guest was the caller.
+	 */
+	void (*setup_hypercall_page)(xenhost_t *xenhost);
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;
@@ -111,6 +129,11 @@ static inline uint32_t xenhost_cpuid_base(xenhost_t *xh)
 		return (xh->ops->cpuid_base)(xh);
 	else
 		return xen_cpuid_base();
+}
+
+static inline void xenhost_setup_hypercall_page(xenhost_t *xh)
+{
+	(xh->ops->setup_hypercall_page)(xh);
 }
 
 #endif /* __XENHOST_H */

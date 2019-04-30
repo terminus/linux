@@ -1200,12 +1200,20 @@ uint32_t xen_pv_nested_cpuid_base(xenhost_t *xh)
 				2 /* nested specific leaf? */);
 }
 
+static void xen_pv_setup_hypercall_page(xenhost_t *xh)
+{
+	xh->hypercall_page = xen_hypercall_page;
+}
+
 xenhost_ops_t xh_pv_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
+
+	.setup_hypercall_page = xen_pv_setup_hypercall_page,
 };
 
 xenhost_ops_t xh_pv_nested_ops = {
 	.cpuid_base = xen_pv_nested_cpuid_base,
+	.setup_hypercall_page = NULL,
 };
 
 /* First C function to be called on Xen boot */
@@ -1213,11 +1221,11 @@ asmlinkage __visible void __init xen_start_kernel(void)
 {
 	struct physdev_set_iopl set_iopl;
 	unsigned long initrd_start = 0;
+	xenhost_t **xh;
 	int rc;
 
 	if (!xen_start_info)
 		return;
-	hypercall_page = xen_hypercall_page;
 
 	xenhost_register(xenhost_r1, &xh_pv_ops);
 
@@ -1227,6 +1235,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	if (xen_driver_domain() && xen_nested())
 		xenhost_register(xenhost_r2, &xh_pv_nested_ops);
+
+	for_each_xenhost(xh)
+		xenhost_setup_hypercall_page(*xh);
 
 	xen_domain_type = XEN_PV_DOMAIN;
 	xen_start_flags = xen_start_info->flags;
