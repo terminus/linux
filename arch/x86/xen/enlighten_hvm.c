@@ -119,17 +119,24 @@ static void __init init_hvm_pv_info(void)
 
 	xen_domain_type = XEN_HVM_DOMAIN;
 
-	/* PVH set up hypercall page in xen_prepare_pvh(). */
 	if (xen_pvh_domain())
 		pv_info.name = "Xen PVH";
-	else {
+	else
 		pv_info.name = "Xen HVM";
 
-		for_each_xenhost(xh)
+	for_each_xenhost(xh) {
+		/* PVH set up hypercall page in xen_prepare_pvh(). */
+		if (!xen_pvh_domain())
 			xenhost_setup_hypercall_page(*xh);
+		xen_setup_features(*xh);
 	}
 
-	xen_setup_features();
+	/*
+	 * Check if features are compatible across L1-Xen and L0-Xen;
+	 * If not, get rid of xenhost_r2.
+	 */
+	if (xen_validate_features() == false)
+		__xenhost_unregister(xenhost_r2);
 
 	cpuid(base + 4, &eax, &ebx, &ecx, &edx);
 	if (eax & XEN_HVM_CPUID_VCPU_ID_PRESENT)

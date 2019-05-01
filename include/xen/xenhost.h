@@ -4,6 +4,7 @@
 #include <xen/interface/features.h>
 #include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
+
 /*
  * Xenhost abstracts out the Xen interface. It co-exists with the PV/HVM/PVH
  * abstractions (x86_init, hypervisor_x86, pv_ops etc) and is meant to
@@ -72,6 +73,15 @@ typedef struct {
 	struct xenhost_ops *ops;
 
 	struct hypercall_entry *hypercall_page;
+
+	/*
+	 * Not clear if we need to draw features from two different
+	 * hypervisors. There is one feature that seems might be necessary:
+	 * XENFEAT_hvm_callback_vector.
+	 * Ensuring support in both L1-Xen and L0-Xen means that L0-Xen can
+	 * bounce callbacks via L1-Xen.
+	 */
+	u8 features[XENFEAT_NR_SUBMAPS * 32];
 } xenhost_t;
 
 typedef struct xenhost_ops {

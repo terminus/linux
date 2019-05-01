@@ -11,14 +11,25 @@
 #define __XEN_FEATURES_H__
 
 #include <xen/interface/features.h>
+#include <xen/xenhost.h>
 
-void xen_setup_features(void);
+void xen_setup_features(xenhost_t *xh);
 
-extern u8 xen_features[XENFEAT_NR_SUBMAPS * 32];
+bool xen_validate_features(void);
 
+static inline int __xen_feature(xenhost_t *xh, int flag)
+{
+	return xh->features[flag];
+}
+
+/*
+ * We've validated the features that need to be common for both xenhost_r1 and
+ * xenhost_r2 (XENFEAT_hvm_callback_vector, XENFEAT_auto_translated_physmap.)
+ * Most of the other features should be only needed for the default xenhost.
+ */
 static inline int xen_feature(int flag)
 {
-	return xen_features[flag];
+	return __xen_feature(xh_default, flag);
 }
 
 #endif /* __ASM_XEN_FEATURES_H__ */

@@ -1236,13 +1236,19 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	if (xen_driver_domain() && xen_nested())
 		xenhost_register(xenhost_r2, &xh_pv_nested_ops);
 
-	for_each_xenhost(xh)
-		xenhost_setup_hypercall_page(*xh);
-
 	xen_domain_type = XEN_PV_DOMAIN;
 	xen_start_flags = xen_start_info->flags;
 
-	xen_setup_features();
+	for_each_xenhost(xh) {
+		xenhost_setup_hypercall_page(*xh);
+		xen_setup_features(*xh);
+	}
+	/*
+	 * Check if features are compatible across L1-Xen and L0-Xen;
+	 * If not, get rid of xenhost_r2.
+	 */
+	if (xen_validate_features() == false)
+		__xenhost_unregister(xenhost_r2);
 
 	/* Install Xen paravirt ops */
 	pv_info = xen_info;
