@@ -20,35 +20,6 @@
 #include "smp.h"
 #include "pmu.h"
 
-/*
- * Pointer to the xen_vcpu_info structure or
- * &HYPERVISOR_shared_info->vcpu_info[cpu]. See xen_hvm_init_shared_info
- * and xen_vcpu_setup for details. By default it points to share_info->vcpu_info
- * but if the hypervisor supports VCPUOP_register_vcpu_info then it can point
- * to xen_vcpu_info. The pointer is used in __xen_evtchn_do_upcall to
- * acknowledge pending events.
- * Also more subtly it is used by the patched version of irq enable/disable
- * e.g. xen_irq_enable_direct and xen_iret in PV mode.
- *
- * The desire to be able to do those mask/unmask operations as a single
- * instruction by using the per-cpu offset held in %gs is the real reason
- * vcpu info is in a per-cpu pointer and the original reason for this
- * hypercall.
- *
- */
-DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
-
-/*
- * Per CPU pages used if hypervisor supports VCPUOP_register_vcpu_info
- * hypercall. This can be used both in PV and PVHVM mode. The structure
- * overrides the default per_cpu(xen_vcpu, cpu) value.
- */
-DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
-
-/* Linux <-> Xen vCPU id mapping */
-DEFINE_PER_CPU(uint32_t, xen_vcpu_id);
-EXPORT_PER_CPU_SYMBOL(xen_vcpu_id);
-
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
 EXPORT_SYMBOL_GPL(xen_domain_type);
 
@@ -112,12 +83,12 @@ int xen_cpuhp_setup(int (*cpu_up_prepare_cb)(unsigned int),
 	return rc >= 0 ? 0 : rc;
 }
 
-static int xen_vcpu_setup_restore(int cpu)
+static int xen_vcpu_setup_restore(xenhost_t *xh, int cpu)
 {
 	int rc = 0;
 
 	/* Any per_cpu(xen_vcpu) is stale, so reset it */
-	xen_vcpu_info_reset(cpu);
+	xen_vcpu_info_reset(xh, cpu);
 
 	/*
 	 * For PVH and PVHVM, setup online VCPUs only. The rest will
@@ -125,7 +96,7 @@ static int xen_vcpu_setup_restore(int cpu)
 	 */
 	if (xen_pv_domain() ||
 	    (xen_hvm_domain() && cpu_online(cpu))) {
-		rc = xen_vcpu_setup(cpu);
+		rc = xen_vcpu_setup(xh, cpu);
 	}
 
 	return rc;
@@ -138,30 +109,42 @@ static int xen_vcpu_setup_restore(int cpu)
  */
 void xen_vcpu_restore(void)
 {
-	int cpu, rc;
+	int cpu, rc = 0;
 
+	/*
+	 * VCPU management is primarily the responsibility of xh_default and
+	 * xh_remote only needs VCPUOP_register_vcpu_info.
+	 * So, we do VPUOP_down and VCPUOP_up only on xh_default.
+	 *
+	 * (Currently, however, VCPUOP_register_vcpu_info is allowed only
+	 * on VCPUs that are self or down, so we might need a new model
+	 * there.)
+	 */
 	for_each_possible_cpu(cpu) {
 		bool other_cpu = (cpu != smp_processor_id());
 		bool is_up;
+		xenhost_t **xh;
 
-		if (xen_vcpu_nr(cpu) == XEN_VCPU_ID_INVALID)
+		if (xen_vcpu_nr(xh_default, cpu) == XEN_VCPU_ID_INVALID)
 			continue;
 
 		/* Only Xen 4.5 and higher support this. */
 		is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up,
-					   xen_vcpu_nr(cpu), NULL) > 0;
+					   xen_vcpu_nr(xh_default, cpu), NULL) > 0;
 
 		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
+		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(xh_default, cpu), NULL))
 			BUG();
 
 		if (xen_pv_domain() || xen_feature(XENFEAT_hvm_safe_pvclock))
 			xen_setup_runstate_info(cpu);
 
-		rc = xen_vcpu_setup_restore(cpu);
-		if (rc)
-			pr_emerg_once("vcpu restore failed for cpu=%d err=%d. "
-					"System will hang.\n", cpu, rc);
+		for_each_xenhost(xh) {
+			rc = xen_vcpu_setup_restore(*xh, cpu);
+			if (rc)
+				pr_emerg_once("vcpu restore failed for cpu=%d err=%d. "
+						"System will hang.\n", cpu, rc);
+		}
 		/*
 		 * In case xen_vcpu_setup_restore() fails, do not bring up the
 		 * VCPU. This helps us avoid the resulting OOPS when the VCPU
@@ -172,29 +155,29 @@ void xen_vcpu_restore(void)
 		 * VCPUs to come up.
 		 */
 		if (other_cpu && is_up && (rc == 0) &&
-		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
+		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(xh_default, cpu), NULL))
 			BUG();
 	}
 }
 
-void xen_vcpu_info_reset(int cpu)
+void xen_vcpu_info_reset(xenhost_t *xh, int cpu)
 {
-	if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS) {
-		per_cpu(xen_vcpu, cpu) =
-			&xh_default->HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
+	if (xen_vcpu_nr(xh, cpu) < MAX_VIRT_CPUS) {
+		xh->xen_vcpu[cpu] =
+			&xh->HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(xh, cpu)];
 	} else {
 		/* Set to NULL so that if somebody accesses it we get an OOPS */
-		per_cpu(xen_vcpu, cpu) = NULL;
+		xh->xen_vcpu[cpu] = NULL;
 	}
 }
 
-int xen_vcpu_setup(int cpu)
+int xen_vcpu_setup(xenhost_t *xh, int cpu)
 {
 	struct vcpu_register_vcpu_info info;
 	int err;
 	struct vcpu_info *vcpup;
 
-	BUG_ON(xh_default->HYPERVISOR_shared_info == &xen_dummy_shared_info);
+	BUG_ON(xh->HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	/*
 	 * This path is called on PVHVM at bootup (xen_hvm_smp_prepare_boot_cpu)
@@ -208,12 +191,12 @@ int xen_vcpu_setup(int cpu)
 	 * use this function.
 	 */
 	if (xen_hvm_domain()) {
-		if (per_cpu(xen_vcpu, cpu) == &per_cpu(xen_vcpu_info, cpu))
+		if (xh->xen_vcpu[cpu] == &xh->xen_vcpu_info[cpu])
 			return 0;
 	}
 
 	if (xen_have_vcpu_info_placement) {
-		vcpup = &per_cpu(xen_vcpu_info, cpu);
+		vcpup = &xh->xen_vcpu_info[cpu];
 		info.mfn = arbitrary_virt_to_mfn(vcpup);
 		info.offset = offset_in_page(vcpup);
 
@@ -227,8 +210,8 @@ int xen_vcpu_setup(int cpu)
 		 * hypercall does not allow to over-write info.mfn and
 		 * info.offset.
 		 */
-		err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info,
-					 xen_vcpu_nr(cpu), &info);
+		err = hypervisor_vcpu_op(xh, VCPUOP_register_vcpu_info,
+					 xen_vcpu_nr(xh, cpu), &info);
 
 		if (err) {
 			pr_warn_once("register_vcpu_info failed: cpu=%d err=%d\n",
@@ -239,14 +222,14 @@ int xen_vcpu_setup(int cpu)
 			 * This cpu is using the registered vcpu info, even if
 			 * later ones fail to.
 			 */
-			per_cpu(xen_vcpu, cpu) = vcpup;
+			xh->xen_vcpu[cpu] = vcpup;
 		}
 	}
 
 	if (!xen_have_vcpu_info_placement)
-		xen_vcpu_info_reset(cpu);
+		xen_vcpu_info_reset(xh, cpu);
 
-	return ((per_cpu(xen_vcpu, cpu) == NULL) ? -ENODEV : 0);
+	return ((xh->xen_vcpu[cpu] == NULL) ? -ENODEV : 0);
 }
 
 void xen_reboot(int reason)

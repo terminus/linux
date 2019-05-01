@@ -5,6 +5,7 @@
 #include <linux/kexec.h>
 #include <linux/memblock.h>
 
+#include <xen/interface/xen.h>
 #include <xen/xenhost.h>
 #include <xen/features.h>
 #include <xen/events.h>
@@ -72,22 +73,22 @@ static void __init xen_hvm_init_mem_mapping(void)
 {
 	xenhost_t **xh;
 
-	for_each_xenhost(xh)
+	for_each_xenhost(xh) {
 		xenhost_reset_shared_info(*xh);
 
-	/*
-	 * The virtual address of the shared_info page has changed, so
-	 * the vcpu_info pointer for VCPU 0 is now stale.
-	 *
-	 * The prepare_boot_cpu callback will re-initialize it via
-	 * xen_vcpu_setup, but we can't rely on that to be called for
-	 * old Xen versions (xen_have_vector_callback == 0).
-	 *
-	 * It is, in any case, bad to have a stale vcpu_info pointer
-	 * so reset it now.
-	 * For now, this uses xh_default implictly.
-	 */
-	xen_vcpu_info_reset(0);
+		/*
+		 * The virtual address of the shared_info page has changed, so
+		 * the vcpu_info pointer for VCPU 0 is now stale.
+		 *
+		 * The prepare_boot_cpu callback will re-initialize it via
+		 * xen_vcpu_setup, but we can't rely on that to be called for
+		 * old Xen versions (xen_have_vector_callback == 0).
+		 *
+		 * It is, in any case, bad to have a stale vcpu_info pointer
+		 * so reset it now.
+		 */
+		xen_vcpu_info_reset(*xh, 0);
+	}
 }
 
 extern uint32_t xen_pv_cpuid_base(xenhost_t *xh);
@@ -103,11 +104,32 @@ void xen_hvm_setup_hypercall_page(xenhost_t *xh)
 	xh->hypercall_page = xen_hypercall_page;
 }
 
+static void xen_hvm_probe_vcpu_id(xenhost_t *xh, int cpu)
+{
+	uint32_t eax, ebx, ecx, edx, base;
+
+	base = xenhost_cpuid_base(xh);
+
+	if (cpu == 0) {
+		cpuid(base + 4, &eax, &ebx, &ecx, &edx);
+		if (eax & XEN_HVM_CPUID_VCPU_ID_PRESENT)
+			xh->xen_vcpu_id[cpu] = ebx;
+		else
+			xh->xen_vcpu_id[cpu] = smp_processor_id();
+	} else {
+		if (cpu_acpi_id(cpu) != U32_MAX)
+			xh->xen_vcpu_id[cpu] = cpu_acpi_id(cpu);
+		else
+			xh->xen_vcpu_id[cpu] = cpu;
+	}
+}
+
 xenhost_ops_t xh_hvm_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
 	.setup_hypercall_page = xen_hvm_setup_hypercall_page,
 	.setup_shared_info = xen_hvm_init_shared_info,
 	.reset_shared_info = xen_hvm_reset_shared_info,
+	.probe_vcpu_id = xen_hvm_probe_vcpu_id,
 };
 
 xenhost_ops_t xh_hvm_nested_ops = {
@@ -116,7 +138,7 @@ xenhost_ops_t xh_hvm_nested_ops = {
 static void __init init_hvm_pv_info(void)
 {
 	int major, minor;
-	uint32_t eax, ebx, ecx, edx, base;
+	uint32_t eax, base;
 	xenhost_t **xh;
 
 	base = xenhost_cpuid_base(xh_default);
@@ -147,11 +169,8 @@ static void __init init_hvm_pv_info(void)
 	if (xen_validate_features() == false)
 		__xenhost_unregister(xenhost_r2);
 
-	cpuid(base + 4, &eax, &ebx, &ecx, &edx);
-	if (eax & XEN_HVM_CPUID_VCPU_ID_PRESENT)
-		this_cpu_write(xen_vcpu_id, ebx);
-	else
-		this_cpu_write(xen_vcpu_id, smp_processor_id());
+	for_each_xenhost(xh)
+		xenhost_probe_vcpu_id(*xh, smp_processor_id());
 }
 
 #ifdef CONFIG_KEXEC_CORE
@@ -172,6 +191,7 @@ static void xen_hvm_crash_shutdown(struct pt_regs *regs)
 static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 {
 	int rc = 0;
+	xenhost_t **xh;
 
 	/*
 	 * This can happen if CPU was offlined earlier and
@@ -182,13 +202,12 @@ static int xen_cpu_up_prepare_hvm(unsigned int cpu)
 		xen_uninit_lock_cpu(cpu);
 	}
 
-	if (cpu_acpi_id(cpu) != U32_MAX)
-		per_cpu(xen_vcpu_id, cpu) = cpu_acpi_id(cpu);
-	else
-		per_cpu(xen_vcpu_id, cpu) = cpu;
-	rc = xen_vcpu_setup(cpu);
-	if (rc)
-		return rc;
+	for_each_xenhost(xh) {
+		xenhost_probe_vcpu_id(*xh, cpu);
+		rc = xen_vcpu_setup(*xh, cpu);
+		if (rc)
+			return rc;
+	}
 
 	if (xen_have_vector_callback && xen_feature(XENFEAT_hvm_safe_pvclock))
 		xen_setup_timer(cpu);
@@ -229,15 +248,15 @@ static void __init xen_hvm_guest_init(void)
 	for_each_xenhost(xh) {
 		reserve_shared_info(*xh);
 		xenhost_setup_shared_info(*xh);
+
+		/*
+		 * xen_vcpu is a pointer to the vcpu_info struct in the
+		 * shared_info page, we use it in the event channel upcall
+		 * and in some pvclock related functions.
+		 */
+		xen_vcpu_info_reset(*xh, 0);
 	}
 
-	/*
-	 * xen_vcpu is a pointer to the vcpu_info struct in the shared_info
-	 * page, we use it in the event channel upcall and in some pvclock
-	 * related functions.
-	 * For now, this uses xh_default implictly.
-	 */
-	xen_vcpu_info_reset(0);
 
 	xen_panic_handler_init();
 

@@ -350,7 +350,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	per_cpu(xen_cr3, cpu) = __pa(swapper_pg_dir);
 
 	ctxt->ctrlreg[3] = xen_pfn_to_cr3(virt_to_gfn(swapper_pg_dir));
-	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(cpu), ctxt))
+	if (HYPERVISOR_vcpu_op(VCPUOP_initialise, xen_vcpu_nr(xh_default, cpu), ctxt))
 		BUG();
 
 	kfree(ctxt);
@@ -374,7 +374,7 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 		return rc;
 
 	/* make sure interrupts start blocked */
-	per_cpu(xen_vcpu, cpu)->evtchn_upcall_mask = 1;
+	xh_default->xen_vcpu[cpu]->evtchn_upcall_mask = 1;
 
 	rc = cpu_initialize_context(cpu, idle);
 	if (rc)
@@ -382,7 +382,7 @@ static int xen_pv_cpu_up(unsigned int cpu, struct task_struct *idle)
 
 	xen_pmu_init(cpu);
 
-	rc = HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL);
+	rc = HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(xh_default, cpu), NULL);
 	BUG_ON(rc);
 
 	while (cpu_report_state(cpu) != CPU_ONLINE)
@@ -407,7 +407,7 @@ static int xen_pv_cpu_disable(void)
 static void xen_pv_cpu_die(unsigned int cpu)
 {
 	while (HYPERVISOR_vcpu_op(VCPUOP_is_up,
-				  xen_vcpu_nr(cpu), NULL)) {
+				  xen_vcpu_nr(xh_default, cpu), NULL)) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		schedule_timeout(HZ/10);
 	}
@@ -423,7 +423,7 @@ static void xen_pv_cpu_die(unsigned int cpu)
 static void xen_pv_play_dead(void) /* used only with HOTPLUG_CPU */
 {
 	play_dead_common();
-	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(smp_processor_id()), NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(xh_default, smp_processor_id()), NULL);
 	cpu_bringup();
 	/*
 	 * commit 4b0c0f294 (tick: Cleanup NOHZ per cpu data on cpu down)
@@ -464,7 +464,7 @@ static void stop_self(void *v)
 
 	set_cpu_online(cpu, false);
 
-	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL);
+	HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(xh_default, cpu), NULL);
 	BUG();
 }
 

@@ -9,12 +9,9 @@
 #include <asm/xen/interface.h>
 #include <xen/interface/vcpu.h>
 
-DECLARE_PER_CPU(struct vcpu_info *, xen_vcpu);
-
-DECLARE_PER_CPU(uint32_t, xen_vcpu_id);
-static inline uint32_t xen_vcpu_nr(int cpu)
+static inline uint32_t xen_vcpu_nr(xenhost_t *xh, int cpu)
 {
-	return per_cpu(xen_vcpu_id, cpu);
+	return xh->xen_vcpu_id[cpu];
 }
 
 #define XEN_VCPU_ID_INVALID U32_MAX

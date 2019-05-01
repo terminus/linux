@@ -29,7 +29,7 @@ asmlinkage __visible unsigned long xen_save_fl(void)
 	struct vcpu_info *vcpu;
 	unsigned long flags;
 
-	vcpu = this_cpu_read(xen_vcpu);
+	vcpu = xh_default->xen_vcpu[smp_processor_id()];
 
 	/* flag has opposite sense of mask */
 	flags = !vcpu->evtchn_upcall_mask;
@@ -51,7 +51,7 @@ __visible void xen_restore_fl(unsigned long flags)
 
 	/* See xen_irq_enable() for why preemption must be disabled. */
 	preempt_disable();
-	vcpu = this_cpu_read(xen_vcpu);
+	vcpu = xh_default->xen_vcpu[smp_processor_id()];
 	vcpu->evtchn_upcall_mask = flags;
 
 	if (flags == 0) {
@@ -70,7 +70,7 @@ asmlinkage __visible void xen_irq_disable(void)
 	   make sure we're don't switch CPUs between getting the vcpu
 	   pointer and updating the mask. */
 	preempt_disable();
-	this_cpu_read(xen_vcpu)->evtchn_upcall_mask = 1;
+	xh_default->xen_vcpu[smp_processor_id()]->evtchn_upcall_mask = 1;
 	preempt_enable_no_resched();
 }
 PV_CALLEE_SAVE_REGS_THUNK(xen_irq_disable);
@@ -86,7 +86,7 @@ asmlinkage __visible void xen_irq_enable(void)
 	 */
 	preempt_disable();
 
-	vcpu = this_cpu_read(xen_vcpu);
+	vcpu = xh_default->xen_vcpu[smp_processor_id()];
 	vcpu->evtchn_upcall_mask = 0;
 
 	/* Doesn't matter if we get preempted here, because any
@@ -111,7 +111,7 @@ static void xen_halt(void)
 {
 	if (irqs_disabled())
 		HYPERVISOR_vcpu_op(VCPUOP_down,
-				   xen_vcpu_nr(smp_processor_id()), NULL);
+				   xen_vcpu_nr(xh_default, smp_processor_id()), NULL);
 	else
 		xen_safe_halt();
 }

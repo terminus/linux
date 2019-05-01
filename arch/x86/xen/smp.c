@@ -6,6 +6,7 @@
 #include <linux/percpu.h>
 
 #include <xen/events.h>
+#include <xen/xenhost.h>
 
 #include <xen/hvc-console.h>
 #include "xen-ops.h"
@@ -129,7 +130,10 @@ void __init xen_smp_cpus_done(unsigned int max_cpus)
 		return;
 
 	for_each_online_cpu(cpu) {
-		if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS)
+		xenhost_t **xh;
+
+		if ((xen_vcpu_nr(xh_default, cpu) < MAX_VIRT_CPUS) &&
+			(!xh_remote || (xen_vcpu_nr(xh_remote, cpu) < MAX_VIRT_CPUS)))
 			continue;
 
 		rc = cpu_down(cpu);
@@ -138,7 +142,8 @@ void __init xen_smp_cpus_done(unsigned int max_cpus)
 			/*
 			 * Reset vcpu_info so this cpu cannot be onlined again.
 			 */
-			xen_vcpu_info_reset(cpu);
+			for_each_xenhost(xh)
+				xen_vcpu_info_reset(*xh, cpu);
 			count++;
 		} else {
 			pr_warn("%s: failed to bring CPU %d down, error %d\n",

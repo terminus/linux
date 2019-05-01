@@ -90,6 +90,28 @@ typedef struct {
 		struct shared_info *HYPERVISOR_shared_info;
 		unsigned long shared_info_pfn;
 	};
+
+	struct {
+		/*
+		 * Events on xen-evtchn ports show up in struct vcpu_info.
+		 * With multiple xenhosts, the evtchn-port numbering space that
+		 * was global so far is now attached to a xenhost.
+		 *
+		 * So, now we allocate vcpu_info for each processor (we had space
+		 * for only MAX_VIRT_CPUS in the shared_info above.)
+		 *
+		 * FIXME we statically allocate for NR_CPUS because alloc_percpu()
+		 * isn't available at PV boot time but this is slow.
+		 */
+		struct vcpu_info xen_vcpu_info[NR_CPUS];
+		struct vcpu_info *xen_vcpu[NR_CPUS];
+
+		/*
+		 * Different xenhosts might have different Linux <-> Xen vCPU-id
+		 * mapping.
+		 */
+		uint32_t xen_vcpu_id[NR_CPUS];
+	};
 } xenhost_t;
 
 typedef struct xenhost_ops {
@@ -139,6 +161,26 @@ typedef struct xenhost_ops {
 	 */
 	void (*setup_shared_info)(xenhost_t *xenhost);
 	void (*reset_shared_info)(xenhost_t *xenhost);
+
+	/*
+	 * vcpu_info, vcpu_id: needs to be setup early -- all IRQ code accesses
+	 * relevant bits.
+	 *
+	 * vcpu_id is probed on PVH/PVHVM via xen_cpuid(). For PV, its direct
+	 * mapped to smp_processor_id().
+	 *
+	 * This is part of xenhost_t because we might be registered with two
+	 * different xenhosts and both of those might have their own vcpu
+	 * numbering.
+	 *
+	 * After the vcpu numbering is identified, we can go ahead and register
+	 * vcpu_info with the xenhost; on the default xenhost this happens via
+	 * the register_vcpu_info hypercall.
+	 *
+	 * Once vcpu_info is setup (this or the shared_info version), it would
+	 * get accessed via pv_ops.irq.* and the evtchn logic.
+	 */
+	void (*probe_vcpu_id)(xenhost_t *xenhost, int cpu);
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;
@@ -183,6 +225,11 @@ static inline void xenhost_setup_shared_info(xenhost_t *xh)
 static inline void xenhost_reset_shared_info(xenhost_t *xh)
 {
 	(xh->ops->reset_shared_info)(xh);
+}
+
+static inline void xenhost_probe_vcpu_id(xenhost_t *xh, int cpu)
+{
+	(xh->ops->probe_vcpu_id)(xh, cpu);
 }
 
 #endif /* __XENHOST_H */

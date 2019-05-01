@@ -9,6 +9,7 @@
 
 static void __init xen_hvm_smp_prepare_boot_cpu(void)
 {
+	xenhost_t **xh;
 	BUG_ON(smp_processor_id() != 0);
 	native_smp_prepare_boot_cpu();
 
@@ -16,7 +17,8 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 	 * Setup vcpu_info for boot CPU. Secondary CPUs get their vcpu_info
 	 * in xen_cpu_up_prepare_hvm().
 	 */
-	xen_vcpu_setup(0);
+	for_each_xenhost(xh)
+		xen_vcpu_setup(*xh, 0);
 
 	/*
 	 * The alternative logic (which patches the unlock/lock) runs before
@@ -29,6 +31,7 @@ static void __init xen_hvm_smp_prepare_boot_cpu(void)
 
 static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 {
+	xenhost_t **xh;
 	int cpu;
 
 	native_smp_prepare_cpus(max_cpus);
@@ -36,12 +39,14 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 
 	xen_init_lock_cpu(0);
 
-	for_each_possible_cpu(cpu) {
-		if (cpu == 0)
-			continue;
+	for_each_xenhost(xh) {
+		for_each_possible_cpu(cpu) {
+			if (cpu == 0)
+				continue;
 
-		/* Set default vcpu_id to make sure that we don't use cpu-0's */
-		per_cpu(xen_vcpu_id, cpu) = XEN_VCPU_ID_INVALID;
+			/* Set default vcpu_id to make sure that we don't use cpu-0's */
+			(*xh)->xen_vcpu_id[cpu] = XEN_VCPU_ID_INVALID;
+		}
 	}
 }
 

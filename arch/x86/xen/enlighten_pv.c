@@ -36,8 +36,8 @@
 
 #include <xen/xen.h>
 #include <xen/events.h>
-#include <xen/xenhost.h>
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <xen/interface/version.h>
 #include <xen/interface/physdev.h>
 #include <xen/interface/vcpu.h>
@@ -126,12 +126,12 @@ static void __init xen_pv_init_platform(void)
 
 	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));
 
-	for_each_xenhost(xh)
+	for_each_xenhost(xh) {
 		xenhost_setup_shared_info(*xh);
 
-	/* xen clock uses per-cpu vcpu_info, need to init it for boot cpu */
-	/* For now this uses xh_default implicitly. */
-	xen_vcpu_info_reset(0);
+		/* xen clock uses per-cpu vcpu_info, need to init it for boot cpu */
+		xen_vcpu_info_reset(*xh, 0);
+	}
 
 	/* pvclock is in shared info area */
 	xen_init_time_ops();
@@ -973,28 +973,31 @@ static void xen_write_msr(unsigned int msr, unsigned low, unsigned high)
 /* This is called once we have the cpu_possible_mask */
 void __init xen_setup_vcpu_info_placement(void)
 {
+	xenhost_t **xh;
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
-		/* Set up direct vCPU id mapping for PV guests. */
-		per_cpu(xen_vcpu_id, cpu) = cpu;
+		for_each_xenhost(xh) {
+			xenhost_probe_vcpu_id(*xh, cpu);
 
-		/*
-		 * xen_vcpu_setup(cpu) can fail  -- in which case it
-		 * falls back to the shared_info version for cpus
-		 * where xen_vcpu_nr(cpu) < MAX_VIRT_CPUS.
-		 *
-		 * xen_cpu_up_prepare_pv() handles the rest by failing
-		 * them in hotplug.
-		 */
-		(void) xen_vcpu_setup(cpu);
+			/*
+			 * xen_vcpu_setup(cpu) can fail  -- in which case it
+			 * falls back to the shared_info version for cpus
+			 * where xen_vcpu_nr(cpu) < MAX_VIRT_CPUS.
+			 *
+			 * xen_cpu_up_prepare_pv() handles the rest by failing
+			 * them in hotplug.
+			 */
+			(void) xen_vcpu_setup(*xh, cpu);
+		}
 	}
 
 	/*
 	 * xen_vcpu_setup managed to place the vcpu_info within the
 	 * percpu area for all cpus, so make use of it.
 	 */
-	if (xen_have_vcpu_info_placement) {
+	if (xen_have_vcpu_info_placement && false) {
+		/* Disable direct access until we have proper pcpu data structures. */
 		pv_ops.irq.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_ops.irq.restore_fl =
 			__PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
@@ -1110,6 +1113,11 @@ static unsigned char xen_get_nmi_reason(void)
 {
 	unsigned char reason = 0;
 
+	/*
+	 * We could get this information from all the xenhosts and OR it.
+	 * But, the remote xenhost isn't really expected to send us NMIs.
+	 */
+
 	/* Construct a value which looks like it came from port 0x61. */
 	if (test_bit(_XEN_NMIREASON_io_error,
 		     &xh_default->HYPERVISOR_shared_info->arch.nmi_reason))
@@ -1222,6 +1230,12 @@ static void xen_pv_reset_shared_info(xenhost_t *xh)
 		BUG();
 }
 
+void xen_pv_probe_vcpu_id(xenhost_t *xh, int cpu)
+{
+	/* Set up direct vCPU id mapping for PV guests. */
+	xh->xen_vcpu_id[cpu] = cpu;
+}
+
 xenhost_ops_t xh_pv_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
 
@@ -1229,6 +1243,8 @@ xenhost_ops_t xh_pv_ops = {
 
 	.setup_shared_info = xen_pv_setup_shared_info,
 	.reset_shared_info = xen_pv_reset_shared_info,
+
+	.probe_vcpu_id = xen_pv_probe_vcpu_id,
 };
 
 xenhost_ops_t xh_pv_nested_ops = {
@@ -1283,7 +1299,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 * Don't do the full vcpu_info placement stuff until we have
 	 * the cpu_possible_mask and a non-dummy shared_info.
 	 */
-	xen_vcpu_info_reset(0);
+	for_each_xenhost(xh) {
+		xen_vcpu_info_reset(*xh, 0);
+	}
 
 	x86_platform.get_nmi_reason = xen_get_nmi_reason;
 
@@ -1328,7 +1346,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	get_cpu_address_sizes(&boot_cpu_data);
 
 	/* Let's presume PV guests always boot on vCPU with id 0. */
-	per_cpu(xen_vcpu_id, 0) = 0;
+	/* Note: we should be doing this before xen_vcpu_info_reset above. */
+	for_each_xenhost(xh)
+		xenhost_probe_vcpu_id(*xh, 0);
 
 	idt_setup_early_handler();
 
@@ -1485,7 +1505,7 @@ static int xen_cpu_up_prepare_pv(unsigned int cpu)
 {
 	int rc;
 
-	if (per_cpu(xen_vcpu, cpu) == NULL)
+	if (xh_default->xen_vcpu[cpu] == NULL)
 		return -ENODEV;
 
 	xen_setup_timer(cpu);

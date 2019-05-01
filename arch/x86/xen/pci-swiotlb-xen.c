@@ -4,6 +4,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/pci.h>
+#include <xen/interface/xen.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/xen/hypervisor.h>

@@ -1304,17 +1304,17 @@ static void __init xen_pagetable_init(void)
 }
 static void xen_write_cr2(unsigned long cr2)
 {
-	this_cpu_read(xen_vcpu)->arch.cr2 = cr2;
+	xh_default->xen_vcpu[smp_processor_id()]->arch.cr2 = cr2;
 }
 
 static unsigned long xen_read_cr2(void)
 {
-	return this_cpu_read(xen_vcpu)->arch.cr2;
+	return xh_default->xen_vcpu[smp_processor_id()]->arch.cr2;
 }
 
 unsigned long xen_read_cr2_direct(void)
 {
-	return this_cpu_read(xen_vcpu_info.arch.cr2);
+	return xh_default->xen_vcpu_info[smp_processor_id()].arch.cr2;
 }
 
 static noinline void xen_flush_tlb(void)

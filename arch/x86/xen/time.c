@@ -18,12 +18,12 @@
 #include <linux/timekeeper_internal.h>
 
 #include <asm/pvclock.h>
+#include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
 #include <xen/events.h>
 #include <xen/features.h>
-#include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 
 #include "xen-ops.h"
@@ -48,7 +48,7 @@ static u64 xen_clocksource_read(void)
 	u64 ret;
 
 	preempt_disable_notrace();
-	src = &__this_cpu_read(xen_vcpu)->time;
+	src = &xh_default->xen_vcpu[smp_processor_id()]->time;
 	ret = pvclock_clocksource_read(src);
 	preempt_enable_notrace();
 	return ret;
@@ -70,9 +70,10 @@ static void xen_read_wallclock(struct timespec64 *ts)
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
         struct pvclock_vcpu_time_info *vcpu_time;
 
-	vcpu_time = &get_cpu_var(xen_vcpu)->time;
+	preempt_disable_notrace();
+	vcpu_time = &xh_default->xen_vcpu[smp_processor_id()]->time;
 	pvclock_read_wallclock(wall_clock, vcpu_time, ts);
-	put_cpu_var(xen_vcpu);
+	preempt_enable_notrace();
 }
 
 static void xen_get_wallclock(struct timespec64 *now)
@@ -233,9 +234,9 @@ static int xen_vcpuop_shutdown(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, xen_vcpu_nr(cpu),
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_singleshot_timer, xen_vcpu_nr(xh_default, cpu),
 			       NULL) ||
-	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+	    HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(xh_default, cpu),
 			       NULL))
 		BUG();
 
@@ -246,7 +247,7 @@ static int xen_vcpuop_set_oneshot(struct clock_event_device *evt)
 {
 	int cpu = smp_processor_id();
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(xh_default, cpu),
 			       NULL))
 		BUG();
 
@@ -266,7 +267,7 @@ static int xen_vcpuop_set_next_event(unsigned long delta,
 	/* Get an event anyway, even if the timeout is already expired */
 	single.flags = 0;
 
-	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, xen_vcpu_nr(cpu),
+	ret = HYPERVISOR_vcpu_op(VCPUOP_set_singleshot_timer, xen_vcpu_nr(xh_default, cpu),
 				 &single);
 	BUG_ON(ret != 0);
 
@@ -366,7 +367,7 @@ void xen_timer_resume(void)
 
 	for_each_online_cpu(cpu) {
 		if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer,
-				       xen_vcpu_nr(cpu), NULL))
+				       xen_vcpu_nr(xh_default, cpu), NULL))
 			BUG();
 	}
 }
@@ -482,7 +483,7 @@ static void __init xen_time_init(void)
 
 	clocksource_register_hz(&xen_clocksource, NSEC_PER_SEC);
 
-	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(cpu),
+	if (HYPERVISOR_vcpu_op(VCPUOP_stop_periodic_timer, xen_vcpu_nr(xh_default, cpu),
 			       NULL) == 0) {
 		/* Successfully turned off 100Hz tick, so we have the
 		   vcpuop-based timer interface */
@@ -500,7 +501,7 @@ static void __init xen_time_init(void)
 	 * We check ahead on the primary time info if this
 	 * bit is supported hence speeding up Xen clocksource.
 	 */
-	pvti = &__this_cpu_read(xen_vcpu)->time;
+	pvti = &xh_default->xen_vcpu[smp_processor_id()]->time;
 	if (pvti->flags & PVCLOCK_TSC_STABLE_BIT) {
 		pvclock_set_flags(PVCLOCK_TSC_STABLE_BIT);
 		xen_setup_vsyscall_time_info();

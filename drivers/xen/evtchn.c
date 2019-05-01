@@ -475,7 +475,7 @@ static long evtchn_ioctl(struct file *file,
 			break;
 
 		bind_virq.virq = bind.virq;
-		bind_virq.vcpu = xen_vcpu_nr(0);
+		bind_virq.vcpu = xen_vcpu_nr(xh_default, 0);
 		rc = HYPERVISOR_event_channel_op(EVTCHNOP_bind_virq,
 						 &bind_virq);
 		if (rc != 0)

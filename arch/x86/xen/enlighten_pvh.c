@@ -2,13 +2,14 @@
 #include <linux/acpi.h>
 
 #include <xen/hvc-console.h>
+#include <xen/interface/xen.h>
 
 #include <asm/io_apic.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
 
-#include <xen/xen.h>
 #include <xen/xenhost.h>
+#include <xen/xen.h>
 #include <asm/xen/interface.h>
 #include <asm/xen/hypercall.h>
 
