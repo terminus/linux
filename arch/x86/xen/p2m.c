@@ -270,17 +270,17 @@ void __ref xen_build_mfn_list_list(void)
 
 void xen_setup_mfn_list_list(void)
 {
-	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+	BUG_ON(xh_default->HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	if (xen_start_info->flags & SIF_VIRT_P2M_4TOOLS)
-		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
+		xh_default->HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list = ~0UL;
 	else
-		HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
+		xh_default->HYPERVISOR_shared_info->arch.pfn_to_mfn_frame_list_list =
 			virt_to_mfn(p2m_top_mfn);
-	HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
-	HYPERVISOR_shared_info->arch.p2m_generation = 0;
-	HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
-	HYPERVISOR_shared_info->arch.p2m_cr3 =
+	xh_default->HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
+	xh_default->HYPERVISOR_shared_info->arch.p2m_generation = 0;
+	xh_default->HYPERVISOR_shared_info->arch.p2m_vaddr = (unsigned long)xen_p2m_addr;
+	xh_default->HYPERVISOR_shared_info->arch.p2m_cr3 =
 		xen_pfn_to_cr3(virt_to_mfn(swapper_pg_dir));
 }
 
@@ -496,12 +496,12 @@ static pte_t *alloc_p2m_pmd(unsigned long addr, pte_t *pte_pg)
 
 		ptechk = lookup_address(vaddr, &level);
 		if (ptechk == pte_pg) {
-			HYPERVISOR_shared_info->arch.p2m_generation++;
+			xh_default->HYPERVISOR_shared_info->arch.p2m_generation++;
 			wmb(); /* Tools are synchronizing via p2m_generation. */
 			set_pmd(pmdp,
 				__pmd(__pa(pte_newpg[i]) | _KERNPG_TABLE));
 			wmb(); /* Tools are synchronizing via p2m_generation. */
-			HYPERVISOR_shared_info->arch.p2m_generation++;
+			xh_default->HYPERVISOR_shared_info->arch.p2m_generation++;
 			pte_newpg[i] = NULL;
 		}
 
@@ -597,12 +597,12 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 		spin_lock_irqsave(&p2m_update_lock, flags);
 
 		if (pte_pfn(*ptep) == p2m_pfn) {
-			HYPERVISOR_shared_info->arch.p2m_generation++;
+			xh_default->HYPERVISOR_shared_info->arch.p2m_generation++;
 			wmb(); /* Tools are synchronizing via p2m_generation. */
 			set_pte(ptep,
 				pfn_pte(PFN_DOWN(__pa(p2m)), PAGE_KERNEL));
 			wmb(); /* Tools are synchronizing via p2m_generation. */
-			HYPERVISOR_shared_info->arch.p2m_generation++;
+			xh_default->HYPERVISOR_shared_info->arch.p2m_generation++;
 			if (mid_mfn)
 				mid_mfn[p2m_mid_index(pfn)] = virt_to_mfn(p2m);
 			p2m = NULL;
@@ -617,7 +617,7 @@ int xen_alloc_p2m_entry(unsigned long pfn)
 	/* Expanded the p2m? */
 	if (pfn > xen_p2m_last_pfn) {
 		xen_p2m_last_pfn = pfn;
-		HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
+		xh_default->HYPERVISOR_shared_info->arch.max_pfn = xen_p2m_last_pfn;
 	}
 
 	return 0;

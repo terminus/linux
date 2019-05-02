@@ -122,12 +122,15 @@ static void __init xen_banner(void)
 
 static void __init xen_pv_init_platform(void)
 {
+	xenhost_t **xh;
+
 	populate_extra_pte(fix_to_virt(FIX_PARAVIRT_BOOTMAP));
 
-	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
-	HYPERVISOR_shared_info = (void *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+	for_each_xenhost(xh)
+		xenhost_setup_shared_info(*xh);
 
 	/* xen clock uses per-cpu vcpu_info, need to init it for boot cpu */
+	/* For now this uses xh_default implicitly. */
 	xen_vcpu_info_reset(0);
 
 	/* pvclock is in shared info area */
@@ -1109,10 +1112,10 @@ static unsigned char xen_get_nmi_reason(void)
 
 	/* Construct a value which looks like it came from port 0x61. */
 	if (test_bit(_XEN_NMIREASON_io_error,
-		     &HYPERVISOR_shared_info->arch.nmi_reason))
+		     &xh_default->HYPERVISOR_shared_info->arch.nmi_reason))
 		reason |= NMI_REASON_IOCHK;
 	if (test_bit(_XEN_NMIREASON_pci_serr,
-		     &HYPERVISOR_shared_info->arch.nmi_reason))
+		     &xh_default->HYPERVISOR_shared_info->arch.nmi_reason))
 		reason |= NMI_REASON_SERR;
 
 	return reason;
@@ -1205,10 +1208,27 @@ static void xen_pv_setup_hypercall_page(xenhost_t *xh)
 	xh->hypercall_page = xen_hypercall_page;
 }
 
+static void xen_pv_setup_shared_info(xenhost_t *xh)
+{
+	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
+	xh->HYPERVISOR_shared_info = (void *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+}
+
+static void xen_pv_reset_shared_info(xenhost_t *xh)
+{
+	xh->HYPERVISOR_shared_info = &xen_dummy_shared_info;
+	if (hypervisor_update_va_mapping(xh, fix_to_virt(FIX_PARAVIRT_BOOTMAP),
+						 __pte_ma(0), 0))
+		BUG();
+}
+
 xenhost_ops_t xh_pv_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
 
 	.setup_hypercall_page = xen_pv_setup_hypercall_page,
+
+	.setup_shared_info = xen_pv_setup_shared_info,
+	.reset_shared_info = xen_pv_reset_shared_info,
 };
 
 xenhost_ops_t xh_pv_nested_ops = {

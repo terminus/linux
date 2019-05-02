@@ -10,6 +10,8 @@
 
 void xen_pv_pre_suspend(void)
 {
+	xenhost_t **xh;
+
 	xen_mm_pin_all();
 
 	xen_start_info->store_mfn = mfn_to_pfn(xen_start_info->store_mfn);
@@ -18,17 +20,17 @@ void xen_pv_pre_suspend(void)
 
 	BUG_ON(!irqs_disabled());
 
-	HYPERVISOR_shared_info = &xen_dummy_shared_info;
-	if (HYPERVISOR_update_va_mapping(fix_to_virt(FIX_PARAVIRT_BOOTMAP),
-					 __pte_ma(0), 0))
-		BUG();
+	for_each_xenhost(xh)
+		xenhost_reset_shared_info(*xh);
 }
 
 void xen_pv_post_suspend(int suspend_cancelled)
 {
+	xenhost_t **xh;
+
 	xen_build_mfn_list_list();
-	set_fixmap(FIX_PARAVIRT_BOOTMAP, xen_start_info->shared_info);
-	HYPERVISOR_shared_info = (void *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
+	for_each_xenhost(xh)
+		xenhost_setup_shared_info(*xh);
 	xen_setup_mfn_list_list();
 
 	if (suspend_cancelled) {

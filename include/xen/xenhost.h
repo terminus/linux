@@ -82,6 +82,14 @@ typedef struct {
 	 * bounce callbacks via L1-Xen.
 	 */
 	u8 features[XENFEAT_NR_SUBMAPS * 32];
+
+	/*
+	 * shared-info to communicate with this xenhost instance.
+	 */
+	struct {
+		struct shared_info *HYPERVISOR_shared_info;
+		unsigned long shared_info_pfn;
+	};
 } xenhost_t;
 
 typedef struct xenhost_ops {
@@ -111,6 +119,26 @@ typedef struct xenhost_ops {
 	 *    to decide which particular L1-guest was the caller.
 	 */
 	void (*setup_hypercall_page)(xenhost_t *xenhost);
+
+	/*
+	 * shared_info: needed before vcpu-info setup.
+	 *
+	 * Needed early because Xen needs it for irq_disable() and such.
+	 * On PV first a dummy_shared_info is setup which eventually gets
+	 * switched to the real one so this needs to support switching
+	 * xenhost.
+	 *
+	 * Reset for PV is done differently from HVM, so provide a
+	 * separate interface.
+	 *
+	 *  xenhost_r0: point xenhost->HYPERVISOR_shared_info to a
+	 *    newly allocated shared_info page.
+	 *  xenhost_r1: similar to what we do now.
+	 *  xenhost_r2: new remote hypercall to setup a shared_info page.
+	 *    This is where we would now handle L0-Xen irq/evtchns.
+	 */
+	void (*setup_shared_info)(xenhost_t *xenhost);
+	void (*reset_shared_info)(xenhost_t *xenhost);
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;
@@ -144,6 +172,17 @@ static inline uint32_t xenhost_cpuid_base(xenhost_t *xh)
 static inline void xenhost_setup_hypercall_page(xenhost_t *xh)
 {
 	(xh->ops->setup_hypercall_page)(xh);
+}
+
+
+static inline void xenhost_setup_shared_info(xenhost_t *xh)
+{
+	(xh->ops->setup_shared_info)(xh);
+}
+
+static inline void xenhost_reset_shared_info(xenhost_t *xh)
+{
+	(xh->ops->reset_shared_info)(xh);
 }
 
 #endif /* __XENHOST_H */

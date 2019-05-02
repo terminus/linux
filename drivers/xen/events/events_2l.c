@@ -55,37 +55,37 @@ static void evtchn_2l_bind_to_cpu(struct irq_info *info, unsigned cpu)
 
 static void evtchn_2l_clear_pending(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	sync_clear_bit(port, BM(&s->evtchn_pending[0]));
 }
 
 static void evtchn_2l_set_pending(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	sync_set_bit(port, BM(&s->evtchn_pending[0]));
 }
 
 static bool evtchn_2l_is_pending(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	return sync_test_bit(port, BM(&s->evtchn_pending[0]));
 }
 
 static bool evtchn_2l_test_and_set_mask(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	return sync_test_and_set_bit(port, BM(&s->evtchn_mask[0]));
 }
 
 static void evtchn_2l_mask(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	sync_set_bit(port, BM(&s->evtchn_mask[0]));
 }
 
 static void evtchn_2l_unmask(unsigned port)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	unsigned int cpu = get_cpu();
 	int do_hypercall = 0, evtchn_pending = 0;
 
@@ -167,7 +167,7 @@ static void evtchn_2l_handle_events(unsigned cpu)
 	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
 	int i;
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
 
 	/* Timer interrupt has highest priority. */
@@ -264,7 +264,7 @@ static void evtchn_2l_handle_events(unsigned cpu)
 
 irqreturn_t xen_debug_interrupt(int irq, void *dev_id)
 {
-	struct shared_info *sh = HYPERVISOR_shared_info;
+	struct shared_info *sh = xh_default->HYPERVISOR_shared_info;
 	int cpu = smp_processor_id();
 	xen_ulong_t *cpu_evtchn = per_cpu(cpu_evtchn_mask, cpu);
 	int i;

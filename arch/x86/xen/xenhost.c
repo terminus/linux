@@ -2,8 +2,19 @@
 #include <linux/bug.h>
 #include <xen/xen.h>
 #include <xen/xenhost.h>
+#include "xen-ops.h"
 
-xenhost_t xenhosts[2];
+/*
+ * Point at some empty memory to start with. On PV, we map the real shared_info
+ * page as soon as fixmap is up and running and PVH* doesn't use this.
+ */
+xenhost_t xenhosts[2] = {
+	/*
+	 * We should probably have two separate dummy shared_info pages.
+	 */
+	[0].HYPERVISOR_shared_info = &xen_dummy_shared_info,
+	[1].HYPERVISOR_shared_info = &xen_dummy_shared_info,
+};
 /*
  * xh_default: interface to the regular hypervisor. xenhost_type is xenhost_r0
  * or xenhost_r1.

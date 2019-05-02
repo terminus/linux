@@ -26,21 +26,25 @@
 #include "mmu.h"
 #include "smp.h"
 
-static unsigned long shared_info_pfn;
-
-void xen_hvm_init_shared_info(void)
+static void xen_hvm_init_shared_info(xenhost_t *xh)
 {
 	struct xen_add_to_physmap xatp;
 
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = shared_info_pfn;
-	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
+	xatp.gpfn = xh->shared_info_pfn;
+	if (hypervisor_memory_op(xh, XENMEM_add_to_physmap, &xatp))
 		BUG();
 }
 
-static void __init reserve_shared_info(void)
+static void xen_hvm_reset_shared_info(xenhost_t *xh)
+{
+	early_memunmap(xh->HYPERVISOR_shared_info, PAGE_SIZE);
+	xh->HYPERVISOR_shared_info = __va(PFN_PHYS(xh->shared_info_pfn));
+}
+
+static void __init reserve_shared_info(xenhost_t *xh)
 {
 	u64 pa;
 
@@ -58,16 +62,18 @@ static void __init reserve_shared_info(void)
 	     pa += PAGE_SIZE)
 		;
 
-	shared_info_pfn = PHYS_PFN(pa);
+	xh->shared_info_pfn = PHYS_PFN(pa);
 
 	memblock_reserve(pa, PAGE_SIZE);
-	HYPERVISOR_shared_info = early_memremap(pa, PAGE_SIZE);
+	xh->HYPERVISOR_shared_info = early_memremap(pa, PAGE_SIZE);
 }
 
 static void __init xen_hvm_init_mem_mapping(void)
 {
-	early_memunmap(HYPERVISOR_shared_info, PAGE_SIZE);
-	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
+	xenhost_t **xh;
+
+	for_each_xenhost(xh)
+		xenhost_reset_shared_info(*xh);
 
 	/*
 	 * The virtual address of the shared_info page has changed, so
@@ -79,6 +85,7 @@ static void __init xen_hvm_init_mem_mapping(void)
 	 *
 	 * It is, in any case, bad to have a stale vcpu_info pointer
 	 * so reset it now.
+	 * For now, this uses xh_default implictly.
 	 */
 	xen_vcpu_info_reset(0);
 }
@@ -99,6 +106,8 @@ void xen_hvm_setup_hypercall_page(xenhost_t *xh)
 xenhost_ops_t xh_hvm_ops = {
 	.cpuid_base = xen_pv_cpuid_base,
 	.setup_hypercall_page = xen_hvm_setup_hypercall_page,
+	.setup_shared_info = xen_hvm_init_shared_info,
+	.reset_shared_info = xen_hvm_reset_shared_info,
 };
 
 xenhost_ops_t xh_hvm_nested_ops = {
@@ -204,6 +213,8 @@ static int xen_cpu_dead_hvm(unsigned int cpu)
 
 static void __init xen_hvm_guest_init(void)
 {
+	xenhost_t **xh;
+
 	if (xen_pv_domain())
 		return;
 	/*
@@ -215,13 +226,16 @@ static void __init xen_hvm_guest_init(void)
 
 	init_hvm_pv_info();
 
-	reserve_shared_info();
-	xen_hvm_init_shared_info();
+	for_each_xenhost(xh) {
+		reserve_shared_info(*xh);
+		xenhost_setup_shared_info(*xh);
+	}
 
 	/*
 	 * xen_vcpu is a pointer to the vcpu_info struct in the shared_info
 	 * page, we use it in the event channel upcall and in some pvclock
 	 * related functions.
+	 * For now, this uses xh_default implictly.
 	 */
 	xen_vcpu_info_reset(0);
 

@@ -37,7 +37,7 @@ static u64 xen_sched_clock_offset __read_mostly;
 static unsigned long xen_tsc_khz(void)
 {
 	struct pvclock_vcpu_time_info *info =
-		&HYPERVISOR_shared_info->vcpu_info[0].time;
+		&xh_default->HYPERVISOR_shared_info->vcpu_info[0].time;
 
 	return pvclock_tsc_khz(info);
 }
@@ -66,7 +66,7 @@ static u64 xen_sched_clock(void)
 
 static void xen_read_wallclock(struct timespec64 *ts)
 {
-	struct shared_info *s = HYPERVISOR_shared_info;
+	struct shared_info *s = xh_default->HYPERVISOR_shared_info;
 	struct pvclock_wall_clock *wall_clock = &(s->wc);
         struct pvclock_vcpu_time_info *vcpu_time;
 

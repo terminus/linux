@@ -73,12 +73,6 @@ uint32_t xen_start_flags __attribute__((section(".data"))) = 0;
 EXPORT_SYMBOL(xen_start_flags);
 
 /*
- * Point at some empty memory to start with. We map the real shared_info
- * page as soon as fixmap is up and running.
- */
-struct shared_info *HYPERVISOR_shared_info = &xen_dummy_shared_info;
-
-/*
  * Flag to determine whether vcpu info placement is available on all
  * VCPUs.  We assume it is to start with, and then set it to zero on
  * the first failure.  This is because it can succeed on some VCPUs
@@ -187,7 +181,7 @@ void xen_vcpu_info_reset(int cpu)
 {
 	if (xen_vcpu_nr(cpu) < MAX_VIRT_CPUS) {
 		per_cpu(xen_vcpu, cpu) =
-			&HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
+			&xh_default->HYPERVISOR_shared_info->vcpu_info[xen_vcpu_nr(cpu)];
 	} else {
 		/* Set to NULL so that if somebody accesses it we get an OOPS */
 		per_cpu(xen_vcpu, cpu) = NULL;
@@ -200,7 +194,7 @@ int xen_vcpu_setup(int cpu)
 	int err;
 	struct vcpu_info *vcpup;
 
-	BUG_ON(HYPERVISOR_shared_info == &xen_dummy_shared_info);
+	BUG_ON(xh_default->HYPERVISOR_shared_info == &xen_dummy_shared_info);
 
 	/*
 	 * This path is called on PVHVM at bootup (xen_hvm_smp_prepare_boot_cpu)
