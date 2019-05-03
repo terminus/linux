@@ -378,7 +378,7 @@ static int bind_virq_for_mce(void)
 		return ret;
 	}
 
-	ret  = bind_virq_to_irqhandler(VIRQ_MCA, 0,
+	ret  = bind_virq_to_irqhandler(xh_default, VIRQ_MCA, 0,
 				       xen_mce_interrupt, 0, "mce", NULL);
 	if (ret < 0) {
 		pr_err("Failed to bind virq\n");

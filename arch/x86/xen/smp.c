@@ -66,7 +66,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	char *resched_name, *callfunc_name, *debug_name;
 
 	resched_name = kasprintf(GFP_KERNEL, "resched%d", cpu);
-	rc = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR,
+	rc = bind_ipi_to_irqhandler(xh_default, XEN_RESCHEDULE_VECTOR,
 				    cpu,
 				    xen_reschedule_interrupt,
 				    IRQF_PERCPU|IRQF_NOBALANCING,
@@ -78,7 +78,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_resched_irq, cpu).name = resched_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfunc%d", cpu);
-	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_VECTOR,
+	rc = bind_ipi_to_irqhandler(xh_default, XEN_CALL_FUNCTION_VECTOR,
 				    cpu,
 				    xen_call_function_interrupt,
 				    IRQF_PERCPU|IRQF_NOBALANCING,
@@ -90,7 +90,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_callfunc_irq, cpu).name = callfunc_name;
 
 	debug_name = kasprintf(GFP_KERNEL, "debug%d", cpu);
-	rc = bind_virq_to_irqhandler(VIRQ_DEBUG, cpu, xen_debug_interrupt,
+	rc = bind_virq_to_irqhandler(xh_default, VIRQ_DEBUG, cpu, xen_debug_interrupt,
 				     IRQF_PERCPU | IRQF_NOBALANCING,
 				     debug_name, NULL);
 	if (rc < 0)
@@ -99,7 +99,7 @@ int xen_smp_intr_init(unsigned int cpu)
 	per_cpu(xen_debug_irq, cpu).name = debug_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "callfuncsingle%d", cpu);
-	rc = bind_ipi_to_irqhandler(XEN_CALL_FUNCTION_SINGLE_VECTOR,
+	rc = bind_ipi_to_irqhandler(xh_default, XEN_CALL_FUNCTION_SINGLE_VECTOR,
 				    cpu,
 				    xen_call_function_single_interrupt,
 				    IRQF_PERCPU|IRQF_NOBALANCING,
@@ -155,7 +155,7 @@ void __init xen_smp_cpus_done(unsigned int max_cpus)
 
 void xen_smp_send_reschedule(int cpu)
 {
-	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
+	xen_send_IPI_one(xh_default, cpu, XEN_RESCHEDULE_VECTOR);
 }
 
 static void __xen_send_IPI_mask(const struct cpumask *mask,
@@ -164,7 +164,7 @@ static void __xen_send_IPI_mask(const struct cpumask *mask,
 	unsigned cpu;
 
 	for_each_cpu_and(cpu, mask, cpu_online_mask)
-		xen_send_IPI_one(cpu, vector);
+		xen_send_IPI_one(xh_default, cpu, vector);
 }
 
 void xen_smp_send_call_function_ipi(const struct cpumask *mask)
@@ -242,7 +242,7 @@ void xen_send_IPI_self(int vector)
 	int xen_vector = xen_map_vector(vector);
 
 	if (xen_vector >= 0)
-		xen_send_IPI_one(smp_processor_id(), xen_vector);
+		xen_send_IPI_one(xh_default, smp_processor_id(), xen_vector);
 }
 
 void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
@@ -259,7 +259,7 @@ void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
 		if (this_cpu == cpu)
 			continue;
 
-		xen_send_IPI_one(cpu, xen_vector);
+		xen_send_IPI_one(xh_default, cpu, xen_vector);
 	}
 }
 

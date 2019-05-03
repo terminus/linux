@@ -112,6 +112,23 @@ typedef struct {
 		 */
 		uint32_t xen_vcpu_id[NR_CPUS];
 	};
+
+	/*
+	 * evtchn: get init'd via x86_init.irqs.intr_init (xen_init_IRQ()).
+	 *
+	 * The common functionality for xenhost_* provided by xen_init_IRQ()
+	 * is the mapping between evtchn <-> irq.
+	 *
+	 * For all three of xenhost_r0/r1 and r2, post-init the evtchn logic
+	 * should just work using the evtchn_to_irq mapping and the vcpu_info,
+	 * shared_info state.
+	 * (Plus some state private to evtchn_2l/evtchn_fifo which for now
+	 * is defined locally.)
+	 */
+	struct {
+		const struct evtchn_ops *evtchn_ops;
+		int **evtchn_to_irq;
+	};
 } xenhost_t;
 
 typedef struct xenhost_ops {

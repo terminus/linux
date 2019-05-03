@@ -48,6 +48,7 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/hypervisor.h>
 #include <xen/xenbus.h>

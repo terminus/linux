@@ -13,12 +13,12 @@
 #include <linux/kobject.h>
 #include <linux/err.h>
 
+#include <xen/interface/xen.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
-#include <xen/interface/xen.h>
 #include <xen/interface/version.h>
 #ifdef CONFIG_XEN_HAVE_VPMU
 #include <xen/interface/xenpmu.h>

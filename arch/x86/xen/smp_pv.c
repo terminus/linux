@@ -116,7 +116,7 @@ int xen_smp_intr_init_pv(unsigned int cpu)
 	char *callfunc_name, *pmu_name;
 
 	callfunc_name = kasprintf(GFP_KERNEL, "irqwork%d", cpu);
-	rc = bind_ipi_to_irqhandler(XEN_IRQ_WORK_VECTOR,
+	rc = bind_ipi_to_irqhandler(xh_default, XEN_IRQ_WORK_VECTOR,
 				    cpu,
 				    xen_irq_work_interrupt,
 				    IRQF_PERCPU|IRQF_NOBALANCING,
@@ -129,7 +129,7 @@ int xen_smp_intr_init_pv(unsigned int cpu)
 
 	if (is_xen_pmu(cpu)) {
 		pmu_name = kasprintf(GFP_KERNEL, "pmu%d", cpu);
-		rc = bind_virq_to_irqhandler(VIRQ_XENPMU, cpu,
+		rc = bind_virq_to_irqhandler(xh_default, VIRQ_XENPMU, cpu,
 					     xen_pmu_irq_handler,
 					     IRQF_PERCPU|IRQF_NOBALANCING,
 					     pmu_name, NULL);

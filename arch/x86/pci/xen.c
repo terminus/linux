@@ -19,6 +19,8 @@
 #include <asm/pci_x86.h>
 
 #include <asm/xen/hypervisor.h>
+#include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 
 #include <xen/features.h>
 #include <xen/events.h>
@@ -46,7 +48,7 @@ static int xen_pcifront_enable_irq(struct pci_dev *dev)
 	if (gsi < nr_legacy_irqs())
 		share = 0;
 
-	rc = xen_bind_pirq_gsi_to_irq(gsi, pirq, share, "pcifront");
+	rc = xen_bind_pirq_gsi_to_irq(xh_default, gsi, pirq, share, "pcifront");
 	if (rc < 0) {
 		dev_warn(&dev->dev, "Xen PCI: failed to bind GSI%d (PIRQ%d) to IRQ: %d\n",
 			 gsi, pirq, rc);
@@ -96,7 +98,7 @@ static int xen_register_pirq(u32 gsi, int gsi_override, int triggering,
 	if (gsi_override >= 0)
 		gsi = gsi_override;
 
-	irq = xen_bind_pirq_gsi_to_irq(gsi, map_irq.pirq, shareable, name);
+	irq = xen_bind_pirq_gsi_to_irq(xh_default, gsi, map_irq.pirq, shareable, name);
 	if (irq < 0)
 		goto out;
 
@@ -180,7 +182,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		goto error;
 	i = 0;
 	for_each_pci_msi_entry(msidesc, dev) {
-		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, v[i],
+		irq = xen_bind_pirq_msi_to_irq(xh_default, dev, msidesc, v[i],
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
 					       "pcifront-msi-x" :
@@ -234,7 +236,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		return 1;
 
 	for_each_pci_msi_entry(msidesc, dev) {
-		pirq = xen_allocate_pirq_msi(dev, msidesc);
+		pirq = xen_allocate_pirq_msi(xh_default, dev, msidesc);
 		if (pirq < 0) {
 			irq = -ENODEV;
 			goto error;
@@ -242,7 +244,7 @@ static int xen_hvm_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		xen_msi_compose_msg(dev, pirq, &msg);
 		__pci_write_msi_msg(msidesc, &msg);
 		dev_dbg(&dev->dev, "xen: msi bound to pirq=%d\n", pirq);
-		irq = xen_bind_pirq_msi_to_irq(dev, msidesc, pirq,
+		irq = xen_bind_pirq_msi_to_irq(xh_default, dev, msidesc, pirq,
 					       (type == PCI_CAP_ID_MSI) ? nvec : 1,
 					       (type == PCI_CAP_ID_MSIX) ?
 					       "msi-x" : "msi",
@@ -337,7 +339,7 @@ static int xen_initdom_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			goto out;
 		}
 
-		ret = xen_bind_pirq_msi_to_irq(dev, msidesc, map_irq.pirq,
+		ret = xen_bind_pirq_msi_to_irq(xh_default, dev, msidesc, map_irq.pirq,
 		                               (type == PCI_CAP_ID_MSI) ? nvec : 1,
 		                               (type == PCI_CAP_ID_MSIX) ? "msi-x" : "msi",
 		                               domid);
@@ -496,7 +498,7 @@ int __init pci_xen_initial_domain(void)
 	}
 	if (0 == nr_ioapics) {
 		for (irq = 0; irq < nr_legacy_irqs(); irq++)
-			xen_bind_pirq_gsi_to_irq(irq, irq, 0, "xt-pic");
+			xen_bind_pirq_gsi_to_irq(xh_default, irq, irq, 0, "xt-pic");
 	}
 	return 0;
 }

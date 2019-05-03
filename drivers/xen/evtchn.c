@@ -292,7 +292,7 @@ static ssize_t evtchn_write(struct file *file, const char __user *buf,
 		evtchn = find_evtchn(u, port);
 		if (evtchn && !evtchn->enabled) {
 			evtchn->enabled = true;
-			enable_irq(irq_from_evtchn(port));
+			enable_irq(irq_from_evtchn(xh_default, port));
 		}
 	}
 
@@ -392,18 +392,18 @@ static int evtchn_bind_to_user(struct per_user_data *u, int port)
 	if (rc < 0)
 		goto err;
 
-	rc = bind_evtchn_to_irqhandler(port, evtchn_interrupt, 0,
+	rc = bind_evtchn_to_irqhandler(xh_default, port, evtchn_interrupt, 0,
 				       u->name, evtchn);
 	if (rc < 0)
 		goto err;
 
-	rc = evtchn_make_refcounted(port);
+	rc = evtchn_make_refcounted(xh_default, port);
 	return rc;
 
 err:
 	/* bind failed, should close the port now */
 	close.port = port;
-	if (HYPERVISOR_event_channel_op(EVTCHNOP_close, &close) != 0)
+	if (hypervisor_event_channel_op(xh_default, EVTCHNOP_close, &close) != 0)
 		BUG();
 	del_evtchn(u, evtchn);
 	return rc;
@@ -412,7 +412,7 @@ err:
 static void evtchn_unbind_from_user(struct per_user_data *u,
 				    struct user_evtchn *evtchn)
 {
-	int irq = irq_from_evtchn(evtchn->port);
+	int irq = irq_from_evtchn(xh_default, evtchn->port);
 
 	BUG_ON(irq < 0);
 
@@ -429,7 +429,7 @@ static void evtchn_bind_interdom_next_vcpu(int evtchn)
 	struct irq_desc *desc;
 	unsigned long flags;
 
-	irq = irq_from_evtchn(evtchn);
+	irq = irq_from_evtchn(xh_default, evtchn);
 	desc = irq_to_desc(irq);
 
 	if (!desc)
@@ -447,7 +447,7 @@ static void evtchn_bind_interdom_next_vcpu(int evtchn)
 	this_cpu_write(bind_last_selected_cpu, selected_cpu);
 
 	/* unmask expects irqs to be disabled */
-	xen_rebind_evtchn_to_cpu(evtchn, selected_cpu);
+	xen_rebind_evtchn_to_cpu(xh_default, evtchn, selected_cpu);
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 }
 
@@ -549,7 +549,7 @@ static long evtchn_ioctl(struct file *file,
 			break;
 
 		rc = -EINVAL;
-		if (unbind.port >= xen_evtchn_nr_channels())
+		if (unbind.port >= xen_evtchn_nr_channels(xh_default))
 			break;
 
 		rc = -ENOTCONN;
@@ -557,7 +557,7 @@ static long evtchn_ioctl(struct file *file,
 		if (!evtchn)
 			break;
 
-		disable_irq(irq_from_evtchn(unbind.port));
+		disable_irq(irq_from_evtchn(xh_default, unbind.port));
 		evtchn_unbind_from_user(u, evtchn);
 		rc = 0;
 		break;
@@ -574,7 +574,7 @@ static long evtchn_ioctl(struct file *file,
 		rc = -ENOTCONN;
 		evtchn = find_evtchn(u, notify.port);
 		if (evtchn) {
-			notify_remote_via_evtchn(notify.port);
+			notify_remote_via_evtchn(xh_default, notify.port);
 			rc = 0;
 		}
 		break;
@@ -676,7 +676,7 @@ static int evtchn_release(struct inode *inode, struct file *filp)
 		struct user_evtchn *evtchn;
 
 		evtchn = rb_entry(node, struct user_evtchn, node);
-		disable_irq(irq_from_evtchn(evtchn->port));
+		disable_irq(irq_from_evtchn(xh_default, evtchn->port));
 		evtchn_unbind_from_user(u, evtchn);
 	}
 

@@ -800,7 +800,7 @@ static int pcifront_publish_info(struct pcifront_device *pdev)
 	if (err)
 		goto out;
 
-	err = bind_evtchn_to_irqhandler(pdev->evtchn, pcifront_handler_aer,
+	err = bind_evtchn_to_irqhandler(xh_default, pdev->evtchn, pcifront_handler_aer,
 		0, "pcifront", pdev);
 
 	if (err < 0)

@@ -340,11 +340,12 @@ void xen_setup_timer(int cpu)
 
 	snprintf(xevt->name, sizeof(xevt->name), "timer%d", cpu);
 
-	irq = bind_virq_to_irqhandler(VIRQ_TIMER, cpu, xen_timer_interrupt,
+	irq = bind_virq_to_irqhandler(xh_default,
+				      VIRQ_TIMER, cpu, xen_timer_interrupt,
 				      IRQF_PERCPU|IRQF_NOBALANCING|IRQF_TIMER|
 				      IRQF_FORCE_RESUME|IRQF_EARLY_RESUME,
 				      xevt->name, NULL);
-	(void)xen_set_irq_priority(irq, XEN_IRQ_PRIORITY_MAX);
+	(void)xen_set_irq_priority(xh_default, irq, XEN_IRQ_PRIORITY_MAX);
 
 	memcpy(evt, xen_clockevent, sizeof(*evt));
 

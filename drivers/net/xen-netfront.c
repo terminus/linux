@@ -1468,7 +1468,7 @@ static int setup_netfront_single(struct netfront_queue *queue)
 	if (err < 0)
 		goto fail;
 
-	err = bind_evtchn_to_irqhandler(queue->tx_evtchn,
+	err = bind_evtchn_to_irqhandler(xh_default, queue->tx_evtchn,
 					xennet_interrupt,
 					0, queue->info->netdev->name, queue);
 	if (err < 0)
@@ -1498,7 +1498,7 @@ static int setup_netfront_split(struct netfront_queue *queue)
 
 	snprintf(queue->tx_irq_name, sizeof(queue->tx_irq_name),
 		 "%s-tx", queue->name);
-	err = bind_evtchn_to_irqhandler(queue->tx_evtchn,
+	err = bind_evtchn_to_irqhandler(xh_default, queue->tx_evtchn,
 					xennet_tx_interrupt,
 					0, queue->tx_irq_name, queue);
 	if (err < 0)
@@ -1507,7 +1507,7 @@ static int setup_netfront_split(struct netfront_queue *queue)
 
 	snprintf(queue->rx_irq_name, sizeof(queue->rx_irq_name),
 		 "%s-rx", queue->name);
-	err = bind_evtchn_to_irqhandler(queue->rx_evtchn,
+	err = bind_evtchn_to_irqhandler(xh_default, queue->rx_evtchn,
 					xennet_rx_interrupt,
 					0, queue->rx_irq_name, queue);
 	if (err < 0)

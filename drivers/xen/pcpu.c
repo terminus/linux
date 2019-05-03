@@ -387,7 +387,7 @@ static int __init xen_pcpu_init(void)
 	if (!xen_initial_domain())
 		return -ENODEV;
 
-	irq = bind_virq_to_irqhandler(VIRQ_PCPU_STATE, 0,
+	irq = bind_virq_to_irqhandler(xh_default, VIRQ_PCPU_STATE, 0,
 				      xen_pcpu_interrupt, 0,
 				      "xen-pcpu", NULL);
 	if (irq < 0) {

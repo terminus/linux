@@ -151,7 +151,7 @@ static int xb_write(const void *data, unsigned int len)
 
 		/* Implies mb(): other side will see the updated producer. */
 		if (prod <= intf->req_cons)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			notify_remote_via_evtchn(xh_default, xen_store_evtchn);
 	}
 
 	return bytes;
@@ -204,7 +204,7 @@ static int xb_read(void *data, unsigned int len)
 
 		/* Implies mb(): other side will see the updated consumer. */
 		if (intf->rsp_prod - cons >= XENSTORE_RING_SIZE)
-			notify_remote_via_evtchn(xen_store_evtchn);
+			notify_remote_via_evtchn(xh_default, xen_store_evtchn);
 	}
 
 	return bytes;
@@ -461,7 +461,7 @@ int xb_init_comms(void)
 	} else {
 		int err;
 
-		err = bind_evtchn_to_irqhandler(xen_store_evtchn, wake_waiting,
+		err = bind_evtchn_to_irqhandler(xh_default, xen_store_evtchn, wake_waiting,
 						0, "xenbus", &xb_waitq);
 		if (err < 0) {
 			pr_err("request irq failed %i\n", err);

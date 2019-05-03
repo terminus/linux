@@ -2,6 +2,7 @@
 #include <linux/string.h>
 #include <linux/bug.h>
 #include <linux/export.h>
+#include <xen/interface/xen.h>
 #include <asm/hypervisor.h>
 #include <asm/xen/hypercall.h>
 

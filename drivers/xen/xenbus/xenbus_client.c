@@ -36,9 +36,9 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/export.h>
-#include <asm/xen/hypervisor.h>
 #include <xen/page.h>
 #include <xen/interface/xen.h>
+#include <asm/xen/hypervisor.h>
 #include <xen/interface/event_channel.h>
 #include <xen/balloon.h>
 #include <xen/events.h>

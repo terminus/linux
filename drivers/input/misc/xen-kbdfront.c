@@ -435,7 +435,7 @@ static int xenkbd_connect_backend(struct xenbus_device *dev,
 	ret = xenbus_alloc_evtchn(dev, &evtchn);
 	if (ret)
 		goto error_grant;
-	ret = bind_evtchn_to_irqhandler(evtchn, input_handler,
+	ret = bind_evtchn_to_irqhandler(xh_default, evtchn, input_handler,
 					0, dev->devicetype, info);
 	if (ret < 0) {
 		xenbus_dev_fatal(dev, ret, "bind_evtchn_to_irqhandler");

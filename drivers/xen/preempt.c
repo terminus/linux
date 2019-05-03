@@ -10,6 +10,7 @@
  */
 
 #include <linux/sched.h>
+#include <xen/interface/xen.h>
 #include <xen/xen-ops.h>
 
 #ifndef CONFIG_PREEMPT

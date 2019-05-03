@@ -21,6 +21,7 @@ enum xen_irq_type {
 /*
  * Packed IRQ information:
  * type - enum xen_irq_type
+ * xh - xenhost_t *
  * event channel - irq->event channel mapping
  * cpu - cpu this event channel is bound to
  * index - type-specific information:
@@ -32,6 +33,7 @@ enum xen_irq_type {
  */
 struct irq_info {
 	struct list_head list;
+	xenhost_t *xh;
 	int refcnt;
 	enum xen_irq_type type;	/* type */
 	unsigned irq;
@@ -56,35 +58,32 @@ struct irq_info {
 #define PIRQ_MSI_GROUP	(1 << 2)
 
 struct evtchn_ops {
-	unsigned (*max_channels)(void);
-	unsigned (*nr_channels)(void);
+	unsigned (*max_channels)(xenhost_t *xh);
+	unsigned (*nr_channels)(xenhost_t *xh);
 
 	int (*setup)(struct irq_info *info);
 	void (*bind_to_cpu)(struct irq_info *info, unsigned cpu);
 
-	void (*clear_pending)(unsigned port);
-	void (*set_pending)(unsigned port);
-	bool (*is_pending)(unsigned port);
-	bool (*test_and_set_mask)(unsigned port);
-	void (*mask)(unsigned port);
-	void (*unmask)(unsigned port);
+	void (*clear_pending)(xenhost_t *xh, unsigned port);
+	void (*set_pending)(xenhost_t *xh, unsigned port);
+	bool (*is_pending)(xenhost_t *xh, unsigned port);
+	bool (*test_and_set_mask)(xenhost_t *xh, unsigned port);
+	void (*mask)(xenhost_t *xh, unsigned port);
+	void (*unmask)(xenhost_t *xh, unsigned port);
 
-	void (*handle_events)(unsigned cpu);
-	void (*resume)(void);
+	void (*handle_events)(xenhost_t *xh, unsigned cpu);
+	void (*resume)(xenhost_t *xh);
 };
 
-extern const struct evtchn_ops *evtchn_ops;
-
-extern int **evtchn_to_irq;
-int get_evtchn_to_irq(unsigned int evtchn);
+int get_evtchn_to_irq(xenhost_t *xh, unsigned int evtchn);
 
 struct irq_info *info_for_irq(unsigned irq);
 unsigned cpu_from_irq(unsigned irq);
-unsigned cpu_from_evtchn(unsigned int evtchn);
+unsigned cpu_from_evtchn(xenhost_t *xh, unsigned int evtchn);
 
-static inline unsigned xen_evtchn_max_channels(void)
+static inline unsigned xen_evtchn_max_channels(xenhost_t *xh)
 {
-	return evtchn_ops->max_channels();
+	return xh->evtchn_ops->max_channels(xh);
 }
 
 /*
@@ -93,59 +92,62 @@ static inline unsigned xen_evtchn_max_channels(void)
  */
 static inline int xen_evtchn_port_setup(struct irq_info *info)
 {
-	if (evtchn_ops->setup)
-		return evtchn_ops->setup(info);
+	if (info->xh->evtchn_ops->setup)
+		return info->xh->evtchn_ops->setup(info);
 	return 0;
 }
 
 static inline void xen_evtchn_port_bind_to_cpu(struct irq_info *info,
 					       unsigned cpu)
 {
-	evtchn_ops->bind_to_cpu(info, cpu);
+	info->xh->evtchn_ops->bind_to_cpu(info, cpu);
 }
 
-static inline void clear_evtchn(unsigned port)
+static inline void clear_evtchn(xenhost_t *xh, unsigned port)
 {
-	evtchn_ops->clear_pending(port);
+	xh->evtchn_ops->clear_pending(xh, port);
 }
 
-static inline void set_evtchn(unsigned port)
+static inline void set_evtchn(xenhost_t *xh, unsigned port)
 {
-	evtchn_ops->set_pending(port);
+	xh->evtchn_ops->set_pending(xh, port);
 }
 
-static inline bool test_evtchn(unsigned port)
+static inline bool test_evtchn(xenhost_t *xh, unsigned port)
 {
-	return evtchn_ops->is_pending(port);
+	return xh->evtchn_ops->is_pending(xh, port);
 }
 
-static inline bool test_and_set_mask(unsigned port)
+static inline bool test_and_set_mask(xenhost_t *xh, unsigned port)
 {
-	return evtchn_ops->test_and_set_mask(port);
+	return xh->evtchn_ops->test_and_set_mask(xh, port);
 }
 
-static inline void mask_evtchn(unsigned port)
+static inline void mask_evtchn(xenhost_t *xh, unsigned port)
 {
-	return evtchn_ops->mask(port);
+	return xh->evtchn_ops->mask(xh, port);
 }
 
-static inline void unmask_evtchn(unsigned port)
+static inline void unmask_evtchn(xenhost_t *xh, unsigned port)
 {
-	return evtchn_ops->unmask(port);
+	return xh->evtchn_ops->unmask(xh, port);
 }
 
-static inline void xen_evtchn_handle_events(unsigned cpu)
+static inline void xen_evtchn_handle_events(xenhost_t *xh, unsigned cpu)
 {
-	return evtchn_ops->handle_events(cpu);
+	return xh->evtchn_ops->handle_events(xh, cpu);
 }
 
 static inline void xen_evtchn_resume(void)
 {
-	if (evtchn_ops->resume)
-		evtchn_ops->resume();
+	xenhost_t **xh;
+
+	for_each_xenhost(xh)
+		if ((*xh)->evtchn_ops->resume)
+			(*xh)->evtchn_ops->resume(*xh);
 }
 
-void xen_evtchn_2l_init(void);
-int xen_evtchn_fifo_init(void);
+void xen_evtchn_2l_init(xenhost_t *xh);
+int xen_evtchn_fifo_init(xenhost_t *xh);
 
 #endif /* #ifndef __EVENTS_INTERNAL_H__ */

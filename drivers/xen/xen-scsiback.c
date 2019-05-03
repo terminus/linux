@@ -54,8 +54,9 @@
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
 
-#include <asm/hypervisor.h>
 
+#include <xen/interface/xen.h>
+#include <asm/hypervisor.h>
 #include <xen/xen.h>
 #include <xen/balloon.h>
 #include <xen/events.h>
@@ -829,7 +830,7 @@ static int scsiback_init_sring(struct vscsibk_info *info, grant_ref_t ring_ref,
 	sring = (struct vscsiif_sring *)area;
 	BACK_RING_INIT(&info->ring, sring, PAGE_SIZE);
 
-	err = bind_interdomain_evtchn_to_irq(info->domid, evtchn);
+	err = bind_interdomain_evtchn_to_irq(xh_default, info->domid, evtchn);
 	if (err < 0)
 		goto unmap_page;
 

@@ -30,6 +30,8 @@
  * IN THE SOFTWARE.
  */
 
+#include <linux/types.h>
+#include <xen/interface/xen.h>
 #include <xen/acpi.h>
 #include <xen/interface/platform.h>
 #include <asm/xen/hypercall.h>

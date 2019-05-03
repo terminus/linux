@@ -78,6 +78,7 @@ extern int xen_have_vcpu_info_placement;
 int xen_vcpu_setup(xenhost_t *xh, int cpu);
 void xen_vcpu_info_reset(xenhost_t *xh, int cpu);
 void xen_setup_vcpu_info_placement(void);
+void xenhost_init_IRQ(void);
 
 #ifdef CONFIG_SMP
 void xen_smp_init(void);

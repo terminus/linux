@@ -266,7 +266,7 @@ static void __init xen_hvm_guest_init(void)
 	xen_hvm_smp_init();
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_hvm, xen_cpu_dead_hvm));
 	xen_unplug_emulated_devices();
-	x86_init.irqs.intr_init = xen_init_IRQ;
+	x86_init.irqs.intr_init = xenhost_init_IRQ;
 	xen_hvm_init_time_ops();
 	xen_hvm_init_mmu_ops();
 

@@ -247,8 +247,8 @@ void gntdev_put_map(struct gntdev_priv *priv, struct gntdev_grant_map *map)
 	atomic_sub(map->count, &pages_mapped);
 
 	if (map->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
-		notify_remote_via_evtchn(map->notify.event);
-		evtchn_put(map->notify.event);
+		notify_remote_via_evtchn(xh_default, map->notify.event);
+		evtchn_put(xh_default, map->notify.event);
 	}
 
 	if (populate_freeable_maps && priv) {
@@ -790,7 +790,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 	 * reference to that event channel.
 	 */
 	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
-		if (evtchn_get(op.event_channel_port))
+		if (evtchn_get(xh_default, op.event_channel_port))
 			return -EINVAL;
 	}
 
@@ -829,7 +829,7 @@ static long gntdev_ioctl_notify(struct gntdev_priv *priv, void __user *u)
 
 	/* Drop the reference to the event channel we did not save in the map */
 	if (out_flags & UNMAP_NOTIFY_SEND_EVENT)
-		evtchn_put(out_event);
+		evtchn_put(xh_default, out_event);
 
 	return rc;
 }

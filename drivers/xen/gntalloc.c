@@ -189,8 +189,8 @@ static void __del_gref(struct gntalloc_gref *gref)
 		kunmap(gref->page);
 	}
 	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT) {
-		notify_remote_via_evtchn(gref->notify.event);
-		evtchn_put(gref->notify.event);
+		notify_remote_via_evtchn(xh_default, gref->notify.event);
+		evtchn_put(xh_default, gref->notify.event);
 	}
 
 	gref->notify.flags = 0;
@@ -418,14 +418,14 @@ static long gntalloc_ioctl_unmap_notify(struct gntalloc_file_private_data *priv,
 	 * reference to that event channel.
 	 */
 	if (op.action & UNMAP_NOTIFY_SEND_EVENT) {
-		if (evtchn_get(op.event_channel_port)) {
+		if (evtchn_get(xh_default, op.event_channel_port)) {
 			rc = -EINVAL;
 			goto unlock_out;
 		}
 	}
 
 	if (gref->notify.flags & UNMAP_NOTIFY_SEND_EVENT)
-		evtchn_put(gref->notify.event);
+		evtchn_put(xh_default, gref->notify.event);
 
 	gref->notify.flags = op.action;
 	gref->notify.pgoff = pgoff;

@@ -2,6 +2,7 @@
 #include <linux/bug.h>
 #include <xen/xen.h>
 #include <xen/xenhost.h>
+#include <xen/events.h>
 #include "xen-ops.h"
 
 /*
@@ -83,4 +84,19 @@ void __xenhost_unregister(enum xenhost_type type)
 		default:
 			BUG();
 	}
+}
+
+void xenhost_init_IRQ(void)
+{
+	xenhost_t **xh;
+	/*
+	 * xenhost_init_IRQ is called via x86_init.irq.intr_init().
+	 * For xenhost_r1 and xenhost_r2, the underlying state is
+	 * ready so we can go ahead and init both the variants.
+	 *
+	 * xenhost_r0, might be implemented via a loadable module
+	 * so that would do this initialization explicitly.
+	 */
+	for_each_xenhost(xh)
+		xen_init_IRQ(*xh);
 }

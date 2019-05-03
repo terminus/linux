@@ -1700,7 +1700,7 @@ static int setup_blkring(struct xenbus_device *dev,
 	if (err)
 		goto fail;
 
-	err = bind_evtchn_to_irqhandler(rinfo->evtchn, blkif_interrupt, 0,
+	err = bind_evtchn_to_irqhandler(xh_default, rinfo->evtchn, blkif_interrupt, 0,
 					"blkif", rinfo);
 	if (err <= 0) {
 		xenbus_dev_fatal(dev, err,

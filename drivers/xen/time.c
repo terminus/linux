@@ -8,13 +8,13 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 
+#include <xen/interface/xen.h>
 #include <asm/paravirt.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
 #include <xen/events.h>
 #include <xen/features.h>
-#include <xen/interface/xen.h>
 #include <xen/interface/vcpu.h>
 #include <xen/xen-ops.h>
 
