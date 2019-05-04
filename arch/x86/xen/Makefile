@@ -34,7 +34,7 @@ obj-$(CONFIG_XEN_PV)		+= enlighten_pv.o
 obj-$(CONFIG_XEN_PV)		+= mmu_pv.o
 obj-$(CONFIG_XEN_PV)		+= irq.o
 obj-$(CONFIG_XEN_PV)		+= multicalls.o
-obj-$(CONFIG_XEN_PV)		+= xen-asm.o
+obj-n		+= xen-asm.o
 obj-$(CONFIG_XEN_PV)		+= xen-asm_$(BITS).o
 
 obj-$(CONFIG_XEN_PVH)		+= enlighten_pvh.o

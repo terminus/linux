@@ -343,6 +343,17 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 #else
 	ctxt->gs_base_kernel = per_cpu_offset(cpu);
 #endif
+	/*
+	 * We setup an upcall handler only for the default xenhost. The remote
+	 * xenhost will generate evtchn events, but an additional callback would be
+	 * quite hairy, since we would have VCPU state initialised in multiple
+	 * hypervisors and issues like re-entrancy of upcalls.
+	 *
+	 * It would be simpler if the callback from L0-Xen could be bounced
+	 * bounced via L1-Xen. This also simplifies the pv_irq_ops code
+	 * because now the CPU's IF processing only needs to happen on
+	 * xh_default->vcpu_info.
+	 */
 	ctxt->event_callback_eip    =
 		(unsigned long)xen_hypervisor_callback;
 	ctxt->failsafe_callback_eip =

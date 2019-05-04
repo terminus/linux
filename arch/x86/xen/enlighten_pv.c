@@ -996,8 +996,9 @@ void __init xen_setup_vcpu_info_placement(void)
 	 * xen_vcpu_setup managed to place the vcpu_info within the
 	 * percpu area for all cpus, so make use of it.
 	 */
+#if 0
+	/* Disable direct access for now. */
 	if (xen_have_vcpu_info_placement && false) {
-		/* Disable direct access until we have proper pcpu data structures. */
 		pv_ops.irq.save_fl = __PV_IS_CALLEE_SAVE(xen_save_fl_direct);
 		pv_ops.irq.restore_fl =
 			__PV_IS_CALLEE_SAVE(xen_restore_fl_direct);
@@ -1007,6 +1008,7 @@ void __init xen_setup_vcpu_info_placement(void)
 			__PV_IS_CALLEE_SAVE(xen_irq_enable_direct);
 		pv_ops.mmu.read_cr2 = xen_read_cr2_direct;
 	}
+#endif
 }
 
 static const struct pv_info xen_info __initconst = {
