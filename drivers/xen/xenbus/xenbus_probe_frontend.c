@@ -20,6 +20,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <asm/xen/hypervisor.h>
 #include <xen/xenbus.h>
 #include <xen/events.h>
@@ -33,7 +34,8 @@
 
 
 /* device/<type>/<id> => <type>-<id> */
-static int frontend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
+static int frontend_bus_id(struct xen_bus_type *bus, char bus_id[XEN_BUS_ID_SIZE],
+				const char *nodename)
 {
 	nodename = strchr(nodename, '/');
 	if (!nodename || strlen(nodename + 1) >= XEN_BUS_ID_SIZE) {
@@ -101,13 +103,13 @@ static void xenbus_frontend_delayed_resume(struct work_struct *w)
 
 static int xenbus_frontend_dev_resume(struct device *dev)
 {
+	struct xenbus_device *xdev = to_xenbus_device(dev);
+	struct xenstore_private *xs = xs_priv(xdev->xh);
 	/*
 	 * If xenstored is running in this domain, we cannot access the backend
 	 * state at the moment, so we need to defer xenbus_dev_resume
 	 */
-	if (xen_store_domain_type == XS_LOCAL) {
-		struct xenbus_device *xdev = to_xenbus_device(dev);
-
+	if (xs->domain_type == XS_LOCAL) {
 		schedule_work(&xdev->work);
 
 		return 0;
@@ -118,8 +120,10 @@ static int xenbus_frontend_dev_resume(struct device *dev)
 
 static int xenbus_frontend_dev_probe(struct device *dev)
 {
-	if (xen_store_domain_type == XS_LOCAL) {
-		struct xenbus_device *xdev = to_xenbus_device(dev);
+	struct xenbus_device *xdev = to_xenbus_device(dev);
+	struct xenstore_private *xs = xs_priv(xdev->xh);
+
+	if (xs->domain_type == XS_LOCAL) {
 		INIT_WORK(&xdev->work, xenbus_frontend_delayed_resume);
 	}
 
@@ -136,6 +140,7 @@ static const struct dev_pm_ops xenbus_pm_ops = {
 
 static struct xen_bus_type xenbus_frontend = {
 	.root = "device",
+	.xh = NULL, 	/* initializd in xenbus_probe_frontend_init() */
 	.levels = 2,		/* device/type/<id> */
 	.get_bus_id = frontend_bus_id,
 	.probe = xenbus_probe_frontend,
@@ -242,7 +247,7 @@ static int print_device_status(struct device *dev, void *data)
 	} else if (xendev->state < XenbusStateConnected) {
 		enum xenbus_state rstate = XenbusStateUnknown;
 		if (xendev->otherend)
-			rstate = xenbus_read_driver_state(xendev->otherend);
+			rstate = xenbus_read_driver_state(xendev, xendev->otherend);
 		pr_warn("Timeout connecting to device: %s (local state %d, remote state %d)\n",
 			xendev->nodename, xendev->state, rstate);
 	}
@@ -335,7 +340,7 @@ static int backend_state;
 static void xenbus_reset_backend_state_changed(struct xenbus_watch *w,
 					const char *path, const char *token)
 {
-	if (xenbus_scanf(XBT_NIL, path, "", "%i",
+	if (xenbus_scanf(xenbus_frontend.xh, XBT_NIL, path, "", "%i",
 			 &backend_state) != 1)
 		backend_state = XenbusStateUnknown;
 	printk(KERN_DEBUG "XENBUS: backend %s %s\n",
@@ -373,26 +378,27 @@ static void xenbus_reset_frontend(char *fe, char *be, int be_state)
 	backend_state = XenbusStateUnknown;
 
 	pr_info("triggering reconnect on %s\n", be);
-	register_xenbus_watch(&be_watch);
+	register_xenbus_watch(xenbus_frontend.xh, &be_watch);
 
 	/* fall through to forward backend to state XenbusStateInitialising */
 	switch (be_state) {
 	case XenbusStateConnected:
-		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateClosing);
+		xenbus_printf(xenbus_frontend.xh, XBT_NIL, fe,
+				"state", "%d", XenbusStateClosing);
 		xenbus_reset_wait_for_backend(be, XenbusStateClosing);
 		/* fall through */
 
 	case XenbusStateClosing:
-		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateClosed);
+		xenbus_printf(xenbus_frontend.xh, XBT_NIL, fe, "state", "%d", XenbusStateClosed);
 		xenbus_reset_wait_for_backend(be, XenbusStateClosed);
 		/* fall through */
 
 	case XenbusStateClosed:
-		xenbus_printf(XBT_NIL, fe, "state", "%d", XenbusStateInitialising);
+		xenbus_printf(xenbus_frontend.xh, XBT_NIL, fe, "state", "%d", XenbusStateInitialising);
 		xenbus_reset_wait_for_backend(be, XenbusStateInitWait);
 	}
 
-	unregister_xenbus_watch(&be_watch);
+	unregister_xenbus_watch(xenbus_frontend.xh, &be_watch);
 	pr_info("reconnect done on %s\n", be);
 	kfree(be_watch.node);
 }
@@ -406,7 +412,7 @@ static void xenbus_check_frontend(char *class, char *dev)
 	if (!frontend)
 		return;
 
-	err = xenbus_scanf(XBT_NIL, frontend, "state", "%i", &fe_state);
+	err = xenbus_scanf(xenbus_frontend.xh, XBT_NIL, frontend, "state", "%i", &fe_state);
 	if (err != 1)
 		goto out;
 
@@ -415,10 +421,10 @@ static void xenbus_check_frontend(char *class, char *dev)
 	case XenbusStateClosed:
 		printk(KERN_DEBUG "XENBUS: frontend %s %s\n",
 				frontend, xenbus_strstate(fe_state));
-		backend = xenbus_read(XBT_NIL, frontend, "backend", NULL);
+		backend = xenbus_read(xenbus_frontend.xh, XBT_NIL, frontend, "backend", NULL);
 		if (!backend || IS_ERR(backend))
 			goto out;
-		err = xenbus_scanf(XBT_NIL, backend, "state", "%i", &be_state);
+		err = xenbus_scanf(xenbus_frontend.xh, XBT_NIL, backend, "state", "%i", &be_state);
 		if (err == 1)
 			xenbus_reset_frontend(frontend, backend, be_state);
 		kfree(backend);
@@ -430,18 +436,18 @@ out:
 	kfree(frontend);
 }
 
-static void xenbus_reset_state(void)
+static void xenbus_reset_state(xenhost_t *xh)
 {
 	char **devclass, **dev;
 	int devclass_n, dev_n;
 	int i, j;
 
-	devclass = xenbus_directory(XBT_NIL, "device", "", &devclass_n);
+	devclass = xenbus_directory(xh, XBT_NIL, "device", "", &devclass_n);
 	if (IS_ERR(devclass))
 		return;
 
 	for (i = 0; i < devclass_n; i++) {
-		dev = xenbus_directory(XBT_NIL, "device", devclass[i], &dev_n);
+		dev = xenbus_directory(xh, XBT_NIL, "device", devclass[i], &dev_n);
 		if (IS_ERR(dev))
 			continue;
 		for (j = 0; j < dev_n; j++)
@@ -453,14 +459,14 @@ static void xenbus_reset_state(void)
 
 static int frontend_probe_and_watch(struct notifier_block *notifier,
 				   unsigned long event,
-				   void *data)
+				   void *xh)
 {
 	/* reset devices in Connected or Closed state */
 	if (xen_hvm_domain())
-		xenbus_reset_state();
+		xenbus_reset_state((xenhost_t *)xh);
 	/* Enumerate devices in xenstore and watch for changes. */
 	xenbus_probe_devices(&xenbus_frontend);
-	register_xenbus_watch(&fe_watch);
+	register_xenbus_watch(xh, &fe_watch);
 
 	return NOTIFY_DONE;
 }
@@ -475,12 +481,19 @@ static int __init xenbus_probe_frontend_init(void)
 
 	DPRINTK("");
 
-	/* Register ourselves with the kernel bus subsystem */
-	err = bus_register(&xenbus_frontend.bus);
-	if (err)
-		return err;
+	if (xen_driver_domain() && xen_nested())
+		xenbus_frontend.xh = xh_remote;
+	else
+		xenbus_frontend.xh = xh_default;
 
-	register_xenstore_notifier(&xenstore_notifier);
+	/* Register ourselves with the kernel bus subsystem */
+	if (xenbus_frontend.xh) {
+		err = bus_register(&xenbus_frontend.bus);
+		if (err)
+			return err;
+
+		register_xenstore_notifier(xenbus_frontend.xh, &xenstore_notifier);
+	}
 
 	return 0;
 }

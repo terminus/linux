@@ -37,7 +37,7 @@ static int vcpu_online(unsigned int cpu)
 	char dir[16], state[16];
 
 	sprintf(dir, "cpu/%u", cpu);
-	err = xenbus_scanf(XBT_NIL, dir, "availability", "%15s", state);
+	err = xenbus_scanf(xh_default, XBT_NIL, dir, "availability", "%15s", state);
 	if (err != 1) {
 		if (!xen_initial_domain())
 			pr_err("Unable to read cpu state\n");
@@ -90,7 +90,7 @@ static int setup_cpu_watcher(struct notifier_block *notifier,
 		.node = "cpu",
 		.callback = handle_vcpu_hotplug_event};
 
-	(void)register_xenbus_watch(&cpu_watch);
+	(void)register_xenbus_watch(xh_default, &cpu_watch);
 
 	for_each_possible_cpu(cpu) {
 		if (vcpu_online(cpu) == 0) {

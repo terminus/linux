@@ -43,6 +43,7 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <xen/interface/grant_table.h>
 #include <xen/interface/io/xenbus.h>
 #include <xen/interface/io/xs_wire.h>
@@ -58,6 +59,8 @@ struct xenbus_watch
 
 	/* Path being watched. */
 	const char *node;
+	/* On xenhost. */
+	xenhost_t *xh;
 
 	/* Callback (executed in a process context with no locks held). */
 	void (*callback)(struct xenbus_watch *,
@@ -70,12 +73,20 @@ struct xenbus_device {
 	const char *devicetype;
 	const char *nodename;
 	const char *otherend;
+	xenhost_t *xh;
 	int otherend_id;
 	struct xenbus_watch otherend_watch;
 	struct device dev;
 	enum xenbus_state state;
 	struct completion down;
 	struct work_struct work;
+};
+
+enum xenstore_init {
+	XS_UNKNOWN,
+	XS_PV,
+	XS_HVM,
+	XS_LOCAL,
 };
 
 static inline struct xenbus_device *to_xenbus_device(struct device *dev)
@@ -133,52 +144,51 @@ struct xenbus_transaction
 /* Nil transaction ID. */
 #define XBT_NIL ((struct xenbus_transaction) { 0 })
 
-char **xenbus_directory(struct xenbus_transaction t,
+char **xenbus_directory(xenhost_t *xh, struct xenbus_transaction t,
 			const char *dir, const char *node, unsigned int *num);
-void *xenbus_read(struct xenbus_transaction t,
+void *xenbus_read(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node, unsigned int *len);
-int xenbus_write(struct xenbus_transaction t,
+int xenbus_write(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node, const char *string);
-int xenbus_mkdir(struct xenbus_transaction t,
+int xenbus_mkdir(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node);
-int xenbus_exists(struct xenbus_transaction t,
+int xenbus_exists(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node);
-int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node);
-int xenbus_transaction_start(struct xenbus_transaction *t);
-int xenbus_transaction_end(struct xenbus_transaction t, int abort);
+int xenbus_rm(xenhost_t *xh, struct xenbus_transaction t, const char *dir, const char *node);
+int xenbus_transaction_start(xenhost_t *xh, struct xenbus_transaction *t);
+int xenbus_transaction_end(xenhost_t *xh, struct xenbus_transaction t, int abort);
 
 /* Single read and scanf: returns -errno or num scanned if > 0. */
-__scanf(4, 5)
-int xenbus_scanf(struct xenbus_transaction t,
+__scanf(5, 6)
+int xenbus_scanf(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node, const char *fmt, ...);
 
 /* Read an (optional) unsigned value. */
-unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+unsigned int xenbus_read_unsigned(xenhost_t *xh, const char *dir, const char *node,
 				  unsigned int default_val);
 
 /* Single printf and write: returns -errno or 0. */
-__printf(4, 5)
-int xenbus_printf(struct xenbus_transaction t,
+__printf(5, 6)
+int xenbus_printf(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node, const char *fmt, ...);
 
 /* Generic read function: NULL-terminated triples of name,
  * sprintf-style type string, and pointer. Returns 0 or errno.*/
-int xenbus_gather(struct xenbus_transaction t, const char *dir, ...);
+int xenbus_gather(xenhost_t *xh, struct xenbus_transaction t, const char *dir, ...);
 
 /* notifer routines for when the xenstore comes up */
-extern int xenstored_ready;
-int register_xenstore_notifier(struct notifier_block *nb);
-void unregister_xenstore_notifier(struct notifier_block *nb);
+int register_xenstore_notifier(xenhost_t *xh, struct notifier_block *nb);
+void unregister_xenstore_notifier(xenhost_t *xh, struct notifier_block *nb);
 
-int register_xenbus_watch(struct xenbus_watch *watch);
-void unregister_xenbus_watch(struct xenbus_watch *watch);
+int register_xenbus_watch(xenhost_t *xh, struct xenbus_watch *watch);
+void unregister_xenbus_watch(xenhost_t *xh, struct xenbus_watch *watch);
 void xs_suspend(void);
 void xs_resume(void);
 void xs_suspend_cancel(void);
 
 struct work_struct;
 
-void xenbus_probe(struct work_struct *);
+void __xenbus_probe(void *xs);
 
 #define XENBUS_IS_ERR_READ(str) ({			\
 	if (!IS_ERR(str) && strlen(str) == 0) {		\
@@ -218,7 +228,7 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port);
 int xenbus_free_evtchn(struct xenbus_device *dev, int port);
 
-enum xenbus_state xenbus_read_driver_state(const char *path);
+enum xenbus_state xenbus_read_driver_state(struct xenbus_device *dev, const char *path);
 
 __printf(3, 4)
 void xenbus_dev_error(struct xenbus_device *dev, int err, const char *fmt, ...);
@@ -230,7 +240,5 @@ int xenbus_dev_is_online(struct xenbus_device *dev);
 int xenbus_frontend_closed(struct xenbus_device *dev);
 
 extern const struct file_operations xen_xenbus_fops;
-extern struct xenstore_domain_interface *xen_store_interface;
-extern int xen_store_evtchn;
 
 #endif /* _XEN_XENBUS_H */

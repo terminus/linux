@@ -541,12 +541,12 @@ static void xen_vbd_resize(struct xen_blkif *blkif)
 	pr_info("VBD Resize: new size %llu\n", new_size);
 	vbd->size = new_size;
 again:
-	err = xenbus_transaction_start(&xbt);
+	err = xenbus_transaction_start(dev->xh, &xbt);
 	if (err) {
 		pr_warn("Error starting transaction\n");
 		return;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(vbd));
 	if (err) {
 		pr_warn("Error writing new size\n");
@@ -557,20 +557,20 @@ again:
 	 * the front-end. If the current state is "connected" the
 	 * front-end will get the new size information online.
 	 */
-	err = xenbus_printf(xbt, dev->nodename, "state", "%d", dev->state);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "state", "%d", dev->state);
 	if (err) {
 		pr_warn("Error writing the state\n");
 		goto abort;
 	}
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xenbus_transaction_end(dev->xh, xbt, 0);
 	if (err == -EAGAIN)
 		goto again;
 	if (err)
 		pr_warn("Error ending transaction\n");
 	return;
 abort:
-	xenbus_transaction_end(xbt, 1);
+	xenbus_transaction_end(dev->xh, xbt, 1);
 }
 
 /*

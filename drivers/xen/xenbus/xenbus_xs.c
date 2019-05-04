@@ -76,8 +76,6 @@ static DECLARE_WAIT_QUEUE_HEAD(xs_state_enter_wq);
 /* Wait queue for suspend handling waiting for critical region being empty. */
 static DECLARE_WAIT_QUEUE_HEAD(xs_state_exit_wq);
 
-/* List of registered watches, and a lock to protect it. */
-static LIST_HEAD(watches);
 static DEFINE_SPINLOCK(watches_lock);
 
 /* List of pending watch callback events, and a lock to protect it. */
@@ -166,9 +164,9 @@ static int get_error(const char *errorstring)
 	return xsd_errors[i].errnum;
 }
 
-static bool xenbus_ok(void)
+static bool xenbus_ok(struct xenstore_private *xs)
 {
-	switch (xen_store_domain_type) {
+	switch (xs->domain_type) {
 	case XS_LOCAL:
 		switch (system_state) {
 		case SYSTEM_POWER_OFF:
@@ -190,9 +188,9 @@ static bool xenbus_ok(void)
 	return false;
 }
 
-static bool test_reply(struct xb_req_data *req)
+static bool test_reply(struct xenstore_private *xs, struct xb_req_data *req)
 {
-	if (req->state == xb_req_state_got_reply || !xenbus_ok())
+	if (req->state == xb_req_state_got_reply || !xenbus_ok(xs))
 		return true;
 
 	/* Make sure to reread req->state each time. */
@@ -201,12 +199,12 @@ static bool test_reply(struct xb_req_data *req)
 	return false;
 }
 
-static void *read_reply(struct xb_req_data *req)
+static void *read_reply(struct xenstore_private *xs, struct xb_req_data *req)
 {
 	while (req->state != xb_req_state_got_reply) {
-		wait_event(req->wq, test_reply(req));
+		wait_event(req->wq, test_reply(xs, req));
 
-		if (!xenbus_ok())
+		if (!xenbus_ok(xs))
 			/*
 			 * If we are in the process of being shut-down there is
 			 * no point of trying to contact XenBus - it is either
@@ -222,9 +220,10 @@ static void *read_reply(struct xb_req_data *req)
 	return req->body;
 }
 
-static void xs_send(struct xb_req_data *req, struct xsd_sockmsg *msg)
+static void xs_send(xenhost_t *xh, struct xb_req_data *req, struct xsd_sockmsg *msg)
 {
 	bool notify;
+	struct xenstore_private *xs = xs_priv(xh);
 
 	req->msg = *msg;
 	req->err = 0;
@@ -236,19 +235,19 @@ static void xs_send(struct xb_req_data *req, struct xsd_sockmsg *msg)
 	req->msg.req_id = xs_request_enter(req);
 
 	mutex_lock(&xb_write_mutex);
-	list_add_tail(&req->list, &xb_write_list);
-	notify = list_is_singular(&xb_write_list);
+	list_add_tail(&req->list, &xs->xb_write_list);
+	notify = list_is_singular(&xs->xb_write_list);
 	mutex_unlock(&xb_write_mutex);
 
 	if (notify)
-		wake_up(&xb_waitq);
+		wake_up(&xs->xb_waitq);
 }
 
-static void *xs_wait_for_reply(struct xb_req_data *req, struct xsd_sockmsg *msg)
+static void *xs_wait_for_reply(struct xenstore_private *xs, struct xb_req_data *req, struct xsd_sockmsg *msg)
 {
 	void *ret;
 
-	ret = read_reply(req);
+	ret = read_reply(xs, req);
 
 	xs_request_exit(req);
 
@@ -271,7 +270,7 @@ static void xs_wake_up(struct xb_req_data *req)
 	wake_up(&req->wq);
 }
 
-int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par)
+int xenbus_dev_request_and_reply(xenhost_t *xh, struct xsd_sockmsg *msg, void *par)
 {
 	struct xb_req_data *req;
 	struct kvec *vec;
@@ -289,14 +288,15 @@ int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par)
 	req->cb = xenbus_dev_queue_reply;
 	req->par = par;
 
-	xs_send(req, msg);
+	xs_send(xh, req, msg);
 
 	return 0;
 }
 EXPORT_SYMBOL(xenbus_dev_request_and_reply);
 
 /* Send message to xs, get kmalloc'ed reply.  ERR_PTR() on error. */
-static void *xs_talkv(struct xenbus_transaction t,
+static void *xs_talkv(xenhost_t *xh,
+		      struct xenbus_transaction t,
 		      enum xsd_sockmsg_type type,
 		      const struct kvec *iovec,
 		      unsigned int num_vecs,
@@ -307,6 +307,7 @@ static void *xs_talkv(struct xenbus_transaction t,
 	void *ret = NULL;
 	unsigned int i;
 	int err;
+	struct xenstore_private *xs = xs_priv(xh);
 
 	req = kmalloc(sizeof(*req), GFP_NOIO | __GFP_HIGH);
 	if (!req)
@@ -323,9 +324,9 @@ static void *xs_talkv(struct xenbus_transaction t,
 	for (i = 0; i < num_vecs; i++)
 		msg.len += iovec[i].iov_len;
 
-	xs_send(req, &msg);
+	xs_send(xh, req, &msg);
 
-	ret = xs_wait_for_reply(req, &msg);
+	ret = xs_wait_for_reply(xs, req, &msg);
 	if (len)
 		*len = msg.len;
 
@@ -348,7 +349,7 @@ static void *xs_talkv(struct xenbus_transaction t,
 }
 
 /* Simplified version of xs_talkv: single message. */
-static void *xs_single(struct xenbus_transaction t,
+static void *xs_single(xenhost_t *xh, struct xenbus_transaction t,
 		       enum xsd_sockmsg_type type,
 		       const char *string,
 		       unsigned int *len)
@@ -357,7 +358,7 @@ static void *xs_single(struct xenbus_transaction t,
 
 	iovec.iov_base = (void *)string;
 	iovec.iov_len = strlen(string) + 1;
-	return xs_talkv(t, type, &iovec, 1, len);
+	return xs_talkv(xh, t, type, &iovec, 1, len);
 }
 
 /* Many commands only need an ack, don't care what it says. */
@@ -415,7 +416,7 @@ static char **split(char *strings, unsigned int len, unsigned int *num)
 	return ret;
 }
 
-char **xenbus_directory(struct xenbus_transaction t,
+char **xenbus_directory(xenhost_t *xh, struct xenbus_transaction t,
 			const char *dir, const char *node, unsigned int *num)
 {
 	char *strings, *path;
@@ -425,7 +426,7 @@ char **xenbus_directory(struct xenbus_transaction t,
 	if (IS_ERR(path))
 		return (char **)path;
 
-	strings = xs_single(t, XS_DIRECTORY, path, &len);
+	strings = xs_single(xh, t, XS_DIRECTORY, path, &len);
 	kfree(path);
 	if (IS_ERR(strings))
 		return (char **)strings;
@@ -435,13 +436,13 @@ char **xenbus_directory(struct xenbus_transaction t,
 EXPORT_SYMBOL_GPL(xenbus_directory);
 
 /* Check if a path exists. Return 1 if it does. */
-int xenbus_exists(struct xenbus_transaction t,
+int xenbus_exists(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node)
 {
 	char **d;
 	int dir_n;
 
-	d = xenbus_directory(t, dir, node, &dir_n);
+	d = xenbus_directory(xh, t, dir, node, &dir_n);
 	if (IS_ERR(d))
 		return 0;
 	kfree(d);
@@ -453,7 +454,7 @@ EXPORT_SYMBOL_GPL(xenbus_exists);
  * Returns a kmalloced value: call free() on it after use.
  * len indicates length in bytes.
  */
-void *xenbus_read(struct xenbus_transaction t,
+void *xenbus_read(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node, unsigned int *len)
 {
 	char *path;
@@ -463,7 +464,7 @@ void *xenbus_read(struct xenbus_transaction t,
 	if (IS_ERR(path))
 		return (void *)path;
 
-	ret = xs_single(t, XS_READ, path, len);
+	ret = xs_single(xh, t, XS_READ, path, len);
 	kfree(path);
 	return ret;
 }
@@ -472,7 +473,7 @@ EXPORT_SYMBOL_GPL(xenbus_read);
 /* Write the value of a single file.
  * Returns -err on failure.
  */
-int xenbus_write(struct xenbus_transaction t,
+int xenbus_write(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node, const char *string)
 {
 	const char *path;
@@ -488,14 +489,14 @@ int xenbus_write(struct xenbus_transaction t,
 	iovec[1].iov_base = (void *)string;
 	iovec[1].iov_len = strlen(string);
 
-	ret = xs_error(xs_talkv(t, XS_WRITE, iovec, ARRAY_SIZE(iovec), NULL));
+	ret = xs_error(xs_talkv(xh, t, XS_WRITE, iovec, ARRAY_SIZE(iovec), NULL));
 	kfree(path);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xenbus_write);
 
 /* Create a new directory. */
-int xenbus_mkdir(struct xenbus_transaction t,
+int xenbus_mkdir(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node)
 {
 	char *path;
@@ -505,14 +506,14 @@ int xenbus_mkdir(struct xenbus_transaction t,
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
-	ret = xs_error(xs_single(t, XS_MKDIR, path, NULL));
+	ret = xs_error(xs_single(xh, t, XS_MKDIR, path, NULL));
 	kfree(path);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(xenbus_mkdir);
 
 /* Destroy a file or directory (directories must be empty). */
-int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node)
+int xenbus_rm(xenhost_t *xh,struct xenbus_transaction t, const char *dir, const char *node)
 {
 	char *path;
 	int ret;
@@ -521,7 +522,7 @@ int xenbus_rm(struct xenbus_transaction t, const char *dir, const char *node)
 	if (IS_ERR(path))
 		return PTR_ERR(path);
 
-	ret = xs_error(xs_single(t, XS_RM, path, NULL));
+	ret = xs_error(xs_single(xh, t, XS_RM, path, NULL));
 	kfree(path);
 	return ret;
 }
@@ -530,11 +531,11 @@ EXPORT_SYMBOL_GPL(xenbus_rm);
 /* Start a transaction: changes by others will not be seen during this
  * transaction, and changes will not be visible to others until end.
  */
-int xenbus_transaction_start(struct xenbus_transaction *t)
+int xenbus_transaction_start(xenhost_t *xh, struct xenbus_transaction *t)
 {
 	char *id_str;
 
-	id_str = xs_single(XBT_NIL, XS_TRANSACTION_START, "", NULL);
+	id_str = xs_single(xh, XBT_NIL, XS_TRANSACTION_START, "", NULL);
 	if (IS_ERR(id_str))
 		return PTR_ERR(id_str);
 
@@ -547,7 +548,7 @@ EXPORT_SYMBOL_GPL(xenbus_transaction_start);
 /* End a transaction.
  * If abandon is true, transaction is discarded instead of committed.
  */
-int xenbus_transaction_end(struct xenbus_transaction t, int abort)
+int xenbus_transaction_end(xenhost_t *xh, struct xenbus_transaction t, int abort)
 {
 	char abortstr[2];
 
@@ -556,19 +557,19 @@ int xenbus_transaction_end(struct xenbus_transaction t, int abort)
 	else
 		strcpy(abortstr, "T");
 
-	return xs_error(xs_single(t, XS_TRANSACTION_END, abortstr, NULL));
+	return xs_error(xs_single(xh, t, XS_TRANSACTION_END, abortstr, NULL));
 }
 EXPORT_SYMBOL_GPL(xenbus_transaction_end);
 
 /* Single read and scanf: returns -errno or num scanned. */
-int xenbus_scanf(struct xenbus_transaction t,
+int xenbus_scanf(xenhost_t *xh, struct xenbus_transaction t,
 		 const char *dir, const char *node, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 	char *val;
 
-	val = xenbus_read(t, dir, node, NULL);
+	val = xenbus_read(xh, t, dir, node, NULL);
 	if (IS_ERR(val))
 		return PTR_ERR(val);
 
@@ -584,13 +585,13 @@ int xenbus_scanf(struct xenbus_transaction t,
 EXPORT_SYMBOL_GPL(xenbus_scanf);
 
 /* Read an (optional) unsigned value. */
-unsigned int xenbus_read_unsigned(const char *dir, const char *node,
+unsigned int xenbus_read_unsigned(xenhost_t *xh, const char *dir, const char *node,
 				  unsigned int default_val)
 {
 	unsigned int val;
 	int ret;
 
-	ret = xenbus_scanf(XBT_NIL, dir, node, "%u", &val);
+	ret = xenbus_scanf(xh, XBT_NIL, dir, node, "%u", &val);
 	if (ret <= 0)
 		val = default_val;
 
@@ -599,7 +600,7 @@ unsigned int xenbus_read_unsigned(const char *dir, const char *node,
 EXPORT_SYMBOL_GPL(xenbus_read_unsigned);
 
 /* Single printf and write: returns -errno or 0. */
-int xenbus_printf(struct xenbus_transaction t,
+int xenbus_printf(xenhost_t *xh, struct xenbus_transaction t,
 		  const char *dir, const char *node, const char *fmt, ...)
 {
 	va_list ap;
@@ -613,7 +614,7 @@ int xenbus_printf(struct xenbus_transaction t,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = xenbus_write(t, dir, node, buf);
+	ret = xenbus_write(xh, t, dir, node, buf);
 
 	kfree(buf);
 
@@ -622,7 +623,7 @@ int xenbus_printf(struct xenbus_transaction t,
 EXPORT_SYMBOL_GPL(xenbus_printf);
 
 /* Takes tuples of names, scanf-style args, and void **, NULL terminated. */
-int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
+int xenbus_gather(xenhost_t *xh, struct xenbus_transaction t, const char *dir, ...)
 {
 	va_list ap;
 	const char *name;
@@ -634,7 +635,7 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 		void *result = va_arg(ap, void *);
 		char *p;
 
-		p = xenbus_read(t, dir, name, NULL);
+		p = xenbus_read(xh, t, dir, name, NULL);
 		if (IS_ERR(p)) {
 			ret = PTR_ERR(p);
 			break;
@@ -651,7 +652,7 @@ int xenbus_gather(struct xenbus_transaction t, const char *dir, ...)
 }
 EXPORT_SYMBOL_GPL(xenbus_gather);
 
-static int xs_watch(const char *path, const char *token)
+static int xs_watch(xenhost_t *xh, const char *path, const char *token)
 {
 	struct kvec iov[2];
 
@@ -660,11 +661,11 @@ static int xs_watch(const char *path, const char *token)
 	iov[1].iov_base = (void *)token;
 	iov[1].iov_len = strlen(token) + 1;
 
-	return xs_error(xs_talkv(XBT_NIL, XS_WATCH, iov,
+	return xs_error(xs_talkv(xh, XBT_NIL, XS_WATCH, iov,
 				 ARRAY_SIZE(iov), NULL));
 }
 
-static int xs_unwatch(const char *path, const char *token)
+static int xs_unwatch(xenhost_t *xh, const char *path, const char *token)
 {
 	struct kvec iov[2];
 
@@ -673,24 +674,25 @@ static int xs_unwatch(const char *path, const char *token)
 	iov[1].iov_base = (char *)token;
 	iov[1].iov_len = strlen(token) + 1;
 
-	return xs_error(xs_talkv(XBT_NIL, XS_UNWATCH, iov,
+	return xs_error(xs_talkv(xh, XBT_NIL, XS_UNWATCH, iov,
 				 ARRAY_SIZE(iov), NULL));
 }
 
-static struct xenbus_watch *find_watch(const char *token)
+static struct xenbus_watch *find_watch(xenhost_t *xh, const char *token)
 {
 	struct xenbus_watch *i, *cmp;
+	struct xenstore_private *xs = xs_priv(xh);
 
 	cmp = (void *)simple_strtoul(token, NULL, 16);
 
-	list_for_each_entry(i, &watches, list)
+	list_for_each_entry(i, &xs->watches, list)
 		if (i == cmp)
 			return i;
 
 	return NULL;
 }
 
-int xs_watch_msg(struct xs_watch_event *event)
+int xs_watch_msg(xenhost_t *xh, struct xs_watch_event *event)
 {
 	if (count_strings(event->body, event->len) != 2) {
 		kfree(event);
@@ -700,7 +702,7 @@ int xs_watch_msg(struct xs_watch_event *event)
 	event->token = (const char *)strchr(event->body, '\0') + 1;
 
 	spin_lock(&watches_lock);
-	event->handle = find_watch(event->token);
+	event->handle = find_watch(xh, event->token);
 	if (event->handle != NULL) {
 		spin_lock(&watch_events_lock);
 		list_add_tail(&event->list, &watch_events);
@@ -719,7 +721,7 @@ int xs_watch_msg(struct xs_watch_event *event)
  * so if we are running on anything older than 4 do not attempt to read
  * control/platform-feature-xs_reset_watches.
  */
-static bool xen_strict_xenbus_quirk(void)
+static bool xen_strict_xenbus_quirk(xenhost_t *xh)
 {
 #ifdef CONFIG_X86
 	uint32_t eax, ebx, ecx, edx, base;
@@ -733,42 +735,44 @@ static bool xen_strict_xenbus_quirk(void)
 	return false;
 
 }
-static void xs_reset_watches(void)
+static void xs_reset_watches(xenhost_t *xh)
 {
 	int err;
 
 	if (!xen_hvm_domain() || xen_initial_domain())
 		return;
 
-	if (xen_strict_xenbus_quirk())
+	if (xen_strict_xenbus_quirk(xh))
 		return;
 
-	if (!xenbus_read_unsigned("control",
+	if (!xenbus_read_unsigned(xh, "control",
 				  "platform-feature-xs_reset_watches", 0))
 		return;
 
-	err = xs_error(xs_single(XBT_NIL, XS_RESET_WATCHES, "", NULL));
+	err = xs_error(xs_single(xh, XBT_NIL, XS_RESET_WATCHES, "", NULL));
 	if (err && err != -EEXIST)
 		pr_warn("xs_reset_watches failed: %d\n", err);
 }
 
 /* Register callback to watch this node. */
-int register_xenbus_watch(struct xenbus_watch *watch)
+int register_xenbus_watch(xenhost_t *xh, struct xenbus_watch *watch)
 {
 	/* Pointer in ascii is the token. */
 	char token[sizeof(watch) * 2 + 1];
+	struct xenstore_private *xs = xs_priv(xh);
 	int err;
 
 	sprintf(token, "%lX", (long)watch);
+	watch->xh = xh;
 
 	down_read(&xs_watch_rwsem);
 
 	spin_lock(&watches_lock);
-	BUG_ON(find_watch(token));
-	list_add(&watch->list, &watches);
+	BUG_ON(find_watch(xh, token));
+	list_add(&watch->list, &xs->watches);
 	spin_unlock(&watches_lock);
 
-	err = xs_watch(watch->node, token);
+	err = xs_watch(xh, watch->node, token);
 
 	if (err) {
 		spin_lock(&watches_lock);
@@ -782,7 +786,7 @@ int register_xenbus_watch(struct xenbus_watch *watch)
 }
 EXPORT_SYMBOL_GPL(register_xenbus_watch);
 
-void unregister_xenbus_watch(struct xenbus_watch *watch)
+void unregister_xenbus_watch(xenhost_t *xh, struct xenbus_watch *watch)
 {
 	struct xs_watch_event *event, *tmp;
 	char token[sizeof(watch) * 2 + 1];
@@ -793,11 +797,11 @@ void unregister_xenbus_watch(struct xenbus_watch *watch)
 	down_read(&xs_watch_rwsem);
 
 	spin_lock(&watches_lock);
-	BUG_ON(!find_watch(token));
+	BUG_ON(!find_watch(xh, token));
 	list_del(&watch->list);
 	spin_unlock(&watches_lock);
 
-	err = xs_unwatch(watch->node, token);
+	err = xs_unwatch(xh, watch->node, token);
 	if (err)
 		pr_warn("Failed to release watch %s: %i\n", watch->node, err);
 
@@ -831,24 +835,29 @@ void xs_suspend(void)
 	mutex_lock(&xs_response_mutex);
 }
 
-void xs_resume(void)
+void xs_resume()
 {
 	struct xenbus_watch *watch;
 	char token[sizeof(watch) * 2 + 1];
+	xenhost_t **xh;
 
-	xb_init_comms();
+	for_each_xenhost(xh) {
+		struct xenstore_private *xs = xs_priv(*xh);
 
-	mutex_unlock(&xs_response_mutex);
+		xb_init_comms(*xh);
 
-	xs_suspend_exit();
+		mutex_unlock(&xs_response_mutex);
 
-	/* No need for watches_lock: the xs_watch_rwsem is sufficient. */
-	list_for_each_entry(watch, &watches, list) {
-		sprintf(token, "%lX", (long)watch);
-		xs_watch(watch->node, token);
+		xs_suspend_exit();
+
+		/* No need for watches_lock: the xs_watch_rwsem is sufficient. */
+		list_for_each_entry(watch, &xs->watches, list) {
+			sprintf(token, "%lX", (long)watch);
+			xs_watch(*xh, watch->node, token);
+		}
+
+		up_write(&xs_watch_rwsem);
 	}
-
-	up_write(&xs_watch_rwsem);
 }
 
 void xs_suspend_cancel(void)
@@ -905,13 +914,18 @@ static int xs_reboot_notify(struct notifier_block *nb,
 			    unsigned long code, void *unused)
 {
 	struct xb_req_data *req;
+	xenhost_t **xh;
 
-	mutex_lock(&xb_write_mutex);
-	list_for_each_entry(req, &xs_reply_list, list)
-		wake_up(&req->wq);
-	list_for_each_entry(req, &xb_write_list, list)
-		wake_up(&req->wq);
-	mutex_unlock(&xb_write_mutex);
+	for_each_xenhost(xh) {
+		struct xenstore_private *xs = xs_priv(*xh);
+
+		mutex_lock(&xb_write_mutex);
+		list_for_each_entry(req, &xs->reply_list, list)
+			wake_up(&req->wq);
+		list_for_each_entry(req, &xs->xb_write_list, list)
+			wake_up(&req->wq);
+		mutex_unlock(&xb_write_mutex);
+	}
 	return NOTIFY_DONE;
 }
 
@@ -919,15 +933,17 @@ static struct notifier_block xs_reboot_nb = {
 	.notifier_call = xs_reboot_notify,
 };
 
-int xs_init(void)
+int xs_init(xenhost_t *xh)
 {
 	int err;
 	struct task_struct *task;
 
-	register_reboot_notifier(&xs_reboot_nb);
+	if (xh->type != xenhost_r2)
+		/* Needs to be moved out */
+		register_reboot_notifier(&xs_reboot_nb);
 
 	/* Initialize the shared memory rings to talk to xenstored */
-	err = xb_init_comms();
+	err = xb_init_comms(xh);
 	if (err)
 		return err;
 
@@ -936,7 +952,7 @@ int xs_init(void)
 		return PTR_ERR(task);
 
 	/* shutdown watches for kexec boot */
-	xs_reset_watches();
+	xs_reset_watches(xh);
 
 	return 0;
 }

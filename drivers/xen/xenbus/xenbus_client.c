@@ -122,7 +122,7 @@ int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 	watch->node = path;
 	watch->callback = callback;
 
-	err = register_xenbus_watch(watch);
+	err = register_xenbus_watch(dev->xh, watch);
 
 	if (err) {
 		watch->node = NULL;
@@ -206,17 +206,17 @@ __xenbus_switch_state(struct xenbus_device *dev,
 again:
 	abort = 1;
 
-	err = xenbus_transaction_start(&xbt);
+	err = xenbus_transaction_start(dev->xh, &xbt);
 	if (err) {
 		xenbus_switch_fatal(dev, depth, err, "starting transaction");
 		return 0;
 	}
 
-	err = xenbus_scanf(xbt, dev->nodename, "state", "%d", &current_state);
+	err = xenbus_scanf(dev->xh, xbt, dev->nodename, "state", "%d", &current_state);
 	if (err != 1)
 		goto abort;
 
-	err = xenbus_printf(xbt, dev->nodename, "state", "%d", state);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "state", "%d", state);
 	if (err) {
 		xenbus_switch_fatal(dev, depth, err, "writing new state");
 		goto abort;
@@ -224,7 +224,7 @@ again:
 
 	abort = 0;
 abort:
-	err = xenbus_transaction_end(xbt, abort);
+	err = xenbus_transaction_end(dev->xh, xbt, abort);
 	if (err) {
 		if (err == -EAGAIN && !abort)
 			goto again;
@@ -279,7 +279,7 @@ static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 
 	path_buffer = kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
 	if (path_buffer)
-		xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer);
+		xenbus_write(dev->xh, XBT_NIL, path_buffer, "error", printf_buffer);
 
 	kfree(printf_buffer);
 	kfree(path_buffer);
@@ -363,7 +363,7 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 	int i, j;
 
 	for (i = 0; i < nr_pages; i++) {
-		err = gnttab_grant_foreign_access(dev->otherend_id,
+		err = gnttab_grant_foreign_access(dev->xh, dev->otherend_id,
 						  virt_to_gfn(vaddr), 0);
 		if (err < 0) {
 			xenbus_dev_fatal(dev, err,
@@ -379,7 +379,7 @@ int xenbus_grant_ring(struct xenbus_device *dev, void *vaddr,
 
 fail:
 	for (j = 0; j < i; j++)
-		gnttab_end_foreign_access_ref(grefs[j], 0);
+		gnttab_end_foreign_access_ref(dev->xh, grefs[j], 0);
 	return err;
 }
 EXPORT_SYMBOL_GPL(xenbus_grant_ring);
@@ -399,7 +399,7 @@ int xenbus_alloc_evtchn(struct xenbus_device *dev, int *port)
 	alloc_unbound.dom = DOMID_SELF;
 	alloc_unbound.remote_dom = dev->otherend_id;
 
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound,
+	err = hypervisor_event_channel_op(dev->xh, EVTCHNOP_alloc_unbound,
 					  &alloc_unbound);
 	if (err)
 		xenbus_dev_fatal(dev, err, "allocating event channel");
@@ -421,7 +421,7 @@ int xenbus_free_evtchn(struct xenbus_device *dev, int port)
 
 	close.port = port;
 
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_close, &close);
+	err = hypervisor_event_channel_op(dev->xh, EVTCHNOP_close, &close);
 	if (err)
 		xenbus_dev_error(dev, err, "freeing event channel %d", port);
 
@@ -478,7 +478,7 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 		handles[i] = INVALID_GRANT_HANDLE;
 	}
 
-	gnttab_batch_map(map, i);
+	gnttab_batch_map(dev->xh, map, i);
 
 	for (i = 0; i < nr_grefs; i++) {
 		if (map[i].status != GNTST_okay) {
@@ -503,7 +503,7 @@ static int __xenbus_map_ring(struct xenbus_device *dev,
 		}
 	}
 
-	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, j))
+	if (hypervisor_grant_table_op(dev->xh, GNTTABOP_unmap_grant_ref, unmap, j))
 		BUG();
 
 	*leaked = false;
@@ -761,7 +761,7 @@ static int xenbus_unmap_ring_vfree_pv(struct xenbus_device *dev, void *vaddr)
 		unmap[i].handle = node->handles[i];
 	}
 
-	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
+	if (hypervisor_grant_table_op(dev->xh, GNTTABOP_unmap_grant_ref, unmap, i))
 		BUG();
 
 	err = GNTST_okay;
@@ -884,7 +884,7 @@ int xenbus_unmap_ring(struct xenbus_device *dev,
 		gnttab_set_unmap_op(&unmap[i], vaddrs[i],
 				    GNTMAP_host_map, handles[i]);
 
-	if (HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap, i))
+	if (hypervisor_grant_table_op(dev->xh, GNTTABOP_unmap_grant_ref, unmap, i))
 		BUG();
 
 	err = GNTST_okay;
@@ -910,10 +910,10 @@ EXPORT_SYMBOL_GPL(xenbus_unmap_ring);
  * Return the state of the driver rooted at the given store path, or
  * XenbusStateUnknown if no state can be read.
  */
-enum xenbus_state xenbus_read_driver_state(const char *path)
+enum xenbus_state xenbus_read_driver_state(struct xenbus_device *dev, const char *path)
 {
 	enum xenbus_state result;
-	int err = xenbus_gather(XBT_NIL, path, "state", "%d", &result, NULL);
+	int err = xenbus_gather(dev->xh, XBT_NIL, path, "state", "%d", &result, NULL);
 	if (err)
 		result = XenbusStateUnknown;
 

@@ -19,6 +19,8 @@
 
 #include "xenbus.h"
 
+static xenhost_t *xh;
+
 static int xenbus_backend_open(struct inode *inode, struct file *filp)
 {
 	if (!capable(CAP_SYS_ADMIN))
@@ -31,6 +33,7 @@ static long xenbus_alloc(domid_t domid)
 {
 	struct evtchn_alloc_unbound arg;
 	int err = -EEXIST;
+	struct xenstore_private *xs = xs_priv(xh);
 
 	xs_suspend();
 
@@ -44,23 +47,23 @@ static long xenbus_alloc(domid_t domid)
 	 * unnecessarily complex for the intended use where xenstored is only
 	 * started once - so return -EEXIST if it's already running.
 	 */
-	if (xenstored_ready)
+	if (xs->xenstored_ready)
 		goto out_err;
 
-	gnttab_grant_foreign_access_ref(GNTTAB_RESERVED_XENSTORE, domid,
-			virt_to_gfn(xen_store_interface), 0 /* writable */);
+	gnttab_grant_foreign_access_ref(xh, GNTTAB_RESERVED_XENSTORE, domid,
+			virt_to_gfn(xs->store_interface), 0 /* writable */);
 
 	arg.dom = DOMID_SELF;
 	arg.remote_dom = domid;
 
-	err = HYPERVISOR_event_channel_op(EVTCHNOP_alloc_unbound, &arg);
+	err = hypervisor_event_channel_op(xh, EVTCHNOP_alloc_unbound, &arg);
 	if (err)
 		goto out_err;
 
-	if (xen_store_evtchn > 0)
-		xb_deinit_comms();
+	if (xs->store_evtchn > 0)
+		xb_deinit_comms(xh);
 
-	xen_store_evtchn = arg.port;
+	xs->store_evtchn = arg.port;
 
 	xs_resume();
 
@@ -74,13 +77,15 @@ static long xenbus_alloc(domid_t domid)
 static long xenbus_backend_ioctl(struct file *file, unsigned int cmd,
 				 unsigned long data)
 {
+	struct xenstore_private *xs = xs_priv(xh);
+
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
 	switch (cmd) {
 	case IOCTL_XENBUS_BACKEND_EVTCHN:
-		if (xen_store_evtchn > 0)
-			return xen_store_evtchn;
+		if (xs->store_evtchn > 0)
+			return xs->store_evtchn;
 		return -ENODEV;
 	case IOCTL_XENBUS_BACKEND_SETUP:
 		return xenbus_alloc(data);
@@ -92,6 +97,7 @@ static long xenbus_backend_ioctl(struct file *file, unsigned int cmd,
 static int xenbus_backend_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	size_t size = vma->vm_end - vma->vm_start;
+	struct xenstore_private *xs = xs_priv(xh);
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
@@ -100,7 +106,7 @@ static int xenbus_backend_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (remap_pfn_range(vma, vma->vm_start,
-			    virt_to_pfn(xen_store_interface),
+			    virt_to_pfn(xs->store_interface),
 			    size, vma->vm_page_prot))
 		return -EAGAIN;
 
@@ -125,6 +131,10 @@ static int __init xenbus_backend_init(void)
 
 	if (!xen_initial_domain())
 		return -ENODEV;
+	/*
+	 * Backends shouldn't have any truck with the remote xenhost.
+	 */
+	xh = xh_default;
 
 	err = misc_register(&xenbus_backend_dev);
 	if (err)

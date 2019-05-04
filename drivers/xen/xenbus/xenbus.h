@@ -39,9 +39,11 @@
 #define XEN_BUS_ID_SIZE			20
 
 struct xen_bus_type {
+	xenhost_t *xh;
 	char *root;
 	unsigned int levels;
-	int (*get_bus_id)(char bus_id[XEN_BUS_ID_SIZE], const char *nodename);
+	int (*get_bus_id)(struct xen_bus_type *bus, char bus_id[XEN_BUS_ID_SIZE],
+			  const char *nodename);
 	int (*probe)(struct xen_bus_type *bus, const char *type,
 		     const char *dir);
 	void (*otherend_changed)(struct xenbus_watch *watch, const char *path,
@@ -49,12 +51,29 @@ struct xen_bus_type {
 	struct bus_type bus;
 };
 
-enum xenstore_init {
-	XS_UNKNOWN,
-	XS_PV,
-	XS_HVM,
-	XS_LOCAL,
+struct xenstore_private {
+	/* xenbus_comms.c */
+	struct work_struct probe_work;
+	struct wait_queue_head xb_waitq;
+	struct list_head xb_write_list;
+	struct task_struct *xenbus_task;
+	struct list_head reply_list;
+	int xenbus_irq;
+
+	/* xenbus_probe.c */
+	struct xenstore_domain_interface *store_interface;
+	struct blocking_notifier_head xenstore_chain;
+
+	enum xenstore_init domain_type;
+	xen_pfn_t store_gfn;
+	uint32_t store_evtchn;
+	int xenstored_ready;
+
+	/*  xenbus_xs.c */
+	struct list_head watches; /* xenhost local so we don't mix them up. */
 };
+
+#define xs_priv(xh) ((struct xenstore_private *) (xh)->xenstore_private)
 
 struct xs_watch_event {
 	struct list_head list;
@@ -87,18 +106,14 @@ struct xb_req_data {
 	void *par;
 };
 
-extern enum xenstore_init xen_store_domain_type;
 extern const struct attribute_group *xenbus_dev_groups[];
 extern struct mutex xs_response_mutex;
-extern struct list_head xs_reply_list;
-extern struct list_head xb_write_list;
-extern wait_queue_head_t xb_waitq;
 extern struct mutex xb_write_mutex;
 
-int xs_init(void);
-int xb_init_comms(void);
-void xb_deinit_comms(void);
-int xs_watch_msg(struct xs_watch_event *event);
+int xs_init(xenhost_t *xh);
+int xb_init_comms(xenhost_t *xh);
+void xb_deinit_comms(xenhost_t *xh);
+int xs_watch_msg(xenhost_t *xh, struct xs_watch_event *event);
 void xs_request_exit(struct xb_req_data *req);
 
 int xenbus_match(struct device *_dev, struct device_driver *_drv);
@@ -130,7 +145,7 @@ int xenbus_read_otherend_details(struct xenbus_device *xendev,
 
 void xenbus_ring_ops_init(void);
 
-int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par);
+int xenbus_dev_request_and_reply(xenhost_t *xh, struct xsd_sockmsg *msg, void *par);
 void xenbus_dev_queue_reply(struct xb_req_data *req);
 
 #endif

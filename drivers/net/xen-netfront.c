@@ -1336,9 +1336,9 @@ static struct net_device *xennet_create_dev(struct xenbus_device *dev)
 
 	xenbus_switch_state(dev, XenbusStateInitialising);
 	wait_event(module_wq,
-		   xenbus_read_driver_state(dev->otherend) !=
+		   xenbus_read_driver_state(dev, dev->otherend) !=
 		   XenbusStateClosed &&
-		   xenbus_read_driver_state(dev->otherend) !=
+		   xenbus_read_driver_state(dev, dev->otherend) !=
 		   XenbusStateUnknown);
 	return netdev;
 
@@ -2145,19 +2145,19 @@ static int xennet_remove(struct xenbus_device *dev)
 
 	dev_dbg(&dev->dev, "%s\n", dev->nodename);
 
-	if (xenbus_read_driver_state(dev->otherend) != XenbusStateClosed) {
+	if (xenbus_read_driver_state(dev, dev->otherend) != XenbusStateClosed) {
 		xenbus_switch_state(dev, XenbusStateClosing);
 		wait_event(module_wq,
-			   xenbus_read_driver_state(dev->otherend) ==
+			   xenbus_read_driver_state(dev, dev->otherend) ==
 			   XenbusStateClosing ||
-			   xenbus_read_driver_state(dev->otherend) ==
+			   xenbus_read_driver_state(dev, dev->otherend) ==
 			   XenbusStateUnknown);
 
 		xenbus_switch_state(dev, XenbusStateClosed);
 		wait_event(module_wq,
-			   xenbus_read_driver_state(dev->otherend) ==
+			   xenbus_read_driver_state(dev, dev->otherend) ==
 			   XenbusStateClosed ||
-			   xenbus_read_driver_state(dev->otherend) ==
+			   xenbus_read_driver_state(dev, dev->otherend) ==
 			   XenbusStateUnknown);
 	}
 

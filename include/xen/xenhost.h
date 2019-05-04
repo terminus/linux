@@ -140,6 +140,9 @@ typedef struct {
 		void *gnttab_status_vm_area;
 		void *auto_xlat_grant_frames;
 	};
+
+	/* xenstore private state */
+	void *xenstore_private;
 } xenhost_t;
 
 typedef struct xenhost_ops {
@@ -228,6 +231,17 @@ typedef struct xenhost_ops {
 	int (*alloc_ballooned_pages)(xenhost_t *xh, int nr_pages, struct page **pages);
 	void (*free_ballooned_pages)(xenhost_t *xh, int nr_pages, struct page **pages);
 
+	/*
+	 * xenbus: as part of xenbus-init, frontend/backend need to talk to the
+	 * correct xenbus.  This might be a local xenstore (backend) or might
+	 * be a XS_PV/XS_HVM interface (frontend). We bootstrap these with
+	 * evtchn/gfn parameters from (*setup_xs)().
+	 *
+	 * Once done, stash the xenhost_t * in xen_bus_type, xenbus_device or
+	 * xenbus_watch and then the frontend and backend devices implicitly
+	 * use the correct interface.
+	 */
+	int (*setup_xs)(xenhost_t *xh);
 } xenhost_ops_t;
 
 extern xenhost_t *xh_default, *xh_remote;
@@ -277,6 +291,12 @@ static inline void xenhost_reset_shared_info(xenhost_t *xh)
 static inline void xenhost_probe_vcpu_id(xenhost_t *xh, int cpu)
 {
 	(xh->ops->probe_vcpu_id)(xh, cpu);
+}
+
+static inline void xenhost_setup_xs(xenhost_t *xh)
+{
+	if (xh)
+		(xh->ops->setup_xs)(xh);
 }
 
 #endif /* __XENHOST_H */

@@ -63,7 +63,7 @@ static void watch_target(struct xenbus_watch *watch,
 	static bool watch_fired;
 	static long target_diff;
 
-	err = xenbus_scanf(XBT_NIL, "memory", "target", "%llu", &new_target);
+	err = xenbus_scanf(xh_default, XBT_NIL, "memory", "target", "%llu", &new_target);
 	if (err != 1) {
 		/* This is ok (for domain0 at least) - so just return */
 		return;
@@ -77,9 +77,9 @@ static void watch_target(struct xenbus_watch *watch,
 	if (!watch_fired) {
 		watch_fired = true;
 
-		if ((xenbus_scanf(XBT_NIL, "memory", "static-max",
+		if ((xenbus_scanf(xh_default, XBT_NIL, "memory", "static-max",
 				  "%llu", &static_max) == 1) ||
-		    (xenbus_scanf(XBT_NIL, "memory", "memory_static_max",
+		    (xenbus_scanf(xh_default, XBT_NIL, "memory", "memory_static_max",
 				  "%llu", &static_max) == 1))
 			static_max >>= PAGE_SHIFT - 10;
 		else
@@ -103,7 +103,7 @@ static int balloon_init_watcher(struct notifier_block *notifier,
 {
 	int err;
 
-	err = register_xenbus_watch(&target_watch);
+	err = register_xenbus_watch(xh_default, &target_watch);
 	if (err)
 		pr_err("Failed to set balloon watcher\n");
 

@@ -57,7 +57,8 @@
 #include "xenbus.h"
 
 /* backend/<type>/<fe-uuid>/<id> => <type>-<fe-domid>-<id> */
-static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
+static int backend_bus_id(struct xen_bus_type *bus, char bus_id[XEN_BUS_ID_SIZE],
+			  const char *nodename)
 {
 	int domid, err;
 	const char *devid, *type, *frontend;
@@ -73,14 +74,14 @@ static int backend_bus_id(char bus_id[XEN_BUS_ID_SIZE], const char *nodename)
 
 	devid = strrchr(nodename, '/') + 1;
 
-	err = xenbus_gather(XBT_NIL, nodename, "frontend-id", "%i", &domid,
+	err = xenbus_gather(bus->xh, XBT_NIL, nodename, "frontend-id", "%i", &domid,
 			    "frontend", NULL, &frontend,
 			    NULL);
 	if (err)
 		return err;
 	if (strlen(frontend) == 0)
 		err = -ERANGE;
-	if (!err && !xenbus_exists(XBT_NIL, frontend, ""))
+	if (!err && !xenbus_exists(bus->xh, XBT_NIL, frontend, ""))
 		err = -ENOENT;
 	kfree(frontend);
 
@@ -165,7 +166,7 @@ static int xenbus_probe_backend(struct xen_bus_type *bus, const char *type,
 	if (!nodename)
 		return -ENOMEM;
 
-	dir = xenbus_directory(XBT_NIL, nodename, "", &dir_n);
+	dir = xenbus_directory(bus->xh, XBT_NIL, nodename, "", &dir_n);
 	if (IS_ERR(dir)) {
 		kfree(nodename);
 		return PTR_ERR(dir);
@@ -189,6 +190,7 @@ static void frontend_changed(struct xenbus_watch *watch,
 
 static struct xen_bus_type xenbus_backend = {
 	.root = "backend",
+	.xh = NULL,		/* Filled at xenbus_probe_backend_init() */
 	.levels = 3,		/* backend/type/<frontend>/<id> */
 	.get_bus_id = backend_bus_id,
 	.probe = xenbus_probe_backend,
@@ -224,7 +226,7 @@ static int read_frontend_details(struct xenbus_device *xendev)
 
 int xenbus_dev_is_online(struct xenbus_device *dev)
 {
-	return !!xenbus_read_unsigned(dev->nodename, "online", 0);
+	return !!xenbus_read_unsigned(dev->xh, dev->nodename, "online", 0);
 }
 EXPORT_SYMBOL_GPL(xenbus_dev_is_online);
 
@@ -244,7 +246,7 @@ static int backend_probe_and_watch(struct notifier_block *notifier,
 {
 	/* Enumerate devices in xenstore and watch for changes. */
 	xenbus_probe_devices(&xenbus_backend);
-	register_xenbus_watch(&be_watch);
+	register_xenbus_watch(xenbus_backend.xh,&be_watch);
 
 	return NOTIFY_DONE;
 }
@@ -258,12 +260,15 @@ static int __init xenbus_probe_backend_init(void)
 
 	DPRINTK("");
 
+	/* Backends always talk to default xenhost */
+	xenbus_backend.xh = xh_default;
+
 	/* Register ourselves with the kernel bus subsystem */
 	err = bus_register(&xenbus_backend.bus);
 	if (err)
 		return err;
 
-	register_xenstore_notifier(&xenstore_notifier);
+	register_xenstore_notifier(xenbus_backend.xh, &xenstore_notifier);
 
 	return 0;
 }

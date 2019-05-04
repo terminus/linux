@@ -860,7 +860,7 @@ static int pcifront_try_connect(struct pcifront_device *pdev)
 
 
 	/* Only connect once */
-	if (xenbus_read_driver_state(pdev->xdev->nodename) !=
+	if (xenbus_read_driver_state(pdev->xdev, pdev->xdev->nodename) !=
 	    XenbusStateInitialised)
 		goto out;
 
@@ -871,7 +871,7 @@ static int pcifront_try_connect(struct pcifront_device *pdev)
 		goto out;
 	}
 
-	err = xenbus_scanf(XBT_NIL, pdev->xdev->otherend,
+	err = xenbus_scanf(pdev->xdev->xh, XBT_NIL, pdev->xdev->otherend,
 			   "root_num", "%d", &num_roots);
 	if (err == -ENOENT) {
 		xenbus_dev_error(pdev->xdev, err,

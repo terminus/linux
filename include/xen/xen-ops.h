@@ -204,6 +204,9 @@ int xen_unmap_domain_gfn_range(struct vm_area_struct *vma,
 int xen_xlate_map_ballooned_pages(xen_pfn_t **pfns, void **vaddr,
 				  unsigned long nr_grant_frames);
 
+int xen_hvm_setup_xs(xenhost_t *xh);
+int xen_pv_setup_xs(xenhost_t *xh);
+
 bool xen_running_on_version_or_later(unsigned int major, unsigned int minor);
 
 efi_status_t xen_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc);

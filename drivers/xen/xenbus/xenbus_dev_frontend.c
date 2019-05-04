@@ -58,9 +58,13 @@
 
 #include <xen/xenbus.h>
 #include <xen/xen.h>
+#include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <asm/xen/hypervisor.h>
 
 #include "xenbus.h"
+
+static xenhost_t *xh;
 
 /*
  * An element of a list of outstanding transactions, for which we're
@@ -312,13 +316,13 @@ static void xenbus_file_free(struct kref *kref)
 	 */
 
 	list_for_each_entry_safe(trans, tmp, &u->transactions, list) {
-		xenbus_transaction_end(trans->handle, 1);
+		xenbus_transaction_end(xh, trans->handle, 1);
 		list_del(&trans->list);
 		kfree(trans);
 	}
 
 	list_for_each_entry_safe(watch, tmp_watch, &u->watches, list) {
-		unregister_xenbus_watch(&watch->watch);
+		unregister_xenbus_watch(xh, &watch->watch);
 		list_del(&watch->list);
 		free_watch_adapter(watch);
 	}
@@ -450,7 +454,7 @@ static int xenbus_write_transaction(unsigned msg_type,
 		   (!strcmp(msg->body, "T") || !strcmp(msg->body, "F"))))
 		return xenbus_command_reply(u, XS_ERROR, "EINVAL");
 
-	rc = xenbus_dev_request_and_reply(&msg->hdr, u);
+	rc = xenbus_dev_request_and_reply(xh, &msg->hdr, u);
 	if (rc && trans) {
 		list_del(&trans->list);
 		kfree(trans);
@@ -489,7 +493,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 		watch->watch.callback = watch_fired;
 		watch->dev_data = u;
 
-		err = register_xenbus_watch(&watch->watch);
+		err = register_xenbus_watch(xh, &watch->watch);
 		if (err) {
 			free_watch_adapter(watch);
 			rc = err;
@@ -500,7 +504,7 @@ static int xenbus_write_watch(unsigned msg_type, struct xenbus_file_priv *u)
 		list_for_each_entry(watch, &u->watches, list) {
 			if (!strcmp(watch->token, token) &&
 			    !strcmp(watch->watch.node, path)) {
-				unregister_xenbus_watch(&watch->watch);
+				unregister_xenbus_watch(xh, &watch->watch);
 				list_del(&watch->list);
 				free_watch_adapter(watch);
 				break;
@@ -618,8 +622,9 @@ static ssize_t xenbus_file_write(struct file *filp,
 static int xenbus_file_open(struct inode *inode, struct file *filp)
 {
 	struct xenbus_file_priv *u;
+	struct xenstore_private *xs = xs_priv(xh);
 
-	if (xen_store_evtchn == 0)
+	if (xs->store_evtchn == 0)
 		return -ENOENT;
 
 	nonseekable_open(inode, filp);
@@ -686,6 +691,11 @@ static int __init xenbus_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	if (xen_driver_domain() && xen_nested())
+		xh = xh_remote;
+	else
+		xh = xh_default;
 
 	err = misc_register(&xenbus_dev);
 	if (err)

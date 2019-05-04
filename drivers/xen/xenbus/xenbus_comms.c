@@ -43,31 +43,21 @@
 #include <xen/page.h>
 #include "xenbus.h"
 
-/* A list of replies. Currently only one will ever be outstanding. */
-LIST_HEAD(xs_reply_list);
-
-/* A list of write requests. */
-LIST_HEAD(xb_write_list);
-DECLARE_WAIT_QUEUE_HEAD(xb_waitq);
 DEFINE_MUTEX(xb_write_mutex);
 
 /* Protect xenbus reader thread against save/restore. */
 DEFINE_MUTEX(xs_response_mutex);
 
-static int xenbus_irq;
-static struct task_struct *xenbus_task;
-
-static DECLARE_WORK(probe_work, xenbus_probe);
-
-
-static irqreturn_t wake_waiting(int irq, void *unused)
+static irqreturn_t wake_waiting(int irq, void *_xs)
 {
-	if (unlikely(xenstored_ready == 0)) {
-		xenstored_ready = 1;
-		schedule_work(&probe_work);
+	struct xenstore_private *xs = (struct xenstore_private *) _xs;
+
+	if (unlikely(xs->xenstored_ready == 0)) {
+			xs->xenstored_ready = 1;
+			schedule_work(&xs->probe_work);
 	}
 
-	wake_up(&xb_waitq);
+	wake_up(&xs->xb_waitq);
 	return IRQ_HANDLED;
 }
 
@@ -96,24 +86,26 @@ static const void *get_input_chunk(XENSTORE_RING_IDX cons,
 	return buf + MASK_XENSTORE_IDX(cons);
 }
 
-static int xb_data_to_write(void)
+static int xb_data_to_write(struct xenstore_private *xs)
 {
-	struct xenstore_domain_interface *intf = xen_store_interface;
+	struct xenstore_domain_interface *intf = xs->store_interface;
 
 	return (intf->req_prod - intf->req_cons) != XENSTORE_RING_SIZE &&
-		!list_empty(&xb_write_list);
+		!list_empty(&xs->xb_write_list);
 }
 
 /**
  * xb_write - low level write
+ * @xh: xenhost to send to
  * @data: buffer to send
  * @len: length of buffer
  *
  * Returns number of bytes written or -err.
  */
-static int xb_write(const void *data, unsigned int len)
+static int xb_write(xenhost_t *xh, const void *data, unsigned int len)
 {
-	struct xenstore_domain_interface *intf = xen_store_interface;
+	struct xenstore_private *xs = xs_priv(xh);
+	struct xenstore_domain_interface *intf = xs->store_interface;
 	XENSTORE_RING_IDX cons, prod;
 	unsigned int bytes = 0;
 
@@ -128,7 +120,7 @@ static int xb_write(const void *data, unsigned int len)
 			intf->req_cons = intf->req_prod = 0;
 			return -EIO;
 		}
-		if (!xb_data_to_write())
+		if (!xb_data_to_write(xs))
 			return bytes;
 
 		/* Must write data /after/ reading the consumer index. */
@@ -151,21 +143,22 @@ static int xb_write(const void *data, unsigned int len)
 
 		/* Implies mb(): other side will see the updated producer. */
 		if (prod <= intf->req_cons)
-			notify_remote_via_evtchn(xh_default, xen_store_evtchn);
+			notify_remote_via_evtchn(xh, xs->store_evtchn);
 	}
 
 	return bytes;
 }
 
-static int xb_data_to_read(void)
+static int xb_data_to_read(struct xenstore_private *xs)
 {
-	struct xenstore_domain_interface *intf = xen_store_interface;
+	struct xenstore_domain_interface *intf = xs->store_interface;
 	return (intf->rsp_cons != intf->rsp_prod);
 }
 
-static int xb_read(void *data, unsigned int len)
+static int xb_read(xenhost_t *xh, void *data, unsigned int len)
 {
-	struct xenstore_domain_interface *intf = xen_store_interface;
+	struct xenstore_private *xs = xs_priv(xh);
+	struct xenstore_domain_interface *intf = xs->store_interface;
 	XENSTORE_RING_IDX cons, prod;
 	unsigned int bytes = 0;
 
@@ -204,14 +197,15 @@ static int xb_read(void *data, unsigned int len)
 
 		/* Implies mb(): other side will see the updated consumer. */
 		if (intf->rsp_prod - cons >= XENSTORE_RING_SIZE)
-			notify_remote_via_evtchn(xh_default, xen_store_evtchn);
+			notify_remote_via_evtchn(xh, xs->store_evtchn);
 	}
 
 	return bytes;
 }
 
-static int process_msg(void)
+static int process_msg(xenhost_t *xh)
 {
+	struct xenstore_private *xs = xs_priv(xh);
 	static struct {
 		struct xsd_sockmsg msg;
 		char *body;
@@ -242,7 +236,7 @@ static int process_msg(void)
 		 */
 		mutex_lock(&xs_response_mutex);
 
-		if (!xb_data_to_read()) {
+		if (!xb_data_to_read(xh->xenstore_private)) {
 			/* We raced with save/restore: pending data 'gone'. */
 			mutex_unlock(&xs_response_mutex);
 			state.in_msg = false;
@@ -252,7 +246,7 @@ static int process_msg(void)
 
 	if (state.in_hdr) {
 		if (state.read != sizeof(state.msg)) {
-			err = xb_read((void *)&state.msg + state.read,
+			err = xb_read(xh, (void *)&state.msg + state.read,
 				      sizeof(state.msg) - state.read);
 			if (err < 0)
 				goto out;
@@ -281,7 +275,7 @@ static int process_msg(void)
 		state.read = 0;
 	}
 
-	err = xb_read(state.body + state.read, state.msg.len - state.read);
+	err = xb_read(xh, state.body + state.read, state.msg.len - state.read);
 	if (err < 0)
 		goto out;
 
@@ -293,11 +287,11 @@ static int process_msg(void)
 
 	if (state.msg.type == XS_WATCH_EVENT) {
 		state.watch->len = state.msg.len;
-		err = xs_watch_msg(state.watch);
+		err = xs_watch_msg(xh, state.watch);
 	} else {
 		err = -ENOENT;
 		mutex_lock(&xb_write_mutex);
-		list_for_each_entry(req, &xs_reply_list, list) {
+		list_for_each_entry(req, &xs->reply_list, list) {
 			if (req->msg.req_id == state.msg.req_id) {
 				list_del(&req->list);
 				err = 0;
@@ -333,8 +327,9 @@ static int process_msg(void)
 	return err;
 }
 
-static int process_writes(void)
+static int process_writes(xenhost_t *xh)
 {
+	struct xenstore_private *xs = xs_priv(xh);
 	static struct {
 		struct xb_req_data *req;
 		int idx;
@@ -344,13 +339,13 @@ static int process_writes(void)
 	unsigned int len;
 	int err = 0;
 
-	if (!xb_data_to_write())
+	if (!xb_data_to_write(xs))
 		return 0;
 
 	mutex_lock(&xb_write_mutex);
 
 	if (!state.req) {
-		state.req = list_first_entry(&xb_write_list,
+		state.req = list_first_entry(&xs->xb_write_list,
 					     struct xb_req_data, list);
 		state.idx = -1;
 		state.written = 0;
@@ -367,7 +362,7 @@ static int process_writes(void)
 			base = state.req->vec[state.idx].iov_base;
 			len = state.req->vec[state.idx].iov_len;
 		}
-		err = xb_write(base + state.written, len - state.written);
+		err = xb_write(xh, base + state.written, len - state.written);
 		if (err < 0)
 			goto out_err;
 		state.written += err;
@@ -380,7 +375,7 @@ static int process_writes(void)
 
 	list_del(&state.req->list);
 	state.req->state = xb_req_state_wait_reply;
-	list_add_tail(&state.req->list, &xs_reply_list);
+	list_add_tail(&state.req->list, &xs->reply_list);
 	state.req = NULL;
 
  out:
@@ -406,42 +401,45 @@ static int process_writes(void)
 	return err;
 }
 
-static int xb_thread_work(void)
+static int xb_thread_work(struct xenstore_private *xs)
 {
-	return xb_data_to_read() || xb_data_to_write();
+	return xb_data_to_read(xs) || xb_data_to_write(xs);
 }
 
-static int xenbus_thread(void *unused)
+static int xenbus_thread(void *_xh)
 {
+	xenhost_t *xh = (xenhost_t *)_xh;
+	struct xenstore_private *xs = xs_priv(xh);
 	int err;
 
 	while (!kthread_should_stop()) {
-		if (wait_event_interruptible(xb_waitq, xb_thread_work()))
+		if (wait_event_interruptible(xs->xb_waitq, xb_thread_work(xs)))
 			continue;
 
-		err = process_msg();
+		err = process_msg(xh);
 		if (err == -ENOMEM)
 			schedule();
 		else if (err)
 			pr_warn_ratelimited("error %d while reading message\n",
 					    err);
 
-		err = process_writes();
+		err = process_writes(xh);
 		if (err)
 			pr_warn_ratelimited("error %d while writing message\n",
 					    err);
 	}
 
-	xenbus_task = NULL;
+	xs->xenbus_task = NULL;
 	return 0;
 }
 
 /**
  * xb_init_comms - Set up interrupt handler off store event channel.
  */
-int xb_init_comms(void)
+int xb_init_comms(xenhost_t *xh)
 {
-	struct xenstore_domain_interface *intf = xen_store_interface;
+	struct xenstore_private *xs = xs_priv(xh);
+	struct xenstore_domain_interface *intf = xs->store_interface;
 
 	if (intf->req_prod != intf->req_cons)
 		pr_err("request ring is not quiescent (%08x:%08x)!\n",
@@ -455,34 +453,35 @@ int xb_init_comms(void)
 			intf->rsp_cons = intf->rsp_prod;
 	}
 
-	if (xenbus_irq) {
+	if (xs->xenbus_irq) {
 		/* Already have an irq; assume we're resuming */
-		rebind_evtchn_irq(xen_store_evtchn, xenbus_irq);
+		rebind_evtchn_irq(xs->store_evtchn, xs->xenbus_irq);
 	} else {
 		int err;
 
-		err = bind_evtchn_to_irqhandler(xh_default, xen_store_evtchn, wake_waiting,
-						0, "xenbus", &xb_waitq);
+		err = bind_evtchn_to_irqhandler(xh, xs->store_evtchn, wake_waiting,
+						0, "xenbus", xs);
 		if (err < 0) {
 			pr_err("request irq failed %i\n", err);
 			return err;
 		}
 
-		xenbus_irq = err;
+		xs->xenbus_irq = err;
 
-		if (!xenbus_task) {
-			xenbus_task = kthread_run(xenbus_thread, NULL,
+		if (!xs->xenbus_task) {
+			xs->xenbus_task = kthread_run(xenbus_thread, xh,
 						  "xenbus");
-			if (IS_ERR(xenbus_task))
-				return PTR_ERR(xenbus_task);
+			if (IS_ERR(xs->xenbus_task))
+				return PTR_ERR(xs->xenbus_task);
 		}
 	}
 
 	return 0;
 }
 
-void xb_deinit_comms(void)
+void xb_deinit_comms(xenhost_t *xh)
 {
-	unbind_from_irqhandler(xenbus_irq, &xb_waitq);
-	xenbus_irq = 0;
+	struct xenstore_private *xs = xs_priv(xh);
+	unbind_from_irqhandler(xs->xenbus_irq, xs);
+	xs->xenbus_irq = 0;
 }
