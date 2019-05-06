@@ -129,6 +129,17 @@ typedef struct {
 		const struct evtchn_ops *evtchn_ops;
 		int **evtchn_to_irq;
 	};
+
+	/* grant table private state */
+	struct {
+		/* private to drivers/xen/grant-table.c */
+		void *gnttab_private;
+
+		/* x86/xen/grant-table.c */
+		void *gnttab_shared_vm_area;
+		void *gnttab_status_vm_area;
+		void *auto_xlat_grant_frames;
+	};
 } xenhost_t;
 
 typedef struct xenhost_ops {

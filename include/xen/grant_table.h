@@ -74,15 +74,16 @@ struct gntab_unmap_queue_data
 	struct gnttab_unmap_grant_ref *unmap_ops;
 	struct gnttab_unmap_grant_ref *kunmap_ops;
 	struct page **pages;
+	xenhost_t *xh;
 	unsigned int count;
 	unsigned int age;
 };
 
-int gnttab_init(void);
+int gnttab_init(xenhost_t *xh);
 int gnttab_suspend(void);
 int gnttab_resume(void);
 
-int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
+int gnttab_grant_foreign_access(xenhost_t *xh, domid_t domid, unsigned long frame,
 				int readonly);
 
 /*
@@ -90,7 +91,7 @@ int gnttab_grant_foreign_access(domid_t domid, unsigned long frame,
  * longer in use.  Return 1 if the grant entry was freed, 0 if it is still in
  * use.
  */
-int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
+int gnttab_end_foreign_access_ref(xenhost_t *xh, grant_ref_t ref, int readonly);
 
 /*
  * Eventually end access through the given grant reference, and once that
@@ -98,49 +99,49 @@ int gnttab_end_foreign_access_ref(grant_ref_t ref, int readonly);
  * immediately iff the grant entry is not in use, otherwise it will happen
  * some time later.  page may be 0, in which case no freeing will occur.
  */
-void gnttab_end_foreign_access(grant_ref_t ref, int readonly,
+void gnttab_end_foreign_access(xenhost_t *xh, grant_ref_t ref, int readonly,
 			       unsigned long page);
 
-int gnttab_grant_foreign_transfer(domid_t domid, unsigned long pfn);
+int gnttab_grant_foreign_transfer(xenhost_t *xh, domid_t domid, unsigned long pfn);
 
-unsigned long gnttab_end_foreign_transfer_ref(grant_ref_t ref);
-unsigned long gnttab_end_foreign_transfer(grant_ref_t ref);
+unsigned long gnttab_end_foreign_transfer_ref(xenhost_t *xh, grant_ref_t ref);
+unsigned long gnttab_end_foreign_transfer(xenhost_t *xh, grant_ref_t ref);
 
-int gnttab_query_foreign_access(grant_ref_t ref);
+int gnttab_query_foreign_access(xenhost_t *xh, grant_ref_t ref);
 
 /*
  * operations on reserved batches of grant references
  */
-int gnttab_alloc_grant_references(u16 count, grant_ref_t *pprivate_head);
+int gnttab_alloc_grant_references(xenhost_t *xh, u16 count, grant_ref_t *pprivate_head);
 
-void gnttab_free_grant_reference(grant_ref_t ref);
+void gnttab_free_grant_reference(xenhost_t *xh, grant_ref_t ref);
 
-void gnttab_free_grant_references(grant_ref_t head);
+void gnttab_free_grant_references(xenhost_t *xh, grant_ref_t head);
 
-int gnttab_empty_grant_references(const grant_ref_t *pprivate_head);
+int gnttab_empty_grant_references(xenhost_t *xh, const grant_ref_t *pprivate_head);
 
-int gnttab_claim_grant_reference(grant_ref_t *pprivate_head);
+int gnttab_claim_grant_reference(xenhost_t *xh, grant_ref_t *pprivate_head);
 
-void gnttab_release_grant_reference(grant_ref_t *private_head,
+void gnttab_release_grant_reference(xenhost_t *xh, grant_ref_t *private_head,
 				    grant_ref_t release);
 
-void gnttab_request_free_callback(struct gnttab_free_callback *callback,
+void gnttab_request_free_callback(xenhost_t *xh, struct gnttab_free_callback *callback,
 				  void (*fn)(void *), void *arg, u16 count);
-void gnttab_cancel_free_callback(struct gnttab_free_callback *callback);
+void gnttab_cancel_free_callback(xenhost_t *xh, struct gnttab_free_callback *callback);
 
-void gnttab_grant_foreign_access_ref(grant_ref_t ref, domid_t domid,
+void gnttab_grant_foreign_access_ref(xenhost_t *xh, grant_ref_t ref, domid_t domid,
 				     unsigned long frame, int readonly);
 
 /* Give access to the first 4K of the page */
 static inline void gnttab_page_grant_foreign_access_ref_one(
-	grant_ref_t ref, domid_t domid,
+	xenhost_t *xh, grant_ref_t ref, domid_t domid,
 	struct page *page, int readonly)
 {
-	gnttab_grant_foreign_access_ref(ref, domid, xen_page_to_gfn(page),
+	gnttab_grant_foreign_access_ref(xh, ref, domid, xen_page_to_gfn(page),
 					readonly);
 }
 
-void gnttab_grant_foreign_transfer_ref(grant_ref_t, domid_t domid,
+void gnttab_grant_foreign_transfer_ref(xenhost_t *xh, grant_ref_t, domid_t domid,
 				       unsigned long pfn);
 
 static inline void
@@ -174,29 +175,28 @@ gnttab_set_unmap_op(struct gnttab_unmap_grant_ref *unmap, phys_addr_t addr,
 	unmap->dev_bus_addr = 0;
 }
 
-int arch_gnttab_init(unsigned long nr_shared, unsigned long nr_status);
-int arch_gnttab_map_shared(xen_pfn_t *frames, unsigned long nr_gframes,
+int arch_gnttab_init(xenhost_t *xh, unsigned long nr_shared, unsigned long nr_status);
+int arch_gnttab_map_shared(xenhost_t *xh, xen_pfn_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   void **__shared);
-int arch_gnttab_map_status(uint64_t *frames, unsigned long nr_gframes,
+int arch_gnttab_map_status(xenhost_t *xh, uint64_t *frames, unsigned long nr_gframes,
 			   unsigned long max_nr_gframes,
 			   grant_status_t **__shared);
-void arch_gnttab_unmap(void *shared, unsigned long nr_gframes);
+void arch_gnttab_unmap(xenhost_t *xh, void *shared, unsigned long nr_gframes);
 
 struct grant_frames {
 	xen_pfn_t *pfn;
 	unsigned int count;
 	void *vaddr;
 };
-extern struct grant_frames xen_auto_xlat_grant_frames;
-unsigned int gnttab_max_grant_frames(void);
-int gnttab_setup_auto_xlat_frames(phys_addr_t addr);
-void gnttab_free_auto_xlat_frames(void);
+unsigned int gnttab_max_grant_frames(xenhost_t *xh);
+int gnttab_setup_auto_xlat_frames(xenhost_t *xh, phys_addr_t addr);
+void gnttab_free_auto_xlat_frames(xenhost_t *xh);
 
 #define gnttab_map_vaddr(map) ((void *)(map.host_virt_addr))
 
-int gnttab_alloc_pages(int nr_pages, struct page **pages);
-void gnttab_free_pages(int nr_pages, struct page **pages);
+int gnttab_alloc_pages(xenhost_t *xh, int nr_pages, struct page **pages);
+void gnttab_free_pages(xenhost_t *xh, int nr_pages, struct page **pages);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 struct gnttab_dma_alloc_args {
@@ -212,17 +212,17 @@ struct gnttab_dma_alloc_args {
 	dma_addr_t dev_bus_addr;
 };
 
-int gnttab_dma_alloc_pages(struct gnttab_dma_alloc_args *args);
-int gnttab_dma_free_pages(struct gnttab_dma_alloc_args *args);
+int gnttab_dma_alloc_pages(xenhost_t *xh, struct gnttab_dma_alloc_args *args);
+int gnttab_dma_free_pages(xenhost_t *xh, struct gnttab_dma_alloc_args *args);
 #endif
 
 int gnttab_pages_set_private(int nr_pages, struct page **pages);
 void gnttab_pages_clear_private(int nr_pages, struct page **pages);
 
-int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
+int gnttab_map_refs(xenhost_t *xh, struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
 		    struct page **pages, unsigned int count);
-int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
+int gnttab_unmap_refs(xenhost_t *xh, struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);
 void gnttab_unmap_refs_async(struct gntab_unmap_queue_data* item);
@@ -238,8 +238,8 @@ int gnttab_unmap_refs_sync(struct gntab_unmap_queue_data *item);
  * Return value in each iand every status field of the batch guaranteed
  * to not be GNTST_eagain.
  */
-void gnttab_batch_map(struct gnttab_map_grant_ref *batch, unsigned count);
-void gnttab_batch_copy(struct gnttab_copy *batch, unsigned count);
+void gnttab_batch_map(xenhost_t *xh, struct gnttab_map_grant_ref *batch, unsigned count);
+void gnttab_batch_copy(xenhost_t *xh, struct gnttab_copy *batch, unsigned count);
 
 
 struct xen_page_foreign {
