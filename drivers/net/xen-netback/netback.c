@@ -1244,6 +1244,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 	pending_ring_idx_t dc, dp;
 	u16 pending_idx, pending_idx_release[MAX_PENDING_REQS];
 	unsigned int i = 0;
+	struct xenbus_device *dev = xenvif_to_xenbus_device(queue->vif);
 
 	dc = queue->dealloc_cons;
 	gop = queue->tx_unmap_ops;
@@ -1280,7 +1281,7 @@ static inline void xenvif_tx_dealloc_action(struct xenvif_queue *queue)
 
 	if (gop - queue->tx_unmap_ops > 0) {
 		int ret;
-		ret = gnttab_unmap_refs(queue->tx_unmap_ops,
+		ret = gnttab_unmap_refs(dev->xh, queue->tx_unmap_ops,
 					NULL,
 					queue->pages_to_unmap,
 					gop - queue->tx_unmap_ops);
@@ -1310,6 +1311,7 @@ int xenvif_tx_action(struct xenvif_queue *queue, int budget)
 {
 	unsigned nr_mops, nr_cops = 0;
 	int work_done, ret;
+	struct xenbus_device *dev = xenvif_to_xenbus_device(queue->vif);
 
 	if (unlikely(!tx_work_todo(queue)))
 		return 0;
@@ -1319,9 +1321,9 @@ int xenvif_tx_action(struct xenvif_queue *queue, int budget)
 	if (nr_cops == 0)
 		return 0;
 
-	gnttab_batch_copy(queue->tx_copy_ops, nr_cops);
+	gnttab_batch_copy(dev->xh, queue->tx_copy_ops, nr_cops);
 	if (nr_mops != 0) {
-		ret = gnttab_map_refs(queue->tx_map_ops,
+		ret = gnttab_map_refs(dev->xh, queue->tx_map_ops,
 				      NULL,
 				      queue->pages_to_map,
 				      nr_mops);
@@ -1391,6 +1393,7 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 {
 	int ret;
 	struct gnttab_unmap_grant_ref tx_unmap_op;
+	struct xenbus_device *dev = xenvif_to_xenbus_device(queue->vif);
 
 	gnttab_set_unmap_op(&tx_unmap_op,
 			    idx_to_kaddr(queue, pending_idx),
@@ -1398,7 +1401,7 @@ void xenvif_idx_unmap(struct xenvif_queue *queue, u16 pending_idx)
 			    queue->grant_tx_handle[pending_idx]);
 	xenvif_grant_handle_reset(queue, pending_idx);
 
-	ret = gnttab_unmap_refs(&tx_unmap_op, NULL,
+	ret = gnttab_unmap_refs(dev->xh, &tx_unmap_op, NULL,
 				&queue->mmap_pages[pending_idx], 1);
 	if (ret) {
 		netdev_err(queue->vif->dev,

@@ -285,6 +285,7 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 	RING_IDX req_prod = queue->rx.req_prod_pvt;
 	int notify;
 	int err = 0;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	if (unlikely(!netif_carrier_ok(queue->info->netdev)))
 		return;
@@ -309,14 +310,14 @@ static void xennet_alloc_rx_buffers(struct netfront_queue *queue)
 		BUG_ON(queue->rx_skbs[id]);
 		queue->rx_skbs[id] = skb;
 
-		ref = gnttab_claim_grant_reference(&queue->gref_rx_head);
+		ref = gnttab_claim_grant_reference(dev->xh, &queue->gref_rx_head);
 		WARN_ON_ONCE(IS_ERR_VALUE((unsigned long)(int)ref));
 		queue->grant_rx_ref[id] = ref;
 
 		page = skb_frag_page(&skb_shinfo(skb)->frags[0]);
 
 		req = RING_GET_REQUEST(&queue->rx, req_prod);
-		gnttab_page_grant_foreign_access_ref_one(ref,
+		gnttab_page_grant_foreign_access_ref_one(dev->xh, ref,
 							 queue->info->xbdev->otherend_id,
 							 page,
 							 0);
@@ -377,6 +378,7 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 	unsigned short id;
 	struct sk_buff *skb;
 	bool more_to_do;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	BUG_ON(!netif_carrier_ok(queue->info->netdev));
 
@@ -393,15 +395,15 @@ static void xennet_tx_buf_gc(struct netfront_queue *queue)
 
 			id  = txrsp->id;
 			skb = queue->tx_skbs[id].skb;
-			if (unlikely(gnttab_query_foreign_access(
+			if (unlikely(gnttab_query_foreign_access(dev->xh,
 				queue->grant_tx_ref[id]) != 0)) {
 				pr_alert("%s: warning -- grant still in use by backend domain\n",
 					 __func__);
 				BUG();
 			}
-			gnttab_end_foreign_access_ref(
+			gnttab_end_foreign_access_ref(dev->xh,
 				queue->grant_tx_ref[id], GNTMAP_readonly);
-			gnttab_release_grant_reference(
+			gnttab_release_grant_reference(dev->xh,
 				&queue->gref_tx_head, queue->grant_tx_ref[id]);
 			queue->grant_tx_ref[id] = GRANT_INVALID_REF;
 			queue->grant_tx_page[id] = NULL;
@@ -436,13 +438,14 @@ static void xennet_tx_setup_grant(unsigned long gfn, unsigned int offset,
 	struct page *page = info->page;
 	struct netfront_queue *queue = info->queue;
 	struct sk_buff *skb = info->skb;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	id = get_id_from_freelist(&queue->tx_skb_freelist, queue->tx_skbs);
 	tx = RING_GET_REQUEST(&queue->tx, queue->tx.req_prod_pvt++);
-	ref = gnttab_claim_grant_reference(&queue->gref_tx_head);
+	ref = gnttab_claim_grant_reference(dev->xh, &queue->gref_tx_head);
 	WARN_ON_ONCE(IS_ERR_VALUE((unsigned long)(int)ref));
 
-	gnttab_grant_foreign_access_ref(ref, queue->info->xbdev->otherend_id,
+	gnttab_grant_foreign_access_ref(dev->xh, ref, queue->info->xbdev->otherend_id,
 					gfn, GNTMAP_readonly);
 
 	queue->tx_skbs[id].skb = skb;
@@ -786,6 +789,7 @@ static int xennet_get_responses(struct netfront_queue *queue,
 	struct xen_netif_rx_response *rx = &rinfo->rx;
 	struct xen_netif_extra_info *extras = rinfo->extras;
 	struct device *dev = &queue->info->netdev->dev;
+	struct xenbus_device *xdev = queue->info->xbdev;
 	RING_IDX cons = queue->rx.rsp_cons;
 	struct sk_buff *skb = xennet_get_rx_skb(queue, cons);
 	grant_ref_t ref = xennet_get_rx_ref(queue, cons);
@@ -823,10 +827,10 @@ static int xennet_get_responses(struct netfront_queue *queue,
 			goto next;
 		}
 
-		ret = gnttab_end_foreign_access_ref(ref, 0);
+		ret = gnttab_end_foreign_access_ref(xdev->xh, ref, 0);
 		BUG_ON(!ret);
 
-		gnttab_release_grant_reference(&queue->gref_rx_head, ref);
+		gnttab_release_grant_reference(xdev->xh, &queue->gref_rx_head, ref);
 
 		__skb_queue_tail(list, skb);
 
@@ -1130,6 +1134,7 @@ static void xennet_release_tx_bufs(struct netfront_queue *queue)
 {
 	struct sk_buff *skb;
 	int i;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	for (i = 0; i < NET_TX_RING_SIZE; i++) {
 		/* Skip over entries which are actually freelist references */
@@ -1138,7 +1143,7 @@ static void xennet_release_tx_bufs(struct netfront_queue *queue)
 
 		skb = queue->tx_skbs[i].skb;
 		get_page(queue->grant_tx_page[i]);
-		gnttab_end_foreign_access(queue->grant_tx_ref[i],
+		gnttab_end_foreign_access(dev->xh, queue->grant_tx_ref[i],
 					  GNTMAP_readonly,
 					  (unsigned long)page_address(queue->grant_tx_page[i]));
 		queue->grant_tx_page[i] = NULL;
@@ -1151,6 +1156,7 @@ static void xennet_release_tx_bufs(struct netfront_queue *queue)
 static void xennet_release_rx_bufs(struct netfront_queue *queue)
 {
 	int id, ref;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	spin_lock_bh(&queue->rx_lock);
 
@@ -1172,7 +1178,7 @@ static void xennet_release_rx_bufs(struct netfront_queue *queue)
 		 * foreign access is ended (which may be deferred).
 		 */
 		get_page(page);
-		gnttab_end_foreign_access(ref, 0,
+		gnttab_end_foreign_access(dev->xh, ref, 0,
 					  (unsigned long)page_address(page));
 		queue->grant_rx_ref[id] = GRANT_INVALID_REF;
 
@@ -1186,22 +1192,23 @@ static netdev_features_t xennet_fix_features(struct net_device *dev,
 	netdev_features_t features)
 {
 	struct netfront_info *np = netdev_priv(dev);
+	struct xenbus_device *xdev = np->xbdev;
 
 	if (features & NETIF_F_SG &&
-	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-sg", 0))
+	    !xenbus_read_unsigned(xdev->xh, np->xbdev->otherend, "feature-sg", 0))
 		features &= ~NETIF_F_SG;
 
 	if (features & NETIF_F_IPV6_CSUM &&
-	    !xenbus_read_unsigned(np->xbdev->otherend,
+	    !xenbus_read_unsigned(xdev->xh, np->xbdev->otherend,
 				  "feature-ipv6-csum-offload", 0))
 		features &= ~NETIF_F_IPV6_CSUM;
 
 	if (features & NETIF_F_TSO &&
-	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-gso-tcpv4", 0))
+	    !xenbus_read_unsigned(xdev->xh, np->xbdev->otherend, "feature-gso-tcpv4", 0))
 		features &= ~NETIF_F_TSO;
 
 	if (features & NETIF_F_TSO6 &&
-	    !xenbus_read_unsigned(np->xbdev->otherend, "feature-gso-tcpv6", 0))
+	    !xenbus_read_unsigned(xdev->xh, np->xbdev->otherend, "feature-gso-tcpv6", 0))
 		features &= ~NETIF_F_TSO6;
 
 	return features;
@@ -1375,17 +1382,18 @@ static int netfront_probe(struct xenbus_device *dev,
 	return 0;
 }
 
-static void xennet_end_access(int ref, void *page)
+static void xennet_end_access(xenhost_t *xh, int ref, void *page)
 {
 	/* This frees the page as a side-effect */
 	if (ref != GRANT_INVALID_REF)
-		gnttab_end_foreign_access(ref, 0, (unsigned long)page);
+		gnttab_end_foreign_access(xh, ref, 0, (unsigned long)page);
 }
 
 static void xennet_disconnect_backend(struct netfront_info *info)
 {
 	unsigned int i = 0;
 	unsigned int num_queues = info->netdev->real_num_tx_queues;
+	struct xenbus_device *dev = info->xbdev;
 
 	netif_carrier_off(info->netdev);
 
@@ -1408,12 +1416,12 @@ static void xennet_disconnect_backend(struct netfront_info *info)
 
 		xennet_release_tx_bufs(queue);
 		xennet_release_rx_bufs(queue);
-		gnttab_free_grant_references(queue->gref_tx_head);
-		gnttab_free_grant_references(queue->gref_rx_head);
+		gnttab_free_grant_references(dev->xh, queue->gref_tx_head);
+		gnttab_free_grant_references(dev->xh, queue->gref_rx_head);
 
 		/* End access and free the pages */
-		xennet_end_access(queue->tx_ring_ref, queue->tx.sring);
-		xennet_end_access(queue->rx_ring_ref, queue->rx.sring);
+		xennet_end_access(dev->xh, queue->tx_ring_ref, queue->tx.sring);
+		xennet_end_access(dev->xh, queue->rx_ring_ref, queue->rx.sring);
 
 		queue->tx_ring_ref = GRANT_INVALID_REF;
 		queue->rx_ring_ref = GRANT_INVALID_REF;
@@ -1443,7 +1451,7 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 	char *s, *e, *macstr;
 	int i;
 
-	macstr = s = xenbus_read(XBT_NIL, dev->nodename, "mac", NULL);
+	macstr = s = xenbus_read(dev->xh, XBT_NIL, dev->nodename, "mac", NULL);
 	if (IS_ERR(macstr))
 		return PTR_ERR(macstr);
 
@@ -1588,11 +1596,11 @@ static int setup_netfront(struct xenbus_device *dev,
 	 * granted pages because backend is not accessing it at this point.
 	 */
 alloc_evtchn_fail:
-	gnttab_end_foreign_access_ref(queue->rx_ring_ref, 0);
+	gnttab_end_foreign_access_ref(dev->xh, queue->rx_ring_ref, 0);
 grant_rx_ring_fail:
 	free_page((unsigned long)rxs);
 alloc_rx_ring_fail:
-	gnttab_end_foreign_access_ref(queue->tx_ring_ref, 0);
+	gnttab_end_foreign_access_ref(dev->xh, queue->tx_ring_ref, 0);
 grant_tx_ring_fail:
 	free_page((unsigned long)txs);
 fail:
@@ -1608,6 +1616,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	unsigned short i;
 	int err = 0;
 	char *devid;
+	struct xenbus_device *dev = queue->info->xbdev;
 
 	spin_lock_init(&queue->tx_lock);
 	spin_lock_init(&queue->rx_lock);
@@ -1633,7 +1642,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	}
 
 	/* A grant for every tx ring slot */
-	if (gnttab_alloc_grant_references(NET_TX_RING_SIZE,
+	if (gnttab_alloc_grant_references(dev->xh, NET_TX_RING_SIZE,
 					  &queue->gref_tx_head) < 0) {
 		pr_alert("can't alloc tx grant refs\n");
 		err = -ENOMEM;
@@ -1641,7 +1650,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	}
 
 	/* A grant for every rx ring slot */
-	if (gnttab_alloc_grant_references(NET_RX_RING_SIZE,
+	if (gnttab_alloc_grant_references(dev->xh, NET_RX_RING_SIZE,
 					  &queue->gref_rx_head) < 0) {
 		pr_alert("can't alloc rx grant refs\n");
 		err = -ENOMEM;
@@ -1651,7 +1660,7 @@ static int xennet_init_queue(struct netfront_queue *queue)
 	return 0;
 
  exit_free_tx:
-	gnttab_free_grant_references(queue->gref_tx_head);
+	gnttab_free_grant_references(dev->xh, queue->gref_tx_head);
  exit:
 	return err;
 }
@@ -1685,14 +1694,14 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 	}
 
 	/* Write ring references */
-	err = xenbus_printf(*xbt, path, "tx-ring-ref", "%u",
+	err = xenbus_printf(dev->xh, *xbt, path, "tx-ring-ref", "%u",
 			queue->tx_ring_ref);
 	if (err) {
 		message = "writing tx-ring-ref";
 		goto error;
 	}
 
-	err = xenbus_printf(*xbt, path, "rx-ring-ref", "%u",
+	err = xenbus_printf(dev->xh, *xbt, path, "rx-ring-ref", "%u",
 			queue->rx_ring_ref);
 	if (err) {
 		message = "writing rx-ring-ref";
@@ -1704,7 +1713,7 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 	 */
 	if (queue->tx_evtchn == queue->rx_evtchn) {
 		/* Shared event channel */
-		err = xenbus_printf(*xbt, path,
+		err = xenbus_printf(dev->xh,*xbt, path,
 				"event-channel", "%u", queue->tx_evtchn);
 		if (err) {
 			message = "writing event-channel";
@@ -1712,14 +1721,14 @@ static int write_queue_xenstore_keys(struct netfront_queue *queue,
 		}
 	} else {
 		/* Split event channels */
-		err = xenbus_printf(*xbt, path,
+		err = xenbus_printf(dev->xh, *xbt, path,
 				"event-channel-tx", "%u", queue->tx_evtchn);
 		if (err) {
 			message = "writing event-channel-tx";
 			goto error;
 		}
 
-		err = xenbus_printf(*xbt, path,
+		err = xenbus_printf(dev->xh, *xbt, path,
 				"event-channel-rx", "%u", queue->rx_evtchn);
 		if (err) {
 			message = "writing event-channel-rx";
@@ -1810,12 +1819,12 @@ static int talk_to_netback(struct xenbus_device *dev,
 	info->netdev->irq = 0;
 
 	/* Check if backend supports multiple queues */
-	max_queues = xenbus_read_unsigned(info->xbdev->otherend,
+	max_queues = xenbus_read_unsigned(dev->xh, info->xbdev->otherend,
 					  "multi-queue-max-queues", 1);
 	num_queues = min(max_queues, xennet_max_queues);
 
 	/* Check feature-split-event-channels */
-	feature_split_evtchn = xenbus_read_unsigned(info->xbdev->otherend,
+	feature_split_evtchn = xenbus_read_unsigned(dev->xh, info->xbdev->otherend,
 					"feature-split-event-channels", 0);
 
 	/* Read mac addr. */
@@ -1847,16 +1856,16 @@ static int talk_to_netback(struct xenbus_device *dev,
 	}
 
 again:
-	err = xenbus_transaction_start(&xbt);
+	err = xenbus_transaction_start(dev->xh, &xbt);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "starting transaction");
 		goto destroy_ring;
 	}
 
-	if (xenbus_exists(XBT_NIL,
+	if (xenbus_exists(dev->xh, XBT_NIL,
 			  info->xbdev->otherend, "multi-queue-max-queues")) {
 		/* Write the number of queues */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(dev->xh, xbt, dev->nodename,
 				    "multi-queue-num-queues", "%u", num_queues);
 		if (err) {
 			message = "writing multi-queue-num-queues";
@@ -1879,45 +1888,45 @@ again:
 	}
 
 	/* The remaining keys are not queue-specific */
-	err = xenbus_printf(xbt, dev->nodename, "request-rx-copy", "%u",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "request-rx-copy", "%u",
 			    1);
 	if (err) {
 		message = "writing request-rx-copy";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-rx-notify", "%d", 1);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-rx-notify", "%d", 1);
 	if (err) {
 		message = "writing feature-rx-notify";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-sg", "%d", 1);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-sg", "%d", 1);
 	if (err) {
 		message = "writing feature-sg";
 		goto abort_transaction;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-gso-tcpv4", "%d", 1);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-gso-tcpv4", "%d", 1);
 	if (err) {
 		message = "writing feature-gso-tcpv4";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-gso-tcpv6", "1");
+	err = xenbus_write(dev->xh, xbt, dev->nodename, "feature-gso-tcpv6", "1");
 	if (err) {
 		message = "writing feature-gso-tcpv6";
 		goto abort_transaction;
 	}
 
-	err = xenbus_write(xbt, dev->nodename, "feature-ipv6-csum-offload",
+	err = xenbus_write(dev->xh, xbt, dev->nodename, "feature-ipv6-csum-offload",
 			   "1");
 	if (err) {
 		message = "writing feature-ipv6-csum-offload";
 		goto abort_transaction;
 	}
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xenbus_transaction_end(dev->xh, xbt, 0);
 	if (err) {
 		if (err == -EAGAIN)
 			goto again;
@@ -1930,7 +1939,7 @@ again:
  abort_transaction:
 	xenbus_dev_fatal(dev, err, "%s", message);
 abort_transaction_no_dev_fatal:
-	xenbus_transaction_end(xbt, 1);
+	xenbus_transaction_end(dev->xh, xbt, 1);
  destroy_ring:
 	xennet_disconnect_backend(info);
 	rtnl_lock();
@@ -1949,8 +1958,9 @@ static int xennet_connect(struct net_device *dev)
 	int err;
 	unsigned int j = 0;
 	struct netfront_queue *queue = NULL;
+	struct xenbus_device *xdev = np->xbdev;
 
-	if (!xenbus_read_unsigned(np->xbdev->otherend, "feature-rx-copy", 0)) {
+	if (!xenbus_read_unsigned(xdev->xh, np->xbdev->otherend, "feature-rx-copy", 0)) {
 		dev_info(&dev->dev,
 			 "backend does not support copying receive path\n");
 		return -ENODEV;

@@ -289,6 +289,8 @@ u32 xenvif_set_hash_flags(struct xenvif *vif, u32 flags)
 u32 xenvif_set_hash_key(struct xenvif *vif, u32 gref, u32 len)
 {
 	u8 *key = vif->hash.key;
+	struct xenbus_device *dev = xenvif_to_xenbus_device(vif);
+
 	struct gnttab_copy copy_op = {
 		.source.u.ref = gref,
 		.source.domid = vif->domid,
@@ -303,7 +305,7 @@ u32 xenvif_set_hash_key(struct xenvif *vif, u32 gref, u32 len)
 		return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
 
 	if (copy_op.len != 0) {
-		gnttab_batch_copy(&copy_op, 1);
+		gnttab_batch_copy(dev->xh, &copy_op, 1);
 
 		if (copy_op.status != GNTST_okay)
 			return XEN_NETIF_CTRL_STATUS_INVALID_PARAMETER;
@@ -334,6 +336,7 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 			    u32 off)
 {
 	u32 *mapping = vif->hash.mapping[!vif->hash.mapping_sel];
+	struct xenbus_device *dev = xenvif_to_xenbus_device(vif);
 	unsigned int nr = 1;
 	struct gnttab_copy copy_op[2] = {{
 		.source.u.ref = gref,
@@ -363,7 +366,7 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 	       vif->hash.size * sizeof(*mapping));
 
 	if (copy_op[0].len != 0) {
-		gnttab_batch_copy(copy_op, nr);
+		gnttab_batch_copy(dev->xh, copy_op, nr);
 
 		if (copy_op[0].status != GNTST_okay ||
 		    copy_op[nr - 1].status != GNTST_okay)

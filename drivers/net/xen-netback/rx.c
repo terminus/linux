@@ -134,8 +134,9 @@ static void xenvif_rx_copy_flush(struct xenvif_queue *queue)
 {
 	unsigned int i;
 	int notify;
+	struct xenbus_device *dev = xenvif_to_xenbus_device(queue->vif);
 
-	gnttab_batch_copy(queue->rx_copy.op, queue->rx_copy.num);
+	gnttab_batch_copy(dev->xh, queue->rx_copy.op, queue->rx_copy.num);
 
 	for (i = 0; i < queue->rx_copy.num; i++) {
 		struct gnttab_copy *op;
