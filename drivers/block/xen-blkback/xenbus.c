@@ -65,7 +65,7 @@ static int blkback_name(struct xen_blkif *blkif, char *buf)
 	char *devpath, *devname;
 	struct xenbus_device *dev = blkif->be->dev;
 
-	devpath = xenbus_read(XBT_NIL, dev->nodename, "dev", NULL);
+	devpath = xenbus_read(dev->xh, XBT_NIL, dev->nodename, "dev", NULL);
 	if (IS_ERR(devpath))
 		return PTR_ERR(devpath);
 
@@ -246,6 +246,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 	struct pending_req *req, *n;
 	unsigned int j, r;
 	bool busy = false;
+	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be);
 
 	for (r = 0; r < blkif->nr_rings; r++) {
 		struct xen_blkif_ring *ring = &blkif->rings[r];
@@ -279,7 +280,7 @@ static int xen_blkif_disconnect(struct xen_blkif *blkif)
 		}
 
 		/* Remove all persistent grants and the cache of ballooned pages. */
-		xen_blkbk_free_caches(ring);
+		xen_blkbk_free_caches(dev->xh, ring);
 
 		/* Check that there is no request in use */
 		list_for_each_entry_safe(req, n, &ring->pending_free, free_list) {
@@ -507,7 +508,7 @@ static int xen_blkbk_remove(struct xenbus_device *dev)
 		xenvbd_sysfs_delif(dev);
 
 	if (be->backend_watch.node) {
-		unregister_xenbus_watch(&be->backend_watch);
+		unregister_xenbus_watch(dev->xh, &be->backend_watch);
 		kfree(be->backend_watch.node);
 		be->backend_watch.node = NULL;
 	}
@@ -530,7 +531,7 @@ int xen_blkbk_flush_diskcache(struct xenbus_transaction xbt,
 	struct xenbus_device *dev = be->dev;
 	int err;
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-flush-cache",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-flush-cache",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-flush-cache (%d)", err);
@@ -547,18 +548,18 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 	struct block_device *bdev = be->blkif->vbd.bdev;
 	struct request_queue *q = bdev_get_queue(bdev);
 
-	if (!xenbus_read_unsigned(dev->nodename, "discard-enable", 1))
+	if (!xenbus_read_unsigned(dev->xh, dev->nodename, "discard-enable", 1))
 		return;
 
 	if (blk_queue_discard(q)) {
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(dev->xh, xbt, dev->nodename,
 			"discard-granularity", "%u",
 			q->limits.discard_granularity);
 		if (err) {
 			dev_warn(&dev->dev, "writing discard-granularity (%d)", err);
 			return;
 		}
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(dev->xh, xbt, dev->nodename,
 			"discard-alignment", "%u",
 			q->limits.discard_alignment);
 		if (err) {
@@ -567,7 +568,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 		}
 		state = 1;
 		/* Optional. */
-		err = xenbus_printf(xbt, dev->nodename,
+		err = xenbus_printf(dev->xh, xbt, dev->nodename,
 				    "discard-secure", "%d",
 				    blkif->vbd.discard_secure);
 		if (err) {
@@ -575,7 +576,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 			return;
 		}
 	}
-	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-discard",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-discard (%d)", err);
@@ -586,7 +587,7 @@ int xen_blkbk_barrier(struct xenbus_transaction xbt,
 	struct xenbus_device *dev = be->dev;
 	int err;
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-barrier",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-barrier",
 			    "%d", state);
 	if (err)
 		dev_warn(&dev->dev, "writing feature-barrier (%d)", err);
@@ -625,7 +626,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 		goto fail;
 	}
 
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(dev->xh, XBT_NIL, dev->nodename,
 			    "feature-max-indirect-segments", "%u",
 			    MAX_INDIRECT_SEGMENTS);
 	if (err)
@@ -634,7 +635,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 			 dev->nodename, err);
 
 	/* Multi-queue: advertise how many queues are supported by us.*/
-	err = xenbus_printf(XBT_NIL, dev->nodename,
+	err = xenbus_printf(dev->xh, XBT_NIL, dev->nodename,
 			    "multi-queue-max-queues", "%u", xenblk_max_queues);
 	if (err)
 		pr_warn("Error writing multi-queue-max-queues\n");
@@ -647,7 +648,7 @@ static int xen_blkbk_probe(struct xenbus_device *dev,
 	if (err)
 		goto fail;
 
-	err = xenbus_printf(XBT_NIL, dev->nodename, "max-ring-page-order", "%u",
+	err = xenbus_printf(dev->xh, XBT_NIL, dev->nodename, "max-ring-page-order", "%u",
 			    xen_blkif_max_ring_order);
 	if (err)
 		pr_warn("%s write out 'max-ring-page-order' failed\n", __func__);
@@ -685,7 +686,7 @@ static void backend_changed(struct xenbus_watch *watch,
 
 	pr_debug("%s %p %d\n", __func__, dev, dev->otherend_id);
 
-	err = xenbus_scanf(XBT_NIL, dev->nodename, "physical-device", "%x:%x",
+	err = xenbus_scanf(dev->xh, XBT_NIL, dev->nodename, "physical-device", "%x:%x",
 			   &major, &minor);
 	if (XENBUS_EXIST_ERR(err)) {
 		/*
@@ -707,7 +708,7 @@ static void backend_changed(struct xenbus_watch *watch,
 		return;
 	}
 
-	be->mode = xenbus_read(XBT_NIL, dev->nodename, "mode", NULL);
+	be->mode = xenbus_read(dev->xh, XBT_NIL, dev->nodename, "mode", NULL);
 	if (IS_ERR(be->mode)) {
 		err = PTR_ERR(be->mode);
 		be->mode = NULL;
@@ -715,7 +716,7 @@ static void backend_changed(struct xenbus_watch *watch,
 		return;
 	}
 
-	device_type = xenbus_read(XBT_NIL, dev->otherend, "device-type", NULL);
+	device_type = xenbus_read(dev->xh, XBT_NIL, dev->otherend, "device-type", NULL);
 	if (!IS_ERR(device_type)) {
 		cdrom = strcmp(device_type, "cdrom") == 0;
 		kfree(device_type);
@@ -849,7 +850,7 @@ static void connect(struct backend_info *be)
 
 	/* Supply the information about the device the frontend needs */
 again:
-	err = xenbus_transaction_start(&xbt);
+	err = xenbus_transaction_start(dev->xh, &xbt);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "starting transaction");
 		return;
@@ -862,14 +863,14 @@ again:
 
 	xen_blkbk_barrier(xbt, be, be->blkif->vbd.flush_support);
 
-	err = xenbus_printf(xbt, dev->nodename, "feature-persistent", "%u", 1);
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "feature-persistent", "%u", 1);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/feature-persistent",
 				 dev->nodename);
 		goto abort;
 	}
 
-	err = xenbus_printf(xbt, dev->nodename, "sectors", "%llu",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "sectors", "%llu",
 			    (unsigned long long)vbd_sz(&be->blkif->vbd));
 	if (err) {
 		xenbus_dev_fatal(dev, err, "writing %s/sectors",
@@ -878,7 +879,7 @@ again:
 	}
 
 	/* FIXME: use a typename instead */
-	err = xenbus_printf(xbt, dev->nodename, "info", "%u",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "info", "%u",
 			    be->blkif->vbd.type |
 			    (be->blkif->vbd.readonly ? VDISK_READONLY : 0));
 	if (err) {
@@ -886,7 +887,7 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "sector-size", "%lu",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "sector-size", "%lu",
 			    (unsigned long)
 			    bdev_logical_block_size(be->blkif->vbd.bdev));
 	if (err) {
@@ -894,13 +895,13 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
-	err = xenbus_printf(xbt, dev->nodename, "physical-sector-size", "%u",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "physical-sector-size", "%u",
 			    bdev_physical_block_size(be->blkif->vbd.bdev));
 	if (err)
 		xenbus_dev_error(dev, err, "writing %s/physical-sector-size",
 				 dev->nodename);
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xenbus_transaction_end(dev->xh, xbt, 0);
 	if (err == -EAGAIN)
 		goto again;
 	if (err)
@@ -913,7 +914,7 @@ again:
 
 	return;
  abort:
-	xenbus_transaction_end(xbt, 1);
+	xenbus_transaction_end(dev->xh, xbt, 1);
 }
 
 /*
@@ -928,7 +929,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 	struct xenbus_device *dev = blkif->be->dev;
 	unsigned int ring_page_order, nr_grefs, evtchn;
 
-	err = xenbus_scanf(XBT_NIL, dir, "event-channel", "%u",
+	err = xenbus_scanf(dev->xh, XBT_NIL, dir, "event-channel", "%u",
 			  &evtchn);
 	if (err != 1) {
 		err = -EINVAL;
@@ -936,10 +937,10 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 		return err;
 	}
 
-	err = xenbus_scanf(XBT_NIL, dev->otherend, "ring-page-order", "%u",
+	err = xenbus_scanf(dev->xh, XBT_NIL, dev->otherend, "ring-page-order", "%u",
 			  &ring_page_order);
 	if (err != 1) {
-		err = xenbus_scanf(XBT_NIL, dir, "ring-ref", "%u", &ring_ref[0]);
+		err = xenbus_scanf(dev->xh, XBT_NIL, dir, "ring-ref", "%u", &ring_ref[0]);
 		if (err != 1) {
 			err = -EINVAL;
 			xenbus_dev_fatal(dev, err, "reading %s/ring-ref", dir);
@@ -962,7 +963,7 @@ static int read_per_ring_refs(struct xen_blkif_ring *ring, const char *dir)
 			char ring_ref_name[RINGREF_NAME_LEN];
 
 			snprintf(ring_ref_name, RINGREF_NAME_LEN, "ring-ref%u", i);
-			err = xenbus_scanf(XBT_NIL, dir, ring_ref_name,
+			err = xenbus_scanf(dev->xh, XBT_NIL, dir, ring_ref_name,
 					   "%u", &ring_ref[i]);
 			if (err != 1) {
 				err = -EINVAL;
@@ -1034,7 +1035,7 @@ static int connect_ring(struct backend_info *be)
 	pr_debug("%s %s\n", __func__, dev->otherend);
 
 	be->blkif->blk_protocol = BLKIF_PROTOCOL_DEFAULT;
-	err = xenbus_scanf(XBT_NIL, dev->otherend, "protocol",
+	err = xenbus_scanf(dev->xh, XBT_NIL, dev->otherend, "protocol",
 			   "%63s", protocol);
 	if (err <= 0)
 		strcpy(protocol, "unspecified, assuming default");
@@ -1048,7 +1049,7 @@ static int connect_ring(struct backend_info *be)
 		xenbus_dev_fatal(dev, err, "unknown fe protocol %s", protocol);
 		return -ENOSYS;
 	}
-	pers_grants = xenbus_read_unsigned(dev->otherend, "feature-persistent",
+	pers_grants = xenbus_read_unsigned(dev->xh, dev->otherend, "feature-persistent",
 					   0);
 	be->blkif->vbd.feature_gnt_persistent = pers_grants;
 	be->blkif->vbd.overflow_max_grants = 0;
@@ -1056,7 +1057,7 @@ static int connect_ring(struct backend_info *be)
 	/*
 	 * Read the number of hardware queues from frontend.
 	 */
-	requested_num_queues = xenbus_read_unsigned(dev->otherend,
+	requested_num_queues = xenbus_read_unsigned(dev->xh, dev->otherend,
 						    "multi-queue-num-queues",
 						    1);
 	if (requested_num_queues > xenblk_max_queues

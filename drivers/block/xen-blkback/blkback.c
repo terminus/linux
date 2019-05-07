@@ -142,7 +142,7 @@ static inline bool persistent_gnt_timeout(struct persistent_gnt *persistent_gnt)
 		HZ * xen_blkif_pgrant_timeout);
 }
 
-static inline int get_free_page(struct xen_blkif_ring *ring, struct page **page)
+static inline int get_free_page(xenhost_t *xh, struct xen_blkif_ring *ring, struct page **page)
 {
 	unsigned long flags;
 
@@ -150,7 +150,7 @@ static inline int get_free_page(struct xen_blkif_ring *ring, struct page **page)
 	if (list_empty(&ring->free_pages)) {
 		BUG_ON(ring->free_pages_num != 0);
 		spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-		return gnttab_alloc_pages(1, page);
+		return gnttab_alloc_pages(xh, 1, page);
 	}
 	BUG_ON(ring->free_pages_num == 0);
 	page[0] = list_first_entry(&ring->free_pages, struct page, lru);
@@ -174,7 +174,7 @@ static inline void put_free_pages(struct xen_blkif_ring *ring, struct page **pag
 	spin_unlock_irqrestore(&ring->free_pages_lock, flags);
 }
 
-static inline void shrink_free_pagepool(struct xen_blkif_ring *ring, int num)
+static inline void shrink_free_pagepool(xenhost_t *xh, struct xen_blkif_ring *ring, int num)
 {
 	/* Remove requested pages in batches of NUM_BATCH_FREE_PAGES */
 	struct page *page[NUM_BATCH_FREE_PAGES];
@@ -190,14 +190,14 @@ static inline void shrink_free_pagepool(struct xen_blkif_ring *ring, int num)
 		ring->free_pages_num--;
 		if (++num_pages == NUM_BATCH_FREE_PAGES) {
 			spin_unlock_irqrestore(&ring->free_pages_lock, flags);
-			gnttab_free_pages(num_pages, page);
+			gnttab_free_pages(xh, num_pages, page);
 			spin_lock_irqsave(&ring->free_pages_lock, flags);
 			num_pages = 0;
 		}
 	}
 	spin_unlock_irqrestore(&ring->free_pages_lock, flags);
 	if (num_pages != 0)
-		gnttab_free_pages(num_pages, page);
+		gnttab_free_pages(xh, num_pages, page);
 }
 
 #define vaddr(page) ((unsigned long)pfn_to_kaddr(page_to_pfn(page)))
@@ -301,8 +301,8 @@ static void put_persistent_gnt(struct xen_blkif_ring *ring,
 	atomic_dec(&ring->persistent_gnt_in_use);
 }
 
-static void free_persistent_gnts(struct xen_blkif_ring *ring, struct rb_root *root,
-                                 unsigned int num)
+static void free_persistent_gnts(xenhost_t *xh, struct xen_blkif_ring *ring,
+				struct rb_root *root, unsigned int num)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
@@ -314,6 +314,7 @@ static void free_persistent_gnts(struct xen_blkif_ring *ring, struct rb_root *ro
 	unmap_data.pages = pages;
 	unmap_data.unmap_ops = unmap;
 	unmap_data.kunmap_ops = NULL;
+	unmap_data.xh = xh;
 
 	foreach_grant_safe(persistent_gnt, n, root, node) {
 		BUG_ON(persistent_gnt->handle ==
@@ -351,10 +352,12 @@ void xen_blkbk_unmap_purged_grants(struct work_struct *work)
 	int segs_to_unmap = 0;
 	struct xen_blkif_ring *ring = container_of(work, typeof(*ring), persistent_purge_work);
 	struct gntab_unmap_queue_data unmap_data;
+	struct xenbus_device *dev = xen_blkbk_xenbus(ring->blkif->be);
 
 	unmap_data.pages = pages;
 	unmap_data.unmap_ops = unmap;
 	unmap_data.kunmap_ops = NULL;
+	unmap_data.xh = dev->xh;
 
 	while(!list_empty(&ring->persistent_purge_list)) {
 		persistent_gnt = list_first_entry(&ring->persistent_purge_list,
@@ -615,6 +618,7 @@ int xen_blkif_schedule(void *arg)
 	struct xen_vbd *vbd = &blkif->vbd;
 	unsigned long timeout;
 	int ret;
+	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be);
 
 	set_freezable();
 	while (!kthread_should_stop()) {
@@ -657,7 +661,7 @@ purge_gnt_list:
 		}
 
 		/* Shrink if we have more than xen_blkif_max_buffer_pages */
-		shrink_free_pagepool(ring, xen_blkif_max_buffer_pages);
+		shrink_free_pagepool(dev->xh, ring, xen_blkif_max_buffer_pages);
 
 		if (log_stats && time_after(jiffies, ring->st_print))
 			print_stats(ring);
@@ -677,18 +681,18 @@ purge_gnt_list:
 /*
  * Remove persistent grants and empty the pool of free pages
  */
-void xen_blkbk_free_caches(struct xen_blkif_ring *ring)
+void xen_blkbk_free_caches(xenhost_t *xh, struct xen_blkif_ring *ring)
 {
 	/* Free all persistent grant pages */
 	if (!RB_EMPTY_ROOT(&ring->persistent_gnts))
-		free_persistent_gnts(ring, &ring->persistent_gnts,
+		free_persistent_gnts(xh, ring, &ring->persistent_gnts,
 			ring->persistent_gnt_c);
 
 	BUG_ON(!RB_EMPTY_ROOT(&ring->persistent_gnts));
 	ring->persistent_gnt_c = 0;
 
 	/* Since we are shutting down remove all pages from the buffer */
-	shrink_free_pagepool(ring, 0 /* All */);
+	shrink_free_pagepool(xh, ring, 0 /* All */);
 }
 
 static unsigned int xen_blkbk_unmap_prepare(
@@ -784,6 +788,7 @@ static void xen_blkbk_unmap(struct xen_blkif_ring *ring,
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *unmap_pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int invcount = 0;
+	struct xenbus_device *dev = xen_blkbk_xenbus(ring->blkif->be);
 	int ret;
 
 	while (num) {
@@ -792,7 +797,7 @@ static void xen_blkbk_unmap(struct xen_blkif_ring *ring,
 		invcount = xen_blkbk_unmap_prepare(ring, pages, batch,
 						   unmap, unmap_pages);
 		if (invcount) {
-			ret = gnttab_unmap_refs(unmap, NULL, unmap_pages, invcount);
+			ret = gnttab_unmap_refs(dev->xh, unmap, NULL, unmap_pages, invcount);
 			BUG_ON(ret);
 			put_free_pages(ring, unmap_pages, invcount);
 		}
@@ -815,6 +820,7 @@ static int xen_blkbk_map(struct xen_blkif_ring *ring,
 	int last_map = 0, map_until = 0;
 	int use_persistent_gnts;
 	struct xen_blkif *blkif = ring->blkif;
+	struct xenbus_device *dev = xen_blkbk_xenbus(blkif->be); /* function call */
 
 	use_persistent_gnts = (blkif->vbd.feature_gnt_persistent);
 
@@ -841,7 +847,7 @@ again:
 			pages[i]->page = persistent_gnt->page;
 			pages[i]->persistent_gnt = persistent_gnt;
 		} else {
-			if (get_free_page(ring, &pages[i]->page))
+			if (get_free_page(dev->xh, ring, &pages[i]->page))
 				goto out_of_memory;
 			addr = vaddr(pages[i]->page);
 			pages_to_gnt[segs_to_map] = pages[i]->page;
@@ -859,7 +865,7 @@ again:
 	}
 
 	if (segs_to_map) {
-		ret = gnttab_map_refs(map, NULL, pages_to_gnt, segs_to_map);
+		ret = gnttab_map_refs(dev->xh, map, NULL, pages_to_gnt, segs_to_map);
 		BUG_ON(ret);
 	}
 

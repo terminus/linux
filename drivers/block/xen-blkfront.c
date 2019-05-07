@@ -341,10 +341,11 @@ static struct grant *get_free_grant(struct blkfront_ring_info *rinfo)
 	return gnt_list_entry;
 }
 
-static inline void grant_foreign_access(const struct grant *gnt_list_entry,
+static inline void grant_foreign_access(xenhost_t *xh,
+					const struct grant *gnt_list_entry,
 					const struct blkfront_info *info)
 {
-	gnttab_page_grant_foreign_access_ref_one(gnt_list_entry->gref,
+	gnttab_page_grant_foreign_access_ref_one(xh, gnt_list_entry->gref,
 						 info->xbdev->otherend_id,
 						 gnt_list_entry->page,
 						 0);
@@ -361,13 +362,13 @@ static struct grant *get_grant(grant_ref_t *gref_head,
 		return gnt_list_entry;
 
 	/* Assign a gref to this page */
-	gnt_list_entry->gref = gnttab_claim_grant_reference(gref_head);
+	gnt_list_entry->gref = gnttab_claim_grant_reference(info->xbdev->xh, gref_head);
 	BUG_ON(gnt_list_entry->gref == -ENOSPC);
 	if (info->feature_persistent)
-		grant_foreign_access(gnt_list_entry, info);
+		grant_foreign_access(info->xbdev->xh, gnt_list_entry, info);
 	else {
 		/* Grant access to the GFN passed by the caller */
-		gnttab_grant_foreign_access_ref(gnt_list_entry->gref,
+		gnttab_grant_foreign_access_ref(info->xbdev->xh, gnt_list_entry->gref,
 						info->xbdev->otherend_id,
 						gfn, 0);
 	}
@@ -385,7 +386,7 @@ static struct grant *get_indirect_grant(grant_ref_t *gref_head,
 		return gnt_list_entry;
 
 	/* Assign a gref to this page */
-	gnt_list_entry->gref = gnttab_claim_grant_reference(gref_head);
+	gnt_list_entry->gref = gnttab_claim_grant_reference(info->xbdev->xh, gref_head);
 	BUG_ON(gnt_list_entry->gref == -ENOSPC);
 	if (!info->feature_persistent) {
 		struct page *indirect_page;
@@ -397,7 +398,7 @@ static struct grant *get_indirect_grant(grant_ref_t *gref_head,
 		list_del(&indirect_page->lru);
 		gnt_list_entry->page = indirect_page;
 	}
-	grant_foreign_access(gnt_list_entry, info);
+	grant_foreign_access(info->xbdev->xh, gnt_list_entry, info);
 
 	return gnt_list_entry;
 }
@@ -723,10 +724,10 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	if (rinfo->persistent_gnts_c < max_grefs) {
 		new_persistent_gnts = true;
 
-		if (gnttab_alloc_grant_references(
+		if (gnttab_alloc_grant_references(info->xbdev->xh,
 		    max_grefs - rinfo->persistent_gnts_c,
 		    &setup.gref_head) < 0) {
-			gnttab_request_free_callback(
+			gnttab_request_free_callback(info->xbdev->xh,
 				&rinfo->callback,
 				blkif_restart_queue_callback,
 				rinfo,
@@ -835,7 +836,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		rinfo->shadow[extra_id].req = *extra_ring_req;
 
 	if (new_persistent_gnts)
-		gnttab_free_grant_references(setup.gref_head);
+		gnttab_free_grant_references(info->xbdev->xh, setup.gref_head);
 
 	return 0;
 }
@@ -1195,7 +1196,7 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 		struct blkfront_ring_info *rinfo = &info->rinfo[i];
 
 		/* No more gnttab callback work. */
-		gnttab_cancel_free_callback(&rinfo->callback);
+		gnttab_cancel_free_callback(info->xbdev->xh, &rinfo->callback);
 
 		/* Flush gnttab callback work. Must be done with no locks held. */
 		flush_work(&rinfo->work);
@@ -1265,7 +1266,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 					 &rinfo->grants, node) {
 			list_del(&persistent_gnt->node);
 			if (persistent_gnt->gref != GRANT_INVALID_REF) {
-				gnttab_end_foreign_access(persistent_gnt->gref,
+				gnttab_end_foreign_access(info->xbdev->xh, persistent_gnt->gref,
 							  0, 0UL);
 				rinfo->persistent_gnts_c--;
 			}
@@ -1289,7 +1290,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 		       rinfo->shadow[i].req.u.rw.nr_segments;
 		for (j = 0; j < segs; j++) {
 			persistent_gnt = rinfo->shadow[i].grants_used[j];
-			gnttab_end_foreign_access(persistent_gnt->gref, 0, 0UL);
+			gnttab_end_foreign_access(info->xbdev->xh, persistent_gnt->gref, 0, 0UL);
 			if (info->feature_persistent)
 				__free_page(persistent_gnt->page);
 			kfree(persistent_gnt);
@@ -1304,7 +1305,7 @@ static void blkif_free_ring(struct blkfront_ring_info *rinfo)
 
 		for (j = 0; j < INDIRECT_GREFS(segs); j++) {
 			persistent_gnt = rinfo->shadow[i].indirect_grants[j];
-			gnttab_end_foreign_access(persistent_gnt->gref, 0, 0UL);
+			gnttab_end_foreign_access(info->xbdev->xh, persistent_gnt->gref, 0, 0UL);
 			__free_page(persistent_gnt->page);
 			kfree(persistent_gnt);
 		}
@@ -1319,7 +1320,7 @@ free_shadow:
 	}
 
 	/* No more gnttab callback work. */
-	gnttab_cancel_free_callback(&rinfo->callback);
+	gnttab_cancel_free_callback(info->xbdev->xh, &rinfo->callback);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
 	flush_work(&rinfo->work);
@@ -1327,7 +1328,7 @@ free_shadow:
 	/* Free resources associated with old device channel. */
 	for (i = 0; i < info->nr_ring_pages; i++) {
 		if (rinfo->ring_ref[i] != GRANT_INVALID_REF) {
-			gnttab_end_foreign_access(rinfo->ring_ref[i], 0, 0);
+			gnttab_end_foreign_access(info->xbdev->xh, rinfo->ring_ref[i], 0, 0);
 			rinfo->ring_ref[i] = GRANT_INVALID_REF;
 		}
 	}
@@ -1491,7 +1492,7 @@ static bool blkif_completion(unsigned long *id,
 	}
 	/* Add the persistent grant into the list of free grants */
 	for (i = 0; i < num_grant; i++) {
-		if (gnttab_query_foreign_access(s->grants_used[i]->gref)) {
+		if (gnttab_query_foreign_access(info->xbdev->xh, s->grants_used[i]->gref)) {
 			/*
 			 * If the grant is still mapped by the backend (the
 			 * backend has chosen to make this grant persistent)
@@ -1510,14 +1511,14 @@ static bool blkif_completion(unsigned long *id,
 			 * so it will not be picked again unless we run out of
 			 * persistent grants.
 			 */
-			gnttab_end_foreign_access(s->grants_used[i]->gref, 0, 0UL);
+			gnttab_end_foreign_access(info->xbdev->xh, s->grants_used[i]->gref, 0, 0UL);
 			s->grants_used[i]->gref = GRANT_INVALID_REF;
 			list_add_tail(&s->grants_used[i]->node, &rinfo->grants);
 		}
 	}
 	if (s->req.operation == BLKIF_OP_INDIRECT) {
 		for (i = 0; i < INDIRECT_GREFS(num_grant); i++) {
-			if (gnttab_query_foreign_access(s->indirect_grants[i]->gref)) {
+			if (gnttab_query_foreign_access(info->xbdev->xh, s->indirect_grants[i]->gref)) {
 				if (!info->feature_persistent)
 					pr_alert_ratelimited("backed has not unmapped grant: %u\n",
 							     s->indirect_grants[i]->gref);
@@ -1526,7 +1527,7 @@ static bool blkif_completion(unsigned long *id,
 			} else {
 				struct page *indirect_page;
 
-				gnttab_end_foreign_access(s->indirect_grants[i]->gref, 0, 0UL);
+				gnttab_end_foreign_access(info->xbdev->xh, s->indirect_grants[i]->gref, 0, 0UL);
 				/*
 				 * Add the used indirect page back to the list of
 				 * available pages for indirect grefs.
@@ -1726,9 +1727,10 @@ static int write_per_ring_nodes(struct xenbus_transaction xbt,
 	unsigned int i;
 	const char *message = NULL;
 	struct blkfront_info *info = rinfo->dev_info;
+	xenhost_t *xh = info->xbdev->xh;
 
 	if (info->nr_ring_pages == 1) {
-		err = xenbus_printf(xbt, dir, "ring-ref", "%u", rinfo->ring_ref[0]);
+		err = xenbus_printf(xh, xbt, dir, "ring-ref", "%u", rinfo->ring_ref[0]);
 		if (err) {
 			message = "writing ring-ref";
 			goto abort_transaction;
@@ -1738,7 +1740,7 @@ static int write_per_ring_nodes(struct xenbus_transaction xbt,
 			char ring_ref_name[RINGREF_NAME_LEN];
 
 			snprintf(ring_ref_name, RINGREF_NAME_LEN, "ring-ref%u", i);
-			err = xenbus_printf(xbt, dir, ring_ref_name,
+			err = xenbus_printf(xh, xbt, dir, ring_ref_name,
 					    "%u", rinfo->ring_ref[i]);
 			if (err) {
 				message = "writing ring-ref";
@@ -1747,7 +1749,7 @@ static int write_per_ring_nodes(struct xenbus_transaction xbt,
 		}
 	}
 
-	err = xenbus_printf(xbt, dir, "event-channel", "%u", rinfo->evtchn);
+	err = xenbus_printf(xh, xbt, dir, "event-channel", "%u", rinfo->evtchn);
 	if (err) {
 		message = "writing event-channel";
 		goto abort_transaction;
@@ -1756,7 +1758,7 @@ static int write_per_ring_nodes(struct xenbus_transaction xbt,
 	return 0;
 
 abort_transaction:
-	xenbus_transaction_end(xbt, 1);
+	xenbus_transaction_end(xh, xbt, 1);
 	if (message)
 		xenbus_dev_fatal(info->xbdev, err, "%s", message);
 
@@ -1782,7 +1784,7 @@ static int talk_to_blkback(struct xenbus_device *dev,
 	if (!info)
 		return -ENODEV;
 
-	max_page_order = xenbus_read_unsigned(info->xbdev->otherend,
+	max_page_order = xenbus_read_unsigned(dev->xh, info->xbdev->otherend,
 					      "max-ring-page-order", 0);
 	ring_page_order = min(xen_blkif_max_ring_order, max_page_order);
 	info->nr_ring_pages = 1 << ring_page_order;
@@ -1801,14 +1803,14 @@ static int talk_to_blkback(struct xenbus_device *dev,
 	}
 
 again:
-	err = xenbus_transaction_start(&xbt);
+	err = xenbus_transaction_start(dev->xh, &xbt);
 	if (err) {
 		xenbus_dev_fatal(dev, err, "starting transaction");
 		goto destroy_blkring;
 	}
 
 	if (info->nr_ring_pages > 1) {
-		err = xenbus_printf(xbt, dev->nodename, "ring-page-order", "%u",
+		err = xenbus_printf(dev->xh, xbt, dev->nodename, "ring-page-order", "%u",
 				    ring_page_order);
 		if (err) {
 			message = "writing ring-page-order";
@@ -1825,7 +1827,7 @@ again:
 		char *path;
 		size_t pathsize;
 
-		err = xenbus_printf(xbt, dev->nodename, "multi-queue-num-queues", "%u",
+		err = xenbus_printf(dev->xh, xbt, dev->nodename, "multi-queue-num-queues", "%u",
 				    info->nr_rings);
 		if (err) {
 			message = "writing multi-queue-num-queues";
@@ -1851,19 +1853,19 @@ again:
 		}
 		kfree(path);
 	}
-	err = xenbus_printf(xbt, dev->nodename, "protocol", "%s",
+	err = xenbus_printf(dev->xh, xbt, dev->nodename, "protocol", "%s",
 			    XEN_IO_PROTO_ABI_NATIVE);
 	if (err) {
 		message = "writing protocol";
 		goto abort_transaction;
 	}
-	err = xenbus_printf(xbt, dev->nodename,
+	err = xenbus_printf(dev->xh, xbt, dev->nodename,
 			    "feature-persistent", "%u", 1);
 	if (err)
 		dev_warn(&dev->dev,
 			 "writing persistent grants feature to xenbus");
 
-	err = xenbus_transaction_end(xbt, 0);
+	err = xenbus_transaction_end(dev->xh, xbt, 0);
 	if (err) {
 		if (err == -EAGAIN)
 			goto again;
@@ -1884,7 +1886,7 @@ again:
 	return 0;
 
  abort_transaction:
-	xenbus_transaction_end(xbt, 1);
+	xenbus_transaction_end(dev->xh, xbt, 1);
 	if (message)
 		xenbus_dev_fatal(dev, err, "%s", message);
  destroy_blkring:
@@ -1907,7 +1909,7 @@ static int negotiate_mq(struct blkfront_info *info)
 	BUG_ON(info->nr_rings);
 
 	/* Check if backend supports multiple queues. */
-	backend_max_queues = xenbus_read_unsigned(info->xbdev->otherend,
+	backend_max_queues = xenbus_read_unsigned(info->xbdev->xh, info->xbdev->otherend,
 						  "multi-queue-max-queues", 1);
 	info->nr_rings = min(backend_max_queues, xen_blkif_max_queues);
 	/* We need at least one ring. */
@@ -1948,11 +1950,11 @@ static int blkfront_probe(struct xenbus_device *dev,
 	struct blkfront_info *info;
 
 	/* FIXME: Use dynamic device id if this is not set. */
-	err = xenbus_scanf(XBT_NIL, dev->nodename,
+	err = xenbus_scanf(dev->xh, XBT_NIL, dev->nodename,
 			   "virtual-device", "%i", &vdevice);
 	if (err != 1) {
 		/* go looking in the extended area instead */
-		err = xenbus_scanf(XBT_NIL, dev->nodename, "virtual-device-ext",
+		err = xenbus_scanf(dev->xh, XBT_NIL, dev->nodename, "virtual-device-ext",
 				   "%i", &vdevice);
 		if (err != 1) {
 			xenbus_dev_fatal(dev, err, "reading virtual-device");
@@ -1980,7 +1982,7 @@ static int blkfront_probe(struct xenbus_device *dev,
 			}
 		}
 		/* do not create a PV cdrom device if we are an HVM guest */
-		type = xenbus_read(XBT_NIL, dev->nodename, "device-type", &len);
+		type = xenbus_read(dev->xh, XBT_NIL, dev->nodename, "device-type", &len);
 		if (IS_ERR(type))
 			return -ENODEV;
 		if (strncmp(type, "cdrom", 5) == 0) {
@@ -2173,7 +2175,7 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 	unsigned int discard_alignment;
 
 	info->feature_discard = 1;
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+	err = xenbus_gather(info->xbdev->xh, XBT_NIL, info->xbdev->otherend,
 		"discard-granularity", "%u", &discard_granularity,
 		"discard-alignment", "%u", &discard_alignment,
 		NULL);
@@ -2182,7 +2184,7 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 		info->discard_alignment = discard_alignment;
 	}
 	info->feature_secdiscard =
-		!!xenbus_read_unsigned(info->xbdev->otherend, "discard-secure",
+		!!xenbus_read_unsigned(info->xbdev->xh, info->xbdev->otherend, "discard-secure",
 				       0);
 }
 
@@ -2279,6 +2281,7 @@ out_of_memory:
 static void blkfront_gather_backend_features(struct blkfront_info *info)
 {
 	unsigned int indirect_segments;
+	xenhost_t *xh = info->xbdev->xh;
 
 	info->feature_flush = 0;
 	info->feature_fua = 0;
@@ -2290,7 +2293,8 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	 *
 	 * If there are barriers, then we use flush.
 	 */
-	if (xenbus_read_unsigned(info->xbdev->otherend, "feature-barrier", 0)) {
+	if (xenbus_read_unsigned(xh, info->xbdev->otherend,
+					"feature-barrier", 0)) {
 		info->feature_flush = 1;
 		info->feature_fua = 1;
 	}
@@ -2299,20 +2303,21 @@ static void blkfront_gather_backend_features(struct blkfront_info *info)
 	 * And if there is "feature-flush-cache" use that above
 	 * barriers.
 	 */
-	if (xenbus_read_unsigned(info->xbdev->otherend, "feature-flush-cache",
-				 0)) {
+	if (xenbus_read_unsigned(xh, info->xbdev->otherend,
+					"feature-flush-cache", 0)) {
 		info->feature_flush = 1;
 		info->feature_fua = 0;
 	}
 
-	if (xenbus_read_unsigned(info->xbdev->otherend, "feature-discard", 0))
+	if (xenbus_read_unsigned(xh, info->xbdev->otherend,
+					"feature-discard", 0))
 		blkfront_setup_discard(info);
 
 	info->feature_persistent =
-		!!xenbus_read_unsigned(info->xbdev->otherend,
+		!!xenbus_read_unsigned(xh, info->xbdev->otherend,
 				       "feature-persistent", 0);
 
-	indirect_segments = xenbus_read_unsigned(info->xbdev->otherend,
+	indirect_segments = xenbus_read_unsigned(xh, info->xbdev->otherend,
 					"feature-max-indirect-segments", 0);
 	if (indirect_segments > xen_blkif_max_segments)
 		indirect_segments = xen_blkif_max_segments;
@@ -2346,7 +2351,7 @@ static void blkfront_connect(struct blkfront_info *info)
 		 * Potentially, the back-end may be signalling
 		 * a capacity change; update the capacity.
 		 */
-		err = xenbus_scanf(XBT_NIL, info->xbdev->otherend,
+		err = xenbus_scanf(info->xbdev->xh, XBT_NIL, info->xbdev->otherend,
 				   "sectors", "%Lu", &sectors);
 		if (XENBUS_EXIST_ERR(err))
 			return;
@@ -2375,7 +2380,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	dev_dbg(&info->xbdev->dev, "%s:%s.\n",
 		__func__, info->xbdev->otherend);
 
-	err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+	err = xenbus_gather(info->xbdev->xh, XBT_NIL, info->xbdev->otherend,
 			    "sectors", "%llu", &sectors,
 			    "info", "%u", &binfo,
 			    "sector-size", "%lu", &sector_size,
@@ -2392,7 +2397,7 @@ static void blkfront_connect(struct blkfront_info *info)
 	 * provide this. Assume physical sector size to be the same as
 	 * sector_size in that case.
 	 */
-	physical_sector_size = xenbus_read_unsigned(info->xbdev->otherend,
+	physical_sector_size = xenbus_read_unsigned(info->xbdev->xh, info->xbdev->otherend,
 						    "physical-sector-size",
 						    sector_size);
 	blkfront_gather_backend_features(info);
@@ -2668,11 +2673,11 @@ static void purge_persistent_grants(struct blkfront_info *info)
 		list_for_each_entry_safe(gnt_list_entry, tmp, &rinfo->grants,
 					 node) {
 			if (gnt_list_entry->gref == GRANT_INVALID_REF ||
-			    gnttab_query_foreign_access(gnt_list_entry->gref))
+			    gnttab_query_foreign_access(info->xbdev->xh, gnt_list_entry->gref))
 				continue;
 
 			list_del(&gnt_list_entry->node);
-			gnttab_end_foreign_access(gnt_list_entry->gref, 0, 0UL);
+			gnttab_end_foreign_access(info->xbdev->xh, gnt_list_entry->gref, 0, 0UL);
 			rinfo->persistent_gnts_c--;
 			gnt_list_entry->gref = GRANT_INVALID_REF;
 			list_add_tail(&gnt_list_entry->node, &rinfo->grants);
