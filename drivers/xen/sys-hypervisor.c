@@ -14,6 +14,7 @@
 #include <linux/err.h>
 
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <asm/xen/hypervisor.h>
 #include <asm/xen/hypercall.h>
 
@@ -141,15 +142,15 @@ static ssize_t uuid_show_fallback(struct hyp_sysfs_attr *attr, char *buffer)
 {
 	char *vm, *val;
 	int ret;
-	extern int xenstored_ready;
 
+	/* Disable for now: xenstored_ready is private to xenbus
 	if (!xenstored_ready)
-		return -EBUSY;
+		return -EBUSY;*/
 
-	vm = xenbus_read(XBT_NIL, "vm", "", NULL);
+	vm = xenbus_read(xh_default, XBT_NIL, "vm", "", NULL);
 	if (IS_ERR(vm))
 		return PTR_ERR(vm);
-	val = xenbus_read(XBT_NIL, vm, "uuid", NULL);
+	val = xenbus_read(xh_default, XBT_NIL, vm, "uuid", NULL);
 	kfree(vm);
 	if (IS_ERR(val))
 		return PTR_ERR(val);
@@ -602,6 +603,9 @@ static struct kobj_type hyp_sysfs_kobj_type = {
 	.sysfs_ops = &hyp_sysfs_ops,
 };
 
+/*
+ * For now, default xenhost only.
+ */
 static int __init hypervisor_subsys_init(void)
 {
 	if (!xen_domain())

@@ -79,6 +79,8 @@ static LIST_HEAD(gref_list);
 static DEFINE_MUTEX(gref_mutex);
 static int gref_size;
 
+static xenhost_t *xh;
+
 struct notify_info {
 	uint16_t pgoff:12;    /* Bits 0-11: Offset of the byte to clear */
 	uint16_t flags:2;     /* Bits 12-13: Unmap notification flags */
@@ -144,7 +146,7 @@ static int add_grefs(struct ioctl_gntalloc_alloc_gref *op,
 		}
 
 		/* Grant foreign access to the page. */
-		rc = gnttab_grant_foreign_access(op->domid,
+		rc = gnttab_grant_foreign_access(xh, op->domid,
 						 xen_page_to_gfn(gref->page),
 						 readonly);
 		if (rc < 0)
@@ -196,13 +198,13 @@ static void __del_gref(struct gntalloc_gref *gref)
 	gref->notify.flags = 0;
 
 	if (gref->gref_id) {
-		if (gnttab_query_foreign_access(gref->gref_id))
+		if (gnttab_query_foreign_access(xh, gref->gref_id))
 			return;
 
-		if (!gnttab_end_foreign_access_ref(gref->gref_id, 0))
+		if (!gnttab_end_foreign_access_ref(xh, gref->gref_id, 0))
 			return;
 
-		gnttab_free_grant_reference(gref->gref_id);
+		gnttab_free_grant_reference(xh, gref->gref_id);
 	}
 
 	gref_size--;
@@ -585,6 +587,9 @@ static int __init gntalloc_init(void)
 
 	if (!xen_domain())
 		return -ENODEV;
+
+	/* Limit to default xenhost for now. */
+	xh = xh_default;
 
 	err = misc_register(&gntalloc_miscdev);
 	if (err != 0) {

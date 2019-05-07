@@ -154,18 +154,20 @@ static int platform_pci_probe(struct pci_dev *pdev,
 		}
 	}
 
-	max_nr_gframes = gnttab_max_grant_frames();
+	max_nr_gframes = gnttab_max_grant_frames(xh_default);
 	grant_frames = alloc_xen_mmio(PAGE_SIZE * max_nr_gframes);
-	ret = gnttab_setup_auto_xlat_frames(grant_frames);
+	ret = gnttab_setup_auto_xlat_frames(xh_default, grant_frames);
 	if (ret)
 		goto out;
-	ret = gnttab_init();
+
+	/* HVM only, we don't need xh_remote */
+	ret = gnttab_init(xh_default);
 	if (ret)
 		goto grant_out;
-	xenbus_probe(NULL);
+	__xenbus_probe(xh_default->xenstore_private);
 	return 0;
 grant_out:
-	gnttab_free_auto_xlat_frames();
+	gnttab_free_auto_xlat_frames(xh_default);
 out:
 	pci_release_region(pdev, 0);
 mem_out:

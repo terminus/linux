@@ -8,6 +8,7 @@
 #include <xen/xenbus.h>
 
 #include "xenfs.h"
+#include "../xenbus/xenbus.h" /* FIXME */
 
 static ssize_t xsd_read(struct file *file, char __user *buf,
 			    size_t size, loff_t *off)
@@ -25,7 +26,7 @@ static int xsd_release(struct inode *inode, struct file *file)
 static int xsd_kva_open(struct inode *inode, struct file *file)
 {
 	file->private_data = (void *)kasprintf(GFP_KERNEL, "0x%p",
-					       xen_store_interface);
+					       xs_priv(xh_default)->store_interface);
 	if (!file->private_data)
 		return -ENOMEM;
 	return 0;
@@ -39,7 +40,7 @@ static int xsd_kva_mmap(struct file *file, struct vm_area_struct *vma)
 		return -EINVAL;
 
 	if (remap_pfn_range(vma, vma->vm_start,
-			    virt_to_pfn(xen_store_interface),
+			    virt_to_pfn(xs_priv(xh_default)->store_interface),
 			    size, vma->vm_page_prot))
 		return -EAGAIN;
 
@@ -56,7 +57,7 @@ const struct file_operations xsd_kva_file_ops = {
 static int xsd_port_open(struct inode *inode, struct file *file)
 {
 	file->private_data = (void *)kasprintf(GFP_KERNEL, "%d",
-					       xen_store_evtchn);
+					       xs_priv(xh_default)->store_evtchn);
 	if (!file->private_data)
 		return -ENOMEM;
 	return 0;

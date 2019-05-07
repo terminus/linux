@@ -227,14 +227,14 @@ static void shutdown_handler(struct xenbus_watch *watch,
 		return;
 
  again:
-	err = xenbus_transaction_start(xh_default, &xbt);
+	err = xenbus_transaction_start(watch->xh, &xbt);
 	if (err)
 		return;
 
-	str = (char *)xenbus_read(xh_default, xbt, "control", "shutdown", NULL);
+	str = (char *)xenbus_read(watch->xh, xbt, "control", "shutdown", NULL);
 	/* Ignore read errors and empty reads. */
 	if (XENBUS_IS_ERR_READ(str)) {
-		xenbus_transaction_end(xh_default, xbt, 1);
+		xenbus_transaction_end(watch->xh, xbt, 1);
 		return;
 	}
 
@@ -245,9 +245,9 @@ static void shutdown_handler(struct xenbus_watch *watch,
 
 	/* Only acknowledge commands which we are prepared to handle. */
 	if (idx < ARRAY_SIZE(shutdown_handlers))
-		xenbus_write(xh_default, xbt, "control", "shutdown", "");
+		xenbus_write(watch->xh, xbt, "control", "shutdown", "");
 
-	err = xenbus_transaction_end(xh_default, xbt, 0);
+	err = xenbus_transaction_end(watch->xh, xbt, 0);
 	if (err == -EAGAIN) {
 		kfree(str);
 		goto again;
@@ -272,10 +272,10 @@ static void sysrq_handler(struct xenbus_watch *watch, const char *path,
 	int err;
 
  again:
-	err = xenbus_transaction_start(xh_default, &xbt);
+	err = xenbus_transaction_start(watch->xh, &xbt);
 	if (err)
 		return;
-	err = xenbus_scanf(xh_default, xbt, "control", "sysrq", "%c", &sysrq_key);
+	err = xenbus_scanf(watch->xh, xbt, "control", "sysrq", "%c", &sysrq_key);
 	if (err < 0) {
 		/*
 		 * The Xenstore watch fires directly after registering it and
@@ -287,21 +287,21 @@ static void sysrq_handler(struct xenbus_watch *watch, const char *path,
 		if (err != -ENOENT && err != -ERANGE)
 			pr_err("Error %d reading sysrq code in control/sysrq\n",
 			       err);
-		xenbus_transaction_end(xh_default, xbt, 1);
+		xenbus_transaction_end(watch->xh, xbt, 1);
 		return;
 	}
 
 	if (sysrq_key != '\0') {
-		err = xenbus_printf(xh_default, xbt, "control", "sysrq", "%c", '\0');
+		err = xenbus_printf(watch->xh, xbt, "control", "sysrq", "%c", '\0');
 		if (err) {
 			pr_err("%s: Error %d writing sysrq in control/sysrq\n",
 			       __func__, err);
-			xenbus_transaction_end(xh_default, xbt, 1);
+			xenbus_transaction_end(watch->xh, xbt, 1);
 			return;
 		}
 	}
 
-	err = xenbus_transaction_end(xh_default, xbt, 0);
+	err = xenbus_transaction_end(watch->xh, xbt, 0);
 	if (err == -EAGAIN)
 		goto again;
 
@@ -324,14 +324,14 @@ static struct notifier_block xen_reboot_nb = {
 	.notifier_call = poweroff_nb,
 };
 
-static int setup_shutdown_watcher(void)
+static int setup_shutdown_watcher(xenhost_t *xh)
 {
 	int err;
 	int idx;
 #define FEATURE_PATH_SIZE (SHUTDOWN_CMD_SIZE + sizeof("feature-"))
 	char node[FEATURE_PATH_SIZE];
 
-	err = register_xenbus_watch(xh_default, &shutdown_watch);
+	err = register_xenbus_watch(xh, &shutdown_watch);
 	if (err) {
 		pr_err("Failed to set shutdown watcher\n");
 		return err;
@@ -339,7 +339,7 @@ static int setup_shutdown_watcher(void)
 
 
 #ifdef CONFIG_MAGIC_SYSRQ
-	err = register_xenbus_watch(xh_default, &sysrq_watch);
+	err = register_xenbus_watch(xh, &sysrq_watch);
 	if (err) {
 		pr_err("Failed to set sysrq watcher\n");
 		return err;
@@ -351,7 +351,7 @@ static int setup_shutdown_watcher(void)
 			continue;
 		snprintf(node, FEATURE_PATH_SIZE, "feature-%s",
 			 shutdown_handlers[idx].command);
-		err = xenbus_printf(xh_default, XBT_NIL, "control", node, "%u", 1);
+		err = xenbus_printf(xh, XBT_NIL, "control", node, "%u", 1);
 		if (err) {
 			pr_err("%s: Error %d writing %s\n", __func__,
 				err, node);
@@ -364,9 +364,9 @@ static int setup_shutdown_watcher(void)
 
 static int shutdown_event(struct notifier_block *notifier,
 			  unsigned long event,
-			  void *data)
+			  void *xh)
 {
-	setup_shutdown_watcher();
+	setup_shutdown_watcher((xenhost_t *) xh);
 	return NOTIFY_DONE;
 }
 
@@ -378,7 +378,8 @@ int xen_setup_shutdown_event(void)
 
 	if (!xen_domain())
 		return -ENODEV;
-	register_xenstore_notifier(&xenstore_notifier);
+
+	register_xenstore_notifier(xh_default, &xenstore_notifier);
 	register_reboot_notifier(&xen_reboot_nb);
 
 	return 0;

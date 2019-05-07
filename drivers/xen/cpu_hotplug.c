@@ -31,13 +31,13 @@ static void disable_hotplug_cpu(int cpu)
 	unlock_device_hotplug();
 }
 
-static int vcpu_online(unsigned int cpu)
+static int vcpu_online(xenhost_t *xh, unsigned int cpu)
 {
 	int err;
 	char dir[16], state[16];
 
 	sprintf(dir, "cpu/%u", cpu);
-	err = xenbus_scanf(xh_default, XBT_NIL, dir, "availability", "%15s", state);
+	err = xenbus_scanf(xh, XBT_NIL, dir, "availability", "%15s", state);
 	if (err != 1) {
 		if (!xen_initial_domain())
 			pr_err("Unable to read cpu state\n");
@@ -52,12 +52,12 @@ static int vcpu_online(unsigned int cpu)
 	pr_err("unknown state(%s) on CPU%d\n", state, cpu);
 	return -EINVAL;
 }
-static void vcpu_hotplug(unsigned int cpu)
+static void vcpu_hotplug(xenhost_t *xh, unsigned int cpu)
 {
 	if (!cpu_possible(cpu))
 		return;
 
-	switch (vcpu_online(cpu)) {
+	switch (vcpu_online(xh, cpu)) {
 	case 1:
 		enable_hotplug_cpu(cpu);
 		break;
@@ -78,7 +78,7 @@ static void handle_vcpu_hotplug_event(struct xenbus_watch *watch,
 	cpustr = strstr(path, "cpu/");
 	if (cpustr != NULL) {
 		sscanf(cpustr, "cpu/%u", &cpu);
-		vcpu_hotplug(cpu);
+		vcpu_hotplug(watch->xh, cpu);
 	}
 }
 
@@ -93,7 +93,7 @@ static int setup_cpu_watcher(struct notifier_block *notifier,
 	(void)register_xenbus_watch(xh_default, &cpu_watch);
 
 	for_each_possible_cpu(cpu) {
-		if (vcpu_online(cpu) == 0) {
+		if (vcpu_online(cpu_watch.xh, cpu) == 0) {
 			(void)cpu_down(cpu);
 			set_cpu_present(cpu, false);
 		}
@@ -114,7 +114,7 @@ static int __init setup_vcpu_hotplug_event(void)
 #endif
 		return -ENODEV;
 
-	register_xenstore_notifier(&xsn_cpu);
+	register_xenstore_notifier(xh_default, &xsn_cpu);
 
 	return 0;
 }

@@ -40,6 +40,7 @@
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
+#include <xen/xenhost.h>
 #include <xen/balloon.h>
 #include <xen/xenbus.h>
 #include <xen/features.h>
@@ -99,11 +100,11 @@ static struct xenbus_watch target_watch = {
 
 static int balloon_init_watcher(struct notifier_block *notifier,
 				unsigned long event,
-				void *data)
+				void *xh)
 {
 	int err;
 
-	err = register_xenbus_watch(xh_default, &target_watch);
+	err = register_xenbus_watch(xh, &target_watch);
 	if (err)
 		pr_err("Failed to set balloon watcher\n");
 
@@ -120,7 +121,10 @@ void xen_balloon_init(void)
 
 	register_xen_selfballooning(&balloon_dev);
 
-	register_xenstore_notifier(&xenstore_notifier);
+	/*
+	 * ballooning is only concerned with the default xenhost.
+	 */
+	register_xenstore_notifier(xh_default, &xenstore_notifier);
 }
 EXPORT_SYMBOL_GPL(xen_balloon_init);
 

@@ -67,6 +67,8 @@ static atomic_t pages_mapped = ATOMIC_INIT(0);
 static int use_ptemod;
 #define populate_freeable_maps use_ptemod
 
+static xenhost_t *xh;
+
 static int unmap_grant_pages(struct gntdev_grant_map *map,
 			     int offset, int pages);
 
@@ -114,7 +116,7 @@ static void gntdev_free_map(struct gntdev_grant_map *map)
 	} else
 #endif
 	if (map->pages)
-		gnttab_free_pages(map->count, map->pages);
+		gnttab_free_pages(xh, map->count, map->pages);
 
 #ifdef CONFIG_XEN_GRANT_DMA_ALLOC
 	kfree(map->frames);
@@ -183,7 +185,7 @@ struct gntdev_grant_map *gntdev_alloc_map(struct gntdev_priv *priv, int count,
 		add->dma_bus_addr = args.dev_bus_addr;
 	} else
 #endif
-	if (gnttab_alloc_pages(count, add->pages))
+	if (gnttab_alloc_pages(xh, count, add->pages))
 		goto err;
 
 	for (i = 0; i < count; i++) {
@@ -339,7 +341,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 	}
 
 	pr_debug("map %d+%d\n", map->index, map->count);
-	err = gnttab_map_refs(map->map_ops, use_ptemod ? map->kmap_ops : NULL,
+	err = gnttab_map_refs(xh, map->map_ops, use_ptemod ? map->kmap_ops : NULL,
 			map->pages, map->count);
 	if (err)
 		return err;
@@ -385,6 +387,7 @@ static int __unmap_grant_pages(struct gntdev_grant_map *map, int offset,
 	unmap_data.kunmap_ops = use_ptemod ? map->kunmap_ops + offset : NULL;
 	unmap_data.pages = map->pages + offset;
 	unmap_data.count = pages;
+	unmap_data.xh = xh;
 
 	err = gnttab_unmap_refs_sync(&unmap_data);
 	if (err)
@@ -877,7 +880,7 @@ static int gntdev_copy(struct gntdev_copy_batch *batch)
 {
 	unsigned int i;
 
-	gnttab_batch_copy(batch->ops, batch->nr_ops);
+	gnttab_batch_copy(xh, batch->ops, batch->nr_ops);
 	gntdev_put_pages(batch);
 
 	/*
@@ -1210,7 +1213,12 @@ static int __init gntdev_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	/*
+	 * Use for mappings grants related to the default xenhost.
+	 */
+	xh = xh_default;
 	use_ptemod = !xen_feature(XENFEAT_auto_translated_physmap);
+
 
 	err = misc_register(&gntdev_miscdev);
 	if (err != 0) {
