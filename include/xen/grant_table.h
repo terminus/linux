@@ -219,9 +219,18 @@ int gnttab_dma_free_pages(xenhost_t *xh, struct gnttab_dma_alloc_args *args);
 int gnttab_pages_set_private(int nr_pages, struct page **pages);
 void gnttab_pages_clear_private(int nr_pages, struct page **pages);
 
+static inline bool
+gnttab_map_fixup(xenhost_t *xh)
+{
+	return xh->type == xenhost_r0;
+}
+
+typedef void (*gnttab_map_fixup_t)(uint64_t host_addr, void **map_fixup);
+
 int gnttab_map_refs(xenhost_t *xh, struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
-		    struct page **pages, unsigned int count);
+		    struct page **pages, gnttab_map_fixup_t map_fixup_fn,
+		    void **map_fixup[], unsigned int count);
 int gnttab_unmap_refs(xenhost_t *xh, struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct gnttab_unmap_grant_ref *kunmap_ops,
 		      struct page **pages, unsigned int count);

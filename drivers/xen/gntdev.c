@@ -342,7 +342,7 @@ int gntdev_map_grant_pages(struct gntdev_grant_map *map)
 
 	pr_debug("map %d+%d\n", map->index, map->count);
 	err = gnttab_map_refs(xh, map->map_ops, use_ptemod ? map->kmap_ops : NULL,
-			map->pages, map->count);
+			map->pages, NULL, NULL, map->count);
 	if (err)
 		return err;
 

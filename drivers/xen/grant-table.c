@@ -1084,7 +1084,8 @@ void gnttab_foreach_grant(struct page **pages,
 
 int gnttab_map_refs(xenhost_t *xh, struct gnttab_map_grant_ref *map_ops,
 		    struct gnttab_map_grant_ref *kmap_ops,
-		    struct page **pages, unsigned int count)
+		    struct page **pages, gnttab_map_fixup_t map_fixup_fn,
+		    void **map_fixup[], unsigned int count)
 {
 	int i, ret;
 
@@ -1096,12 +1097,19 @@ int gnttab_map_refs(xenhost_t *xh, struct gnttab_map_grant_ref *map_ops,
 		switch (map_ops[i].status) {
 		case GNTST_okay:
 		{
-			struct xen_page_foreign *foreign;
+			if (!gnttab_map_fixup(xh)) {
+				struct xen_page_foreign *foreign;
 
-			SetPageForeign(pages[i]);
-			foreign = xen_page_foreign(pages[i]);
-			foreign->domid = map_ops[i].dom;
-			foreign->gref = map_ops[i].ref;
+				SetPageForeign(pages[i]);
+				foreign = xen_page_foreign(pages[i]);
+				foreign->domid = map_ops[i].dom;
+				foreign->gref = map_ops[i].ref;
+			} else {
+				pages[i] = virt_to_page(map_ops[i].host_addr);
+
+				if (map_fixup_fn)
+					map_fixup_fn(map_ops[i].host_addr, map_fixup[i]);
+			}
 			break;
 		}
 

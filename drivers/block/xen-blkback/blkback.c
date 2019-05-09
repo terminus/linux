@@ -806,11 +806,18 @@ static void xen_blkbk_unmap(struct xen_blkif_ring *ring,
 	}
 }
 
+static void blkbk_map_fixup(uint64_t host_addr, void **fixup)
+{
+	struct page **pg = (struct page **)fixup;
+	*pg = virt_to_page(host_addr);
+}
+
 static int xen_blkbk_map(struct xen_blkif_ring *ring,
 			 struct grant_page *pages[],
 			 int num, bool ro)
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page **map_fixup[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct page *pages_to_gnt[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	struct persistent_gnt *persistent_gnt = NULL;
 	phys_addr_t addr = 0;
@@ -858,6 +865,9 @@ again:
 			gnttab_set_map_op(&map[segs_to_map++], addr,
 					  flags, pages[i]->gref,
 					  blkif->domid);
+
+			if (gnttab_map_fixup(dev->xh))
+				  map_fixup[i] = &pages[i]->page;
 		}
 		map_until = i + 1;
 		if (segs_to_map == BLKIF_MAX_SEGMENTS_PER_REQUEST)
@@ -865,7 +875,9 @@ again:
 	}
 
 	if (segs_to_map) {
-		ret = gnttab_map_refs(dev->xh, map, NULL, pages_to_gnt, segs_to_map);
+		ret = gnttab_map_refs(dev->xh, map, NULL, pages_to_gnt,
+			gnttab_map_fixup(dev->xh) ? blkbk_map_fixup : NULL,
+					(void ***) map_fixup, segs_to_map);
 		BUG_ON(ret);
 	}
 
