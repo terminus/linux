@@ -448,6 +448,14 @@ struct paravirt_patch_template pv_ops = {
 #endif
 };
 
+/* Should be const, but we need pv_ops at boot. */
+struct __read_mostly paravirt_patch_template native_pv_ops;
+
+void __init paravirt_ops_init(void)
+{
+	native_pv_ops = pv_ops;
+}
+
 #ifdef CONFIG_PARAVIRT_XXL
 /* At this point, native_get/set_debugreg has real function entries */
 NOKPROBE_SYMBOL(native_get_debugreg);
@@ -456,4 +464,5 @@ NOKPROBE_SYMBOL(native_load_idt);
 #endif
 
 EXPORT_SYMBOL(pv_ops);
+EXPORT_SYMBOL(native_pv_ops);
 EXPORT_SYMBOL_GPL(pv_info);

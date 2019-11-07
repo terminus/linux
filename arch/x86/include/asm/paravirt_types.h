@@ -333,7 +333,16 @@ struct paravirt_patch_template {
 } __no_randomize_layout;
 
 extern struct pv_info pv_info;
-extern struct paravirt_patch_template pv_ops;
+extern struct paravirt_patch_template pv_ops, native_pv_ops;
+
+extern void paravirt_ops_init(void);
+
+#define paravirt_stage_op(op, opfn) do {				\
+	if (system_state == SYSTEM_BOOTING)				\
+		pv_ops.op = opfn;					\
+	else								\
+		BUG();							\
+} while(0)
 
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))

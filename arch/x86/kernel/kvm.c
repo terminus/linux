@@ -265,12 +265,33 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned lon
 }
 NOKPROBE_SYMBOL(do_async_page_fault);
 
+#define kvm_update_pv_op(pv_enable, op, pvfn)	({			\
+	bool enabled, switched = false;					\
+	enabled = !(pv_ops.op == native_pv_ops.op); 			\
+	if (enabled != (pv_enable)) {					\
+		if (pv_enable)						\
+			paravirt_stage_op(op, pvfn);			\
+		else							\
+			paravirt_stage_op(op, native_pv_ops.op);	\
+		switched = true;					\
+	} 								\
+	switched;							\
+})
+
+static bool kvm_pv_io_delay(void)
+{
+	bool cond = kvm_para_has_feature(KVM_FEATURE_NOP_IO_DELAY);
+
+	kvm_update_pv_op(cond, cpu.io_delay, kvm_io_delay);
+
+	return cond;
+}
+
 static void __init paravirt_ops_setup(void)
 {
 	pv_info.name = "KVM";
 
-	if (kvm_para_has_feature(KVM_FEATURE_NOP_IO_DELAY))
-		pv_ops.cpu.io_delay = kvm_io_delay;
+	kvm_pv_io_delay();
 
 #ifdef CONFIG_X86_IO_APIC
 	no_timer_check = 1;
@@ -606,6 +627,27 @@ static void kvm_flush_tlb_others(const struct cpumask *cpumask,
 	native_flush_tlb_others(flushmask, info);
 }
 
+static bool kvm_pv_tlb(void)
+{
+	bool cond = kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
+			!kvm_para_has_hint(KVM_HINTS_REALTIME) &&
+			kvm_para_has_feature(KVM_FEATURE_STEAL_TIME);
+
+	kvm_update_pv_op(cond, mmu.flush_tlb_others, kvm_flush_tlb_others);
+	kvm_update_pv_op(cond, mmu.tlb_remove_table, tlb_remove_table);
+
+	return cond;
+}
+
+static bool kvm_pv_steal_clock(void)
+{
+	bool cond = kvm_para_has_feature(KVM_FEATURE_STEAL_TIME);
+
+	kvm_update_pv_op(cond, time.steal_clock, kvm_steal_clock);
+
+	return cond;
+}
+
 static void __init kvm_guest_init(void)
 {
 	int i;
@@ -617,17 +659,10 @@ static void __init kvm_guest_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_ASYNC_PF))
 		x86_init.irqs.trap_init = kvm_apf_trap_init;
 
-	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
+	if (kvm_pv_steal_clock())
 		has_steal_clock = 1;
-		pv_ops.time.steal_clock = kvm_steal_clock;
-	}
 
-	if (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
-	    !kvm_para_has_hint(KVM_HINTS_REALTIME) &&
-	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
-		pv_ops.mmu.flush_tlb_others = kvm_flush_tlb_others;
-		pv_ops.mmu.tlb_remove_table = tlb_remove_table;
-	}
+	kvm_pv_tlb();
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
@@ -826,33 +861,52 @@ asm(
 
 #endif
 
+
+static inline bool kvm_para_lock_ops(void)
+{
+	/* Does host kernel support KVM_FEATURE_PV_UNHALT? */
+	return kvm_para_has_feature(KVM_FEATURE_PV_UNHALT) &&
+		!kvm_para_has_hint(KVM_HINTS_REALTIME) &&
+		num_possible_cpus() != 1;
+}
+
+static bool kvm_preempt_vcpu(void)
+{
+	bool cond = kvm_para_lock_ops() &&
+			kvm_para_has_feature(KVM_FEATURE_STEAL_TIME);
+
+	kvm_update_pv_op(cond,
+			lock.vcpu_is_preempted.func,
+			PV_CALLEE_SAVE(__kvm_vcpu_is_preempted).func);
+
+	return cond;
+}
+
+static bool kvm_pv_spinlock(void)
+{
+	bool cond = kvm_para_lock_ops();
+
+	kvm_update_pv_op(cond, lock.queued_spin_lock_slowpath,
+				__pv_queued_spin_lock_slowpath);
+	kvm_update_pv_op(cond, lock.queued_spin_unlock.func,
+				PV_CALLEE_SAVE(__pv_queued_spin_unlock).func);
+	kvm_update_pv_op(cond, lock.wait, kvm_wait);
+	kvm_update_pv_op(cond, lock.kick, kvm_kick_cpu);
+
+	return cond;
+}
+
 /*
  * Setup pv_lock_ops to exploit KVM_FEATURE_PV_UNHALT if present.
  */
 void __init kvm_spinlock_init(void)
 {
-	/* Does host kernel support KVM_FEATURE_PV_UNHALT? */
-	if (!kvm_para_has_feature(KVM_FEATURE_PV_UNHALT))
-		return;
-
-	if (kvm_para_has_hint(KVM_HINTS_REALTIME))
-		return;
-
-	/* Don't use the pvqspinlock code if there is only 1 vCPU. */
-	if (num_possible_cpus() == 1)
+	if (!kvm_pv_spinlock())
 		return;
 
 	__pv_init_lock_hash();
-	pv_ops.lock.queued_spin_lock_slowpath = __pv_queued_spin_lock_slowpath;
-	pv_ops.lock.queued_spin_unlock =
-		PV_CALLEE_SAVE(__pv_queued_spin_unlock);
-	pv_ops.lock.wait = kvm_wait;
-	pv_ops.lock.kick = kvm_kick_cpu;
 
-	if (kvm_para_has_feature(KVM_FEATURE_STEAL_TIME)) {
-		pv_ops.lock.vcpu_is_preempted =
-			PV_CALLEE_SAVE(__kvm_vcpu_is_preempted);
-	}
+	kvm_preempt_vcpu();
 }
 
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */
