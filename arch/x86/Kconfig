@@ -809,6 +809,7 @@ config KVM_GUEST
 	depends on PARAVIRT
 	select PARAVIRT_CLOCK
 	select ARCH_CPUIDLE_HALTPOLL
+	select PARAVIRT_RUNTIME
 	default y
 	---help---
 	  This option enables various optimizations for running under the KVM
