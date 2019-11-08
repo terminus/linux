@@ -109,6 +109,14 @@
 #define MEM_DISCARD(sec) *(.mem##sec)
 #endif
 
+#if defined(CONFIG_PARAVIRT_RUNTIME_PATCH)
+#define PARAVIRT_KEEP(sec)    *(sec)
+#define PARAVIRT_DISCARD(sec)
+#else
+#define PARAVIRT_KEEP(sec)
+#define PARAVIRT_DISCARD(sec) *(sec)
+#endif
+
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 #ifdef CC_USING_PATCHABLE_FUNCTION_ENTRY
 #define MCOUNT_REC()	. = ALIGN(8);				\

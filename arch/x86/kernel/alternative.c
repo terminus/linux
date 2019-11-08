@@ -740,6 +740,12 @@ void __init alternative_instructions(void)
 
 	apply_paravirt(__parainstructions, __parainstructions_end);
 
+	/* FIXME: __parainstructions_runtime is not page-aligned */
+	free_init_pages("Paravirt static",
+				(unsigned long)__parainstructions,
+				(unsigned long)__parainstructions_runtime);
+
+
 	restart_nmi();
 	alternatives_patched = 1;
 }

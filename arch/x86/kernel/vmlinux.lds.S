@@ -263,19 +263,6 @@ SECTIONS
 #endif
 
 	/*
-	 * start address and size of operations which during runtime
-	 * can be patched with virtualization friendly instructions or
-	 * baremetal native ones. Think page table operations.
-	 * Details in paravirt_types.h
-	 */
-	. = ALIGN(8);
-	.parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
-		__parainstructions = .;
-		*(.parainstructions)
-		__parainstructions_end = .;
-	}
-
-	/*
 	 * struct alt_inst entries. From the header (alternative.h):
 	 * "Alternative instructions for different CPU types or capabilities"
 	 * Think locking instructions on spinlocks.
@@ -337,6 +324,24 @@ SECTIONS
 	/* freed after init ends here */
 	.init.end : AT(ADDR(.init.end) - LOAD_OFFSET) {
 		__init_end = .;
+	}
+
+	/*
+	 * start address and size of operations which during runtime
+	 * can be patched with virtualization friendly instructions or
+	 * baremetal native ones. Think page table operations.
+	 * Details in paravirt_types.h
+	 */
+	. = ALIGN(PAGE_SIZE);
+	.parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
+		__parainstructions = .;
+		PARAVIRT_KEEP(.parainstructions)
+		__parainstructions_runtime = .;
+		PARAVIRT_DISCARD(.parainstructions.runtime)
+	}
+	.parainstructions.runtime : AT(ADDR(.parainstructions.runtime) - LOAD_OFFSET) {
+		PARAVIRT_KEEP(.parainstructions.runtime)
+		__parainstructions_end = .;
 	}
 
 	/*

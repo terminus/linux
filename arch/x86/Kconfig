@@ -764,6 +764,13 @@ config PARAVIRT
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
 
+config PARAVIRT_RUNTIME_PATCH
+	bool "Enable runtime paravirtualization"
+	depends on PARAVIRT
+	---help---
+	  This changes the paravirtualized kernel based on changed host
+	  conditions, potentially improving performance significantly.
+
 config PARAVIRT_XXL
 	bool
 
@@ -797,6 +804,7 @@ config KVM_GUEST
 	depends on PARAVIRT
 	select PARAVIRT_CLOCK
 	select ARCH_CPUIDLE_HALTPOLL
+	select PARAVIRT_RUNTIME_PATCH
 	default y
 	---help---
 	  This option enables various optimizations for running under the KVM
