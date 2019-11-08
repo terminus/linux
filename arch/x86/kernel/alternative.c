@@ -611,8 +611,6 @@ void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 		text_poke_early(p->instr, insn_buff, p->len);
 	}
 }
-extern struct paravirt_patch_site __start_parainstructions[],
-	__stop_parainstructions[];
 #endif	/* CONFIG_PARAVIRT */
 
  #ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
