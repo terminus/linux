@@ -95,6 +95,16 @@ static inline int alternatives_text_reserved(void *start, void *end)
 }
 #endif	/* CONFIG_SMP */
 
+#ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
+void paravirt_module_add(struct module *mod, char *name,
+				void *para, void *para_end);
+void paravirt_module_del(struct module *mod);
+#else
+static inline void paravirt_module_add(struct module *mod, char *name,
+				void *para, void *para_end) {}
+static inline void paravirt_module_del(struct module *mod) {}
+#endif /* CONFIG_PARAVIRT_RUNTIME_PATCH */
+
 #define b_replacement(num)	"664"#num
 #define e_replacement(num)	"665"#num
 

@@ -615,6 +615,62 @@ extern struct paravirt_patch_site __start_parainstructions[],
 	__stop_parainstructions[];
 #endif	/* CONFIG_PARAVIRT */
 
+ #ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
+struct paravirt_module {
+	struct module	*mod;
+	char		*name;
+
+	/* ptrs to paravirt sites */
+	struct paravirt_patch_site *start;
+	struct paravirt_patch_site *end;
+
+	struct list_head next;
+};
+
+/* Protected by text_mutex */
+static LIST_HEAD(paravirt_modules);
+static bool paravirt_patching_disabled = false;
+
+void __init_or_module paravirt_module_add(struct module *mod, char *name,
+						  void *para, void *para_end)
+{
+	struct paravirt_module *pm;
+
+	mutex_lock(&text_mutex);
+
+	pm = kzalloc(sizeof(*pm), GFP_KERNEL | __GFP_NOFAIL);
+
+	if (NULL == pm) {
+		paravirt_patching_disabled = true;
+		goto unlock;
+	}
+
+	pm->mod	= mod;
+	pm->name	= name;
+	pm->start	= (struct paravirt_patch_site *) para;
+	pm->end = (struct paravirt_patch_site *) para_end;
+
+	list_add_tail(&pm->next, &paravirt_modules);
+unlock:
+	mutex_unlock(&text_mutex);
+}
+
+void __init_or_module paravirt_module_del(struct module *mod)
+{
+	struct paravirt_module *pm;
+
+	mutex_lock(&text_mutex);
+	list_for_each_entry(pm, &paravirt_modules, next) {
+		if (mod != pm->mod)
+			continue;
+		list_del(&pm->next);
+		kfree(pm);
+		break;
+	}
+	mutex_unlock(&text_mutex);
+}
+#endif /* CONFIG_PARAVIRT_RUNTIME_PATCH */
+
 /*
  * Self-test for the INT3 based CALL emulation code.
  *
@@ -740,6 +796,16 @@ void __init alternative_instructions(void)
 
 	apply_paravirt(__parainstructions, __parainstructions_end);
 
+#ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
+	/*
+	 * FIXME: __parainstructions_runtime is unaligned wrt struct
+	 * paravirt_patch_site. __parainstructions_runtime is declared
+	 * as a pointer, while paravirt_patch_site is a 10 byte structure.
+	 */
+	paravirt_module_add(NULL, "core kernel",
+					(void *)__parainstructions_runtime + 4,
+					__parainstructions_end);
+#endif
 	/* FIXME: __parainstructions_runtime is not page-aligned */
 	free_init_pages("Paravirt static",
 				(unsigned long)__parainstructions,

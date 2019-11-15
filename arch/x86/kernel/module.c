@@ -222,7 +222,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    struct module *me)
 {
 	const Elf_Shdr *s, *text = NULL, *alt = NULL, *locks = NULL,
-		*para = NULL, *orc = NULL, *orc_ip = NULL;
+		*para = NULL, *para2 = NULL, *orc = NULL, *orc_ip = NULL;
 	char *secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
 
 	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
@@ -234,6 +234,8 @@ int module_finalize(const Elf_Ehdr *hdr,
 			locks = s;
 		if (!strcmp(".parainstructions", secstrings + s->sh_name))
 			para = s;
+		if (!strcmp(".parainstructions.runtime", secstrings + s->sh_name))
+			para2 = s;
 		if (!strcmp(".orc_unwind", secstrings + s->sh_name))
 			orc = s;
 		if (!strcmp(".orc_unwind_ip", secstrings + s->sh_name))
@@ -257,6 +259,12 @@ int module_finalize(const Elf_Ehdr *hdr,
 		void *pseg = (void *)para->sh_addr;
 		apply_paravirt(pseg, pseg + para->sh_size);
 	}
+	if (para2) {
+		void *pseg = (void *)para2->sh_addr;
+		apply_paravirt(pseg, pseg + para2->sh_size);
+		paravirt_module_add(me, me->name,
+					pseg, pseg + para2->sh_size);
+	}
 
 	/* make jump label nops */
 	jump_label_apply_nops(me);
@@ -270,5 +278,6 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
+	paravirt_module_del(mod);
 	alternatives_smp_module_del(mod);
 }
