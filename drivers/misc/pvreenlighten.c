@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/pvreenlight.h>
 
 #define PVREENLIGHTEN_EVENT        (0)
 #define ACPI_REENLIGHTEN_DEVICE_HID "QEMU0003"
@@ -118,7 +119,9 @@ static int pvreenlighten_remove(struct acpi_device *device)
 
 static void pvreenlighten_notify(acpi_handle handle, u32 event, void *data)
 {
-	pr_info("system event=%d\n", event);
+	unsigned int cpu = smp_processor_id();
+
+	arch_reenlighten_notify(cpu);
 }
 
 static int pvreenlighten_register_acpi_driver(void)

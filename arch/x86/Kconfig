@@ -805,6 +805,7 @@ config KVM_GUEST
 	select PARAVIRT_CLOCK
 	select ARCH_CPUIDLE_HALTPOLL
 	select PARAVIRT_RUNTIME_PATCH
+	select ARCH_PVREENLIGHT
 	default y
 	---help---
 	  This option enables various optimizations for running under the KVM
@@ -818,6 +819,12 @@ config ARCH_CPUIDLE_HALTPOLL
         prompt "Disable host haltpoll when loading haltpoll driver"
         help
 	  If virtualized under KVM, disable host haltpoll.
+
+config ARCH_PVREENLIGHT
+        def_bool n
+        prompt "Handle reenlightement notifications from host"
+        help
+	  If virtualized under KVM, reprobe CPUID and update paravirt ops.
 
 config PVH
 	bool "Support for running PVH guests"

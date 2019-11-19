@@ -985,4 +985,15 @@ void arch_haltpoll_disable(unsigned int cpu)
 	smp_call_function_single(cpu, kvm_enable_host_haltpoll, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(arch_haltpoll_disable);
+
+#ifdef CONFIG_ARCH_PVREENLIGHT
+static DECLARE_WORK(trigger_reprobe, kvm_trigger_reprobe_cpuid);
+void arch_reenlighten_notify(unsigned int cpu)
+{
+	pr_info("CPU%u: reenlightened hints: realtime=%x\n", cpu,
+		kvm_para_has_hint(KVM_HINTS_REALTIME));
+	schedule_work(&trigger_reprobe);
+}
+EXPORT_SYMBOL_GPL(arch_reenlighten_notify);
+#endif
 #endif
