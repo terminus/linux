@@ -1185,3 +1185,130 @@ void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
 
 	text_poke_bp_batch(&tp, 1);
 }
+
+
+enum poke_step {
+	STEP_ASSEMBLE,
+
+	 /* Interrupts and NMIs are disabled. Patch once acked. */
+	STEP_IN_ATOMIC,
+
+	/* Patch */
+
+	/* Flush pipelines once patching is done. */
+	STEP_FLUSH_PIPELINE,
+	STEP_ENABLE_NMI,
+};
+
+struct text_poke_sm {
+	void *sites;
+	text_poke_sm_worker_t	work_fn;
+	unsigned int site_count;
+
+	enum poke_step poke_step;
+
+	unsigned int total_cpus;
+	atomic_t in_atomic_ack;
+	atomic_t flush_ack;
+};
+
+/*
+ * poke_stop() is called via stop_machine(), with the preemptions
+ * and locking disabled. No spinlocks/rwlocks are being held, in
+ * acquisition or being released.
+ *
+ * This makes for a good mechanism to modify pv_lock_ops because we
+ * are guaranteed to not be executing any pv_lock_ops as we enter,
+ * and no state in the system that would cause us to execute any
+ * until we return on all CPUs.
+ */
+static int poke_stop(void *_p)
+{
+	struct text_poke_sm *p = (struct text_poke_sm *) _p;
+	int cpu = smp_processor_id();
+
+
+	if (cpu == 0) {
+		/* It is possible that some CPUs are executing NMIs here. */
+		stop_nmi();
+		atomic_set(&p->in_atomic_ack, 1);
+
+		/* Ensure that stop_nmi() and the atomic_set() is ordered
+		 * wrt the state change. */
+		smp_wmb();
+
+		p->poke_step = STEP_IN_ATOMIC;
+
+		/* Wait until all CPUs have observed this state change */
+		while (atomic_read(&p->in_atomic_ack) < p->total_cpus)
+			cpu_relax();
+
+		/* We have a rep;nop above. Do we need a barrier here? */
+
+		p->work_fn(p->sites, p->site_count);
+
+		/* Patching done; ask everybody to flush. */
+		atomic_set(&p->flush_ack, 1);
+		smp_wmb();
+		p->poke_step = STEP_FLUSH_PIPELINE;
+
+		do_sync_core(NULL);
+
+		/* Wait until all CPUs have observed this state change */
+		while (atomic_read(&p->flush_ack) < p->total_cpus)
+			cpu_relax();
+
+		/* Nobody cares but document that we are done. */
+		p->poke_step = STEP_ENABLE_NMI;
+
+		restart_nmi();
+	} else {
+		smp_cond_load_acquire(&p->poke_step, (VAL == STEP_IN_ATOMIC));
+
+		/* Ack that we have observed _IN_ATOMIC, so master CPU can
+		 * start patching. */
+		atomic_inc(&p->in_atomic_ack);
+
+		smp_cond_load_acquire(&p->poke_step, (VAL == STEP_FLUSH_PIPELINE));
+
+		do_sync_core(NULL);
+
+		/* Ack that we are done flushing, so master CPU can enable
+		 * NMIs. */
+		atomic_inc(&p->flush_ack);
+	}
+
+	return 0;
+}
+
+/**
+ * text_poke_stopped() -- patch instructions including possibly
+ * 			  paired operations.
+ * @fn:		worker function which does the patching
+ * @sites:	vector of instructions to patch
+ * @site_count:	number of entries in the vector
+ *
+ * Called holding the text_mutex.
+ *
+ * Modify possibly mutually-dependent instruction sequences
+ * (ex. pv_lock_ops) by using stop_machine().
+ */
+void text_poke_stopped(text_poke_sm_worker_t fn, void *sites,
+			unsigned int site_count)
+{
+	struct text_poke_sm tp;
+
+	memset(&tp, 0, sizeof(tp));
+
+	tp.poke_step = STEP_ASSEMBLE;
+	tp.total_cpus = cpumask_weight(cpu_online_mask);
+	tp.sites = sites;
+	tp.site_count = site_count;
+	tp.work_fn = fn;
+
+	/*
+	 * Run the worker on all online CPUs. Don't need to do anything
+	 * for offline CPUs as they come back online with a clean cache.
+	 */
+	stop_machine(poke_stop, &tp, cpu_online_mask);
+}
