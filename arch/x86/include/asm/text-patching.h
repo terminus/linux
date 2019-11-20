@@ -10,6 +10,7 @@ struct paravirt_patch_site;
 #ifdef CONFIG_PARAVIRT
 void apply_paravirt(struct paravirt_patch_site *start,
 		    struct paravirt_patch_site *end);
+void paravirt_patch(void *para, unsigned int n);
 #else
 static inline void apply_paravirt(struct paravirt_patch_site *start,
 				  struct paravirt_patch_site *end)

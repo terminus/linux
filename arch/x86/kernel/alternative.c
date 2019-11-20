@@ -667,6 +667,91 @@ void __init_or_module paravirt_module_del(struct module *mod)
 	}
 	mutex_unlock(&text_mutex);
 }
+
+static bool stale_address(char *va, struct module *mod)
+{
+	if (mod) {
+		/* __module_text_address(mod, addr) is expensive */
+		return memory_contains(mod->init_layout.base,
+			mod->init_layout.base + mod->init_layout.text_size, va, 1);
+	} else
+		return init_section_contains(va, 1);
+}
+
+/*
+ * paravirt_patch_op() - Walk the paravirt_patch_site table for a binary
+ * and update mathing patch sites.
+ *
+ * Assumes that the caller takes care of flushing the pipeline.
+ */
+static void paravirt_patch_op(struct paravirt_patch_site *start,
+		struct paravirt_patch_site *end, u8 type, struct module *mod)
+{
+	struct paravirt_patch_site *p;
+	char insn_buff[MAX_PATCH_LEN];
+
+	for (p = start; p < end; p++) {
+		if (p->type == type) {
+			unsigned int used;
+
+			BUG_ON(p->len > MAX_PATCH_LEN);
+
+			/* If the patch_site refers to a stale symbol, ignore */
+			if (stale_address(p->instr, mod))
+				continue;
+
+			memset(insn_buff, 0, MAX_PATCH_LEN);
+
+			/* prep the buffer with the original instructions */
+			memcpy(insn_buff, p->instr, p->len);
+
+			/* This calls native_patch() which does the the right
+			 * thing for both call_saves, jmps etc
+			 */
+			used = pv_ops.init.patch(p->type, insn_buff,
+						 (unsigned long)p->instr, p->len);
+
+			BUG_ON(used > p->len);
+
+			/* Pad the rest with nops */
+			add_nops(insn_buff + used, p->len - used);
+			text_poke(p->instr, insn_buff, p->len);
+		}
+	}
+}
+
+/* Protected by text_mutex */
+struct paravirt_stage pv_stage[PARAVIRT_STAGE_MAX];
+unsigned int pv_stage_count;
+
+/*
+ * paravirt_patch(): for each specified pv_op, update all corresponding
+ * paravirt_patch_sites in the kernel and modules.
+ *
+ * @para:	vector containing {PARAVIRT_PATCH(op), dest *} for all
+ * 		pv_ops to be updated.
+ * n:     	vector length.
+ *
+ * Called holding the text_mutex.
+ */
+void paravirt_patch(void *para, unsigned int n)
+{
+	struct paravirt_stage *p = (struct paravirt_stage *) para;
+	struct paravirt_module *pm;
+	int i;
+
+	if (paravirt_patching_disabled)
+		return;
+
+	/* Update all the pv_ops entries */
+	for (i = 0; i < n; i++)
+		*((void **) &pv_ops + p[i].type) = (void *)p[i].dest;
+
+	list_for_each_entry(pm, &paravirt_modules, next)
+		for (i = 0; i < n; i++)
+			paravirt_patch_op(pm->start, pm->end,
+						p[i].type, pm->mod);
+}
 #endif /* CONFIG_PARAVIRT_RUNTIME_PATCH */
 
 /*

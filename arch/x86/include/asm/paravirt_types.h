@@ -337,11 +337,24 @@ extern struct paravirt_patch_template pv_ops, native_pv_ops;
 
 extern void paravirt_ops_init(void);
 
+#define PARAVIRT_STAGE_MAX 32
+struct paravirt_stage {
+	void *dest;	/* dest for pv_op */
+	u8 type;	/* pv_op type */
+};
+
+extern struct paravirt_stage pv_stage[];
+extern unsigned int pv_stage_count;
+
 #define paravirt_stage_op(op, opfn) do {				\
 	if (system_state == SYSTEM_BOOTING)				\
 		pv_ops.op = opfn;					\
-	else								\
-		BUG();							\
+	else {								\
+		BUG_ON(!(pv_stage_count < PARAVIRT_STAGE_MAX));		\
+		pv_stage[pv_stage_count].type = PARAVIRT_PATCH(op);	\
+		pv_stage[pv_stage_count].dest = opfn;			\
+		pv_stage_count++;					\
+	}								\
 } while(0)
 
 #define PARAVIRT_PATCH(x)					\
