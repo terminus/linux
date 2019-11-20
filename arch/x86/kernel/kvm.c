@@ -24,6 +24,7 @@
 #include <linux/debugfs.h>
 #include <linux/nmi.h>
 #include <linux/swait.h>
+#include <linux/memory.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
 #include <asm/traps.h>
@@ -33,6 +34,7 @@
 #include <asm/apicdef.h>
 #include <asm/hypervisor.h>
 #include <asm/tlb.h>
+#include <asm/text-patching.h>
 
 static int kvmapf = 1;
 
@@ -901,15 +903,53 @@ static bool kvm_pv_spinlock(void)
  */
 void __init kvm_spinlock_init(void)
 {
+#ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
+	/*
+	 * __pv_init_lock_hash() allocates a system hash which needs
+	 * to be allocated at init.
+	 * With runtime patching, we might end up needing this later so
+	 * allocate always.
+	 */
+	__pv_init_lock_hash();
 	if (!kvm_pv_spinlock())
 		return;
-
+#else
+	if (!kvm_pv_spinlock())
+		return;
 	__pv_init_lock_hash();
+#endif
 
 	kvm_preempt_vcpu();
 }
 
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */
+
+#ifdef CONFIG_PARAVIRT_RUNTIME_PATCH
+void kvm_trigger_reprobe_cpuid(struct work_struct *work)
+{
+	mutex_lock(&text_mutex);
+
+	/* We need less than PARAVIRT_STAGE_MAX elements */
+	memset(pv_stage, 0, sizeof(pv_stage[0]) * PARAVIRT_STAGE_MAX);
+	pv_stage_count = 0;
+
+	kvm_pv_io_delay();
+	kvm_pv_steal_clock();
+	kvm_pv_tlb();
+	kvm_pv_spinlock();
+	kvm_preempt_vcpu();
+
+	if (pv_stage_count);
+		text_poke_stopped(paravirt_patch,
+				(void *)&pv_stage[0], pv_stage_count);
+	mutex_unlock(&text_mutex);
+
+	if (pv_is_native_spin_unlock())
+		static_branch_disable(&virt_spin_lock_key);
+	else
+		static_branch_enable(&virt_spin_lock_key);
+}
+#endif /* CONFIG_PARAVIRT_RUNTIME_PATCH */
 
 #ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
 
