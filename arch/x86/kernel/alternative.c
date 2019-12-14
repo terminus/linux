@@ -812,7 +812,6 @@ static void __text_poke(void *addr, const void *opcode, size_t len)
 	temp_mm_state_t prev;
 	unsigned long flags;
 	pte_t pte, *ptep;
-	spinlock_t *ptl;
 	pgprot_t pgprot;
 
 	/*
@@ -846,10 +845,11 @@ static void __text_poke(void *addr, const void *opcode, size_t len)
 	pgprot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
 
 	/*
-	 * The lock is not really needed, but this allows to avoid open-coding.
+	 * text_poke() might be used to poke spinlock primitives so do this
+	 * unlocked. This does mean that we need to be careful that no other
+	 * context (ex. INT3 handler) is simultaneously writing to this pte.
 	 */
-	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
-
+	ptep = __get_unlocked_pte(poking_mm, poking_addr);
 	/*
 	 * This must not fail; preallocated in poking_init().
 	 */
@@ -904,7 +904,6 @@ static void __text_poke(void *addr, const void *opcode, size_t len)
 	 */
 	BUG_ON(memcmp(addr, opcode, len));
 
-	pte_unmap_unlock(ptep, ptl);
 	local_irq_restore(flags);
 }
 

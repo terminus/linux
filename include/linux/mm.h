@@ -1895,8 +1895,20 @@ static inline int pte_devmap(pte_t pte)
 
 int vma_wants_writenotify(struct vm_area_struct *vma, pgprot_t vm_page_prot);
 
-extern pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
-			       spinlock_t **ptl);
+pte_t *__get_pte(struct mm_struct *mm, unsigned long addr, spinlock_t **ptl);
+
+static inline pte_t *__get_unlocked_pte(struct mm_struct *mm,
+					unsigned long addr)
+{
+	return __get_pte(mm, addr, NULL);
+}
+
+static inline pte_t *__get_locked_pte(struct mm_struct *mm,
+				      unsigned long addr, spinlock_t **ptl)
+{
+	return __get_pte(mm, addr, ptl);
+}
+
 static inline pte_t *get_locked_pte(struct mm_struct *mm, unsigned long addr,
 				    spinlock_t **ptl)
 {

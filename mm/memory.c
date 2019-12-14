@@ -1407,8 +1407,8 @@ void zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 }
 EXPORT_SYMBOL_GPL(zap_vma_ptes);
 
-pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
-			spinlock_t **ptl)
+pte_t *__get_pte(struct mm_struct *mm, unsigned long addr,
+		 spinlock_t **ptl)
 {
 	pgd_t *pgd;
 	p4d_t *p4d;
@@ -1427,7 +1427,10 @@ pte_t *__get_locked_pte(struct mm_struct *mm, unsigned long addr,
 		return NULL;
 
 	VM_BUG_ON(pmd_trans_huge(*pmd));
-	return pte_alloc_map_lock(mm, pmd, addr, ptl);
+	if (likely(ptl))
+		return pte_alloc_map_lock(mm, pmd, addr, ptl);
+	else
+		return pte_alloc_map(mm, pmd, addr);
 }
 
 /*
