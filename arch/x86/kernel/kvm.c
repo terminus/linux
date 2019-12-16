@@ -35,6 +35,7 @@
 #include <asm/hypervisor.h>
 #include <asm/tlb.h>
 #include <asm/cpuidle_haltpoll.h>
+#include <asm/text-patching.h>
 
 static int kvmapf = 1;
 
@@ -909,12 +910,15 @@ void __init kvm_spinlock_init(void)
 	if (num_possible_cpus() == 1)
 		return;
 
-	if (!kvm_pv_spinlock())
-		return;
-
-	__pv_init_lock_hash();
+	/*
+	 * Allocate if pv_spinlocks are enabled or if we might
+	 * end up patching them in later.
+	 */
+	if (kvm_pv_spinlock() || IS_ENABLED(CONFIG_PARAVIRT_RUNTIME))
+		__pv_init_lock_hash();
 }
-
+#else	/* !CONFIG_PARAVIRT_SPINLOCKS */
+static inline bool kvm_pv_spinlock(void) { return false; }
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */
 
 #ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
@@ -952,3 +956,23 @@ void arch_haltpoll_disable(unsigned int cpu)
 }
 EXPORT_SYMBOL_GPL(arch_haltpoll_disable);
 #endif
+
+#ifdef CONFIG_PARAVIRT_RUNTIME
+void kvm_trigger_reprobe_cpuid(struct work_struct *work)
+{
+	mutex_lock(&text_mutex);
+
+	paravirt_stage_zero();
+
+	kvm_pv_steal_clock();
+	kvm_pv_tlb();
+	paravirt_runtime_patch(false);
+
+	paravirt_stage_zero();
+
+	kvm_pv_spinlock();
+	paravirt_runtime_patch(true);
+
+	mutex_unlock(&text_mutex);
+}
+#endif /* CONFIG_PARAVIRT_RUNTIME */
