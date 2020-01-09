@@ -21,6 +21,8 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
 #ifndef CONFIG_PARAVIRT_RUNTIME
 #define __parainstructions_runtime	NULL
 #define __parainstructions_runtime_end	NULL
+#else
+int paravirt_runtime_patch(void);
 #endif
 
 /*
