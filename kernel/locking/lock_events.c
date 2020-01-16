@@ -115,7 +115,7 @@ static const struct file_operations fops_lockevent = {
 	.llseek = default_llseek,
 };
 
-#ifdef CONFIG_PARAVIRT_SPINLOCKS
+#if defined(CONFIG_PARAVIRT_SPINLOCKS) && !defined(CONFIG_PARAVIRT_RUNTIME)
 #include <asm/paravirt.h>
 
 static bool __init skip_lockevent(const char *name)

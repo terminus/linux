@@ -152,6 +152,18 @@ int runtime_patch(u8 type, void *insn_buff, void *op,
 
 	/* Nothing whitelisted for now. */
 	switch (type) {
+#ifdef CONFIG_PARAVIRT_SPINLOCKS
+	/*
+	 * Preemption is always disabled in the lifetime of a spinlock
+	 * (whether held or while waiting to acquire.)
+	 */
+	case PARAVIRT_PATCH(lock.queued_spin_lock_slowpath):
+	case PARAVIRT_PATCH(lock.queued_spin_unlock):
+	case PARAVIRT_PATCH(lock.wait):
+	case PARAVIRT_PATCH(lock.kick):
+	case PARAVIRT_PATCH(lock.vcpu_is_preempted):
+		break;
+#endif
 	default:
 		pr_warn("type=%d unsuitable for runtime-patching\n", type);
 		return -EINVAL;
