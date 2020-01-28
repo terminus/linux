@@ -805,7 +805,7 @@ void __init_or_module text_poke_early(void *addr, const void *opcode,
 __ro_after_init struct mm_struct *poking_mm;
 __ro_after_init unsigned long poking_addr;
 
-static void *__text_poke(void *addr, const void *opcode, size_t len)
+static void __text_poke(void *addr, const void *opcode, size_t len)
 {
 	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
 	struct page *pages[2] = {NULL};
@@ -906,7 +906,6 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
 
 	pte_unmap_unlock(ptep, ptl);
 	local_irq_restore(flags);
-	return addr;
 }
 
 /**
@@ -925,11 +924,11 @@ static void *__text_poke(void *addr, const void *opcode, size_t len)
  * by registering a module notifier, and ordering module removal and patching
  * trough a mutex.
  */
-void *text_poke(void *addr, const void *opcode, size_t len)
+void text_poke(void *addr, const void *opcode, size_t len)
 {
 	lockdep_assert_held(&text_mutex);
 
-	return __text_poke(addr, opcode, len);
+	__text_poke(addr, opcode, len);
 }
 
 /**
@@ -946,9 +945,9 @@ void *text_poke(void *addr, const void *opcode, size_t len)
  * Context: should only be used by kgdb, which ensures no other core is running,
  *	    despite the fact it does not hold the text_mutex.
  */
-void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
+void text_poke_kgdb(void *addr, const void *opcode, size_t len)
 {
-	return __text_poke(addr, opcode, len);
+	__text_poke(addr, opcode, len);
 }
 
 static void do_sync_core(void *info)
