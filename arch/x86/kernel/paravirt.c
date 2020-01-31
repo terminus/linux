@@ -117,11 +117,7 @@ void __init native_pv_lock_init(void)
 unsigned paravirt_patch_default(u8 type, void *insn_buff,
 				unsigned long addr, unsigned len)
 {
-	/*
-	 * Neat trick to map patch type back to the call within the
-	 * corresponding structure.
-	 */
-	void *opfunc = *((void **)&pv_ops + type);
+	void *opfunc = (void *)PARAVIRT_PATCH_OP(pv_ops, type);
 	unsigned ret;
 
 	if (opfunc == NULL)

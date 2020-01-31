@@ -350,6 +350,12 @@ extern struct paravirt_patch_template native_pv_ops;
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
 
+/*
+ * Neat trick to map patch type back to the call within the
+ * corresponding structure.
+ */
+#define PARAVIRT_PATCH_OP(ops, type) (*(long *)(&((long **)&(ops))[type]))
+
 #define paravirt_type(op)				\
 	[paravirt_typenum] "i" (PARAVIRT_PATCH(op)),	\
 	[paravirt_opptr] "i" (&(pv_ops.op))
@@ -383,6 +389,8 @@ unsigned paravirt_patch_default(u8 type, void *insn_buff, unsigned long addr, un
 unsigned paravirt_patch_insns(void *insn_buff, unsigned len, const char *start, const char *end);
 
 unsigned native_patch(u8 type, void *insn_buff, unsigned long addr, unsigned len);
+int runtime_patch(u8 type, void *insn_buff, void *op, unsigned long addr,
+		  unsigned int len);
 
 int paravirt_disable_iospace(void);
 

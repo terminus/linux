@@ -203,6 +203,13 @@ do { \
 		__preempt_schedule(); \
 } while (0)
 
+/*
+ * preempt_enable_no_resched() so we don't add any preemption points until
+ * after the caller has returned.
+ */
+#define preempt_enable_runtime_patch()	preempt_enable_no_resched()
+#define preempt_disable_runtime_patch()	preempt_disable()
+
 #else /* !CONFIG_PREEMPTION */
 #define preempt_enable() \
 do { \
@@ -217,6 +224,12 @@ do { \
 } while (0)
 
 #define preempt_check_resched() do { } while (0)
+
+/*
+ * NOP, if there's no preemption.
+ */
+#define preempt_disable_runtime_patch()	do { } while (0)
+#define preempt_enable_runtime_patch()	do { } while (0)
 #endif /* CONFIG_PREEMPTION */
 
 #define preempt_disable_notrace() \
@@ -250,6 +263,8 @@ do { \
 #define preempt_enable_notrace()		barrier()
 #define preemptible()				0
 
+#define preempt_disable_runtime_patch()	do { } while (0)
+#define preempt_enable_runtime_patch()	do { } while (0)
 #endif /* CONFIG_PREEMPT_COUNT */
 
 #ifdef MODULE
@@ -260,6 +275,8 @@ do { \
 #undef preempt_enable_no_resched
 #undef preempt_enable_no_resched_notrace
 #undef preempt_check_resched
+#undef preempt_disable_runtime_patch
+#undef preempt_enable_runtime_patch
 #endif
 
 #define preempt_set_need_resched() \

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/stringify.h>
+#include <linux/errno.h>
 
 #include <asm/paravirt.h>
 #include <asm/asm-offsets.h>
@@ -124,3 +125,51 @@ unsigned int native_patch(u8 type, void *insn_buff, unsigned long addr,
 
 	return paravirt_patch_default(type, insn_buff, addr, len);
 }
+
+#ifdef CONFIG_PARAVIRT_RUNTIME
+/**
+ * runtime_patch - Generate patching code for a native/paravirt op
+ * @type: op type to generate code for
+ * @insn_buff: destination buffer
+ * @op: op target
+ * @addr: call site address
+ * @len: length of insn_buff
+ *
+ * Note that pv-ops are only suitable for runtime patching if they are
+ * non-preemptible. This is necessary for two reasons: we don't want to
+ * be overwriting insn sequences which might be referenced from call-stacks
+ * (and thus would be returned to), and we want patching to act as a barrier
+ * so no code from now stale paravirt ops should execute after an op has
+ * changed.
+ *
+ * Return: size of insn sequence on success, -EINVAL on error.
+ */
+int runtime_patch(u8 type, void *insn_buff, void *op,
+		  unsigned long addr, unsigned int len)
+{
+	void *native_op;
+	int used = 0;
+
+	/* Nothing whitelisted for now. */
+	switch (type) {
+	default:
+		pr_warn("type=%d unsuitable for runtime-patching\n", type);
+		return -EINVAL;
+	}
+
+	if (PARAVIRT_PATCH_OP(pv_ops, type) != (long)op)
+		PARAVIRT_PATCH_OP(pv_ops, type) = (long)op;
+
+	native_op = (void *)PARAVIRT_PATCH_OP(native_pv_ops, type);
+
+	/*
+	 * Use native_patch() to get the right insns if we are switching
+	 * back to a native_op.
+	 */
+	if (op == native_op)
+		used = native_patch(type, insn_buff, addr, len);
+	else
+		used = paravirt_patch_default(type, insn_buff, addr, len);
+	return used;
+}
+#endif /* CONFIG_PARAVIRT_RUNTIME */
