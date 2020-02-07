@@ -252,6 +252,19 @@ config X86_DEBUG_FPU
 
 	  If unsure, say N.
 
+config DEBUG_PARAVIRT_SELFTEST
+	bool "Enable paravirt runtime selftest"
+	depends on PARAVIRT
+	depends on PARAVIRT_RUNTIME
+	depends on PARAVIRT_SPINLOCKS
+	depends on KVM_GUEST
+	help
+	  This option enables sanity testing of the runtime paravirtualized
+	  patching code. Triggered via debugfs.
+
+	  Might help diagnose patching problems in different
+	  configurations and loads.
+
 config PUNIT_ATOM_DEBUG
 	tristate "ATOM Punit debug driver"
 	depends on PCI

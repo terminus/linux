@@ -26,6 +26,7 @@
 #include <asm/insn.h>
 #include <asm/io.h>
 #include <asm/fixmap.h>
+#include "pv_selftest.h"
 
 int __read_mostly alternatives_patched;
 
@@ -1549,6 +1550,12 @@ static void __maybe_unused text_poke_site(struct text_poke_state *tps,
 	 */
 	poke_sync(tps, PATCH_SYNC_0, offset, &int3, INT3_INSN_SIZE);
 
+	/*
+	 * We have an INT3 in place; execute a contrived selftest that
+	 * has an insn sequence that is under patching.
+	 */
+	pv_selftest_primary();
+
 	/* Poke remaining */
 	poke_sync(tps, PATCH_SYNC_1, offset + INT3_INSN_SIZE,
 		  tp->text + INT3_INSN_SIZE, tp->native.len - INT3_INSN_SIZE);
@@ -1634,6 +1641,19 @@ static void text_poke_sync_site(struct text_poke_state *tps)
 		smp_cond_load_acquire(&tps->state,
 				      prevstate != VAL);
 
+		/*
+		 * Send an NMI to one of the other CPUs.
+		 */
+		pv_selftest_send_nmi();
+
+		/*
+		 * We have an INT3 in place; execute a contrived selftest that
+		 * has an insn sequence that is under patching.
+		 *
+		 * Note that this function is also called from BP fixup but
+		 * is just an NOP when called from there.
+		 */
+		pv_selftest_secondary();
 		prevstate = READ_ONCE(tps->state);
 
 		/*

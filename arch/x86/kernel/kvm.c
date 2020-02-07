@@ -779,7 +779,7 @@ arch_initcall(kvm_alloc_cpumask);
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 
 /* Kick a cpu by its apicid. Used to wake up a halted vcpu */
-static void kvm_kick_cpu(int cpu)
+void kvm_kick_cpu(int cpu)
 {
 	int apicid;
 	unsigned long flags = 0;
@@ -790,7 +790,7 @@ static void kvm_kick_cpu(int cpu)
 
 #include <asm/qspinlock.h>
 
-static void kvm_wait(u8 *ptr, u8 val)
+void kvm_wait(u8 *ptr, u8 val)
 {
 	unsigned long flags;
 
