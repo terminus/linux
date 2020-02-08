@@ -470,6 +470,13 @@ static void alternatives_smp_unlock(const s32 *start, const s32 *end,
 	}
 }
 
+static bool uniproc_patched;	/* protected by text_mutex */
+#else	/* !CONFIG_SMP */
+#define uniproc_patched false
+static inline void alternatives_smp_unlock(const s32 *start, const s32 *end,
+					   u8 *text, u8 *text_end) { }
+#endif	/* CONFIG_SMP */
+
 struct smp_alt_module {
 	/* what is this ??? */
 	struct module	*mod;
@@ -486,7 +493,6 @@ struct smp_alt_module {
 	struct list_head next;
 };
 static LIST_HEAD(smp_alt_modules);
-static bool uniproc_patched = false;	/* protected by text_mutex */
 
 void __init_or_module alternatives_smp_module_add(struct module *mod,
 						  char *name,
@@ -495,23 +501,27 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 {
 	struct smp_alt_module *smp;
 
-	mutex_lock(&text_mutex);
+#ifdef CONFIG_SMP
+	/* Patch to UP if other cpus not imminent. */
+	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1))
+		uniproc_patched = true;
+#endif
 	if (!uniproc_patched)
-		goto unlock;
+		return;
 
-	if (num_possible_cpus() == 1)
-		/* Don't bother remembering, we'll never have to undo it. */
-		goto smp_unlock;
+	mutex_lock(&text_mutex);
 
-	smp = kzalloc(sizeof(*smp), GFP_KERNEL);
-	if (NULL == smp)
-		/* we'll run the (safe but slow) SMP code then ... */
-		goto unlock;
+	smp = kzalloc(sizeof(*smp), GFP_KERNEL | __GFP_NOFAIL);
 
 	smp->mod	= mod;
 	smp->name	= name;
-	smp->locks	= locks;
-	smp->locks_end	= locks_end;
+
+	if (num_possible_cpus() != 1 || uniproc_patched) {
+		/* Remember only if we'll need to undo it. */
+		smp->locks	= locks;
+		smp->locks_end	= locks_end;
+	}
+
 	smp->text	= text;
 	smp->text_end	= text_end;
 	DPRINTK("locks %p -> %p, text %p -> %p, name %s\n",
@@ -519,9 +529,9 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 		smp->text, smp->text_end, smp->name);
 
 	list_add_tail(&smp->next, &smp_alt_modules);
-smp_unlock:
-	alternatives_smp_unlock(locks, locks_end, text, text_end);
-unlock:
+
+	if (uniproc_patched)
+		alternatives_smp_unlock(locks, locks_end, text, text_end);
 	mutex_unlock(&text_mutex);
 }
 
@@ -540,6 +550,7 @@ void __init_or_module alternatives_smp_module_del(struct module *mod)
 	mutex_unlock(&text_mutex);
 }
 
+#ifdef CONFIG_SMP
 void alternatives_enable_smp(void)
 {
 	struct smp_alt_module *mod;
@@ -561,6 +572,7 @@ void alternatives_enable_smp(void)
 	}
 	mutex_unlock(&text_mutex);
 }
+#endif /* CONFIG_SMP */
 
 /*
  * Return 1 if the address range is reserved for SMP-alternatives.
@@ -588,7 +600,6 @@ int alternatives_text_reserved(void *start, void *end)
 
 	return 0;
 }
-#endif /* CONFIG_SMP */
 
 #ifdef CONFIG_PARAVIRT
 void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
@@ -723,21 +734,15 @@ void __init alternative_instructions(void)
 
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
-#ifdef CONFIG_SMP
-	/* Patch to UP if other cpus not imminent. */
-	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1)) {
-		uniproc_patched = true;
-		alternatives_smp_module_add(NULL, "core kernel",
-					    __smp_locks, __smp_locks_end,
-					    _text, _etext);
-	}
+	alternatives_smp_module_add(NULL, "core kernel",
+				    __smp_locks, __smp_locks_end,
+				    _text, _etext);
 
 	if (!uniproc_patched || num_possible_cpus() == 1) {
 		free_init_pages("SMP alternatives",
 				(unsigned long)__smp_locks,
 				(unsigned long)__smp_locks_end);
 	}
-#endif
 
 	apply_paravirt(__parainstructions, __parainstructions_end);
 	apply_paravirt(__parainstructions_runtime,
