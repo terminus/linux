@@ -76,6 +76,7 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 struct module;
 
 void alternatives_module_add(struct module *mod, char *name,
+			     void *para, void *para_end,
 			     void *locks, void *locks_end,
 			     void *text, void *text_end);
 void alternatives_module_del(struct module *mod);

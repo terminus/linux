@@ -482,6 +482,12 @@ struct alt_module {
 	struct module	*mod;
 	char		*name;
 
+#ifdef CONFIG_PARAVIRT_RUNTIME
+	/* ptrs to paravirt sites */
+	struct paravirt_patch_site *para;
+	struct paravirt_patch_site *para_end;
+#endif
+
 	/* ptrs to lock prefixes */
 	const s32	*locks;
 	const s32	*locks_end;
@@ -496,6 +502,7 @@ struct alt_module {
 static LIST_HEAD(alt_modules);
 
 void __init_or_module alternatives_module_add(struct module *mod, char *name,
+					      void *para, void *para_end,
 					      void *locks, void *locks_end,
 					      void *text,  void *text_end)
 {
@@ -506,7 +513,7 @@ void __init_or_module alternatives_module_add(struct module *mod, char *name,
 	if (!noreplace_smp && (num_present_cpus() == 1 || setup_max_cpus <= 1))
 		uniproc_patched = true;
 #endif
-	if (!uniproc_patched)
+	if (!IS_ENABLED(CONFIG_PARAVIRT_RUNTIME) && !uniproc_patched)
 		return;
 
 	mutex_lock(&text_mutex);
@@ -515,6 +522,11 @@ void __init_or_module alternatives_module_add(struct module *mod, char *name,
 
 	alt->mod	= mod;
 	alt->name	= name;
+
+#ifdef CONFIG_PARAVIRT_RUNTIME
+	alt->para	= para;
+	alt->para_end	= para_end;
+#endif
 
 	if (num_possible_cpus() != 1 || uniproc_patched) {
 		/* Remember only if we'll need to undo it. */
@@ -733,6 +745,8 @@ void __init alternative_instructions(void)
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
 	alternatives_module_add(NULL, "core kernel",
+				__parainstructions_runtime,
+				__parainstructions_runtime_end,
 				__smp_locks, __smp_locks_end,
 				_text, _etext);
 

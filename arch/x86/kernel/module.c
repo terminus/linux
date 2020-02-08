@@ -248,12 +248,30 @@ int module_finalize(const Elf_Ehdr *hdr,
 		void *aseg = (void *)alt->sh_addr;
 		apply_alternatives(aseg, aseg + alt->sh_size);
 	}
-	if (locks && text) {
-		void *lseg = (void *)locks->sh_addr;
-		void *tseg = (void *)text->sh_addr;
+	if (para_run || (locks && text)) {
+		void *pseg, *pseg_end;
+		void *lseg, *lseg_end;
+		void *tseg, *tseg_end;
+
+		pseg = pseg_end = NULL;
+		lseg = lseg_end = NULL;
+		tseg = tseg_end = NULL;
+		if (para_run) {
+			pseg = (void *)para_run->sh_addr;
+			pseg_end = pseg + para_run->sh_size;
+		}
+
+		if (locks && text) {
+			tseg = (void *)text->sh_addr;
+			tseg_end = tseg + text->sh_size;
+
+			lseg = (void *)locks->sh_addr;
+			lseg_end = lseg + locks->sh_size;
+		}
 		alternatives_module_add(me, me->name,
-					lseg, lseg + locks->sh_size,
-					tseg, tseg + text->sh_size);
+					pseg, pseg_end,
+					lseg, lseg_end,
+					tseg, tseg_end);
 	}
 
 	if (para) {
