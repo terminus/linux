@@ -25,10 +25,10 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
 
 /*
  * Currently, the max observed size in the kernel code is
- * JUMP_LABEL_NOP_SIZE/RELATIVEJUMP_SIZE, which are 5.
+ * NOP7 for indirect call, which is 7.
  * Raise it if needed.
  */
-#define POKE_MAX_OPCODE_SIZE	5
+#define POKE_MAX_OPCODE_SIZE	7
 
 extern void text_poke_early(void *addr, const void *opcode, size_t len);
 

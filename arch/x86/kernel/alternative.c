@@ -981,8 +981,15 @@ void text_poke_sync(void)
 
 struct text_poke_loc {
 	s32 rel_addr; /* addr := _stext + rel_addr */
-	s32 rel32;
-	u8 opcode;
+	union {
+		struct {
+			s32 rel32;
+			u8 opcode;
+		} emulated;
+		struct {
+			u8 len;
+		} native;
+	};
 	const u8 text[POKE_MAX_OPCODE_SIZE];
 };
 
@@ -990,6 +997,7 @@ struct bp_patching_desc {
 	struct text_poke_loc *vec;
 	int nr_entries;
 	atomic_t refs;
+	bool native;
 };
 
 static struct bp_patching_desc *bp_desc;
@@ -1071,10 +1079,13 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 			goto out_put;
 	}
 
-	len = text_opcode_size(tp->opcode);
+	if (desc->native)
+		BUG();
+
+	len = text_opcode_size(tp->emulated.opcode);
 	ip += len;
 
-	switch (tp->opcode) {
+	switch (tp->emulated.opcode) {
 	case INT3_INSN_OPCODE:
 		/*
 		 * Someone poked an explicit INT3, they'll want to handle it,
@@ -1083,12 +1094,12 @@ int notrace poke_int3_handler(struct pt_regs *regs)
 		goto out_put;
 
 	case CALL_INSN_OPCODE:
-		int3_emulate_call(regs, (long)ip + tp->rel32);
+		int3_emulate_call(regs, (long)ip + tp->emulated.rel32);
 		break;
 
 	case JMP32_INSN_OPCODE:
 	case JMP8_INSN_OPCODE:
-		int3_emulate_jmp(regs, (long)ip + tp->rel32);
+		int3_emulate_jmp(regs, (long)ip + tp->emulated.rel32);
 		break;
 
 	default:
@@ -1134,6 +1145,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 		.vec = tp,
 		.nr_entries = nr_entries,
 		.refs = ATOMIC_INIT(1),
+		.native = false,
 	};
 	unsigned char int3 = INT3_INSN_OPCODE;
 	unsigned int i;
@@ -1161,7 +1173,7 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 	 * Second step: update all but the first byte of the patched range.
 	 */
 	for (do_sync = 0, i = 0; i < nr_entries; i++) {
-		int len = text_opcode_size(tp[i].opcode);
+		int len = text_opcode_size(tp[i].emulated.opcode);
 
 		if (len - INT3_INSN_SIZE > 0) {
 			text_poke(text_poke_addr(&tp[i]) + INT3_INSN_SIZE,
@@ -1205,11 +1217,25 @@ static void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries
 }
 
 static void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
-			       const void *opcode, size_t len, const void *emulate)
+			       const void *opcode, size_t len,
+			       const void *emulate, bool native)
 {
 	struct insn insn;
 
+	memset((void *)tp, 0, sizeof(*tp));
 	memcpy((void *)tp->text, opcode, len);
+
+	tp->rel_addr = addr - (void *)_stext;
+
+	/*
+	 * Native mode: when we might be poking
+	 * arbitrary (perhaps) multiple instructions.
+	 */
+	if (native) {
+		tp->native.len = (u8)len;
+		return;
+	}
+
 	if (!emulate)
 		emulate = opcode;
 
@@ -1219,31 +1245,30 @@ static void text_poke_loc_init(struct text_poke_loc *tp, void *addr,
 	BUG_ON(!insn_complete(&insn));
 	BUG_ON(len != insn.length);
 
-	tp->rel_addr = addr - (void *)_stext;
-	tp->opcode = insn.opcode.bytes[0];
+	tp->emulated.opcode = insn.opcode.bytes[0];
 
-	switch (tp->opcode) {
+	switch (tp->emulated.opcode) {
 	case INT3_INSN_OPCODE:
 		break;
 
 	case CALL_INSN_OPCODE:
 	case JMP32_INSN_OPCODE:
 	case JMP8_INSN_OPCODE:
-		tp->rel32 = insn.immediate.value;
+		tp->emulated.rel32 = insn.immediate.value;
 		break;
 
 	default: /* assume NOP */
 		switch (len) {
 		case 2: /* NOP2 -- emulate as JMP8+0 */
 			BUG_ON(memcmp(emulate, ideal_nops[len], len));
-			tp->opcode = JMP8_INSN_OPCODE;
-			tp->rel32 = 0;
+			tp->emulated.opcode = JMP8_INSN_OPCODE;
+			tp->emulated.rel32 = 0;
 			break;
 
 		case 5: /* NOP5 -- emulate as JMP32+0 */
 			BUG_ON(memcmp(emulate, ideal_nops[NOP_ATOMIC5], len));
-			tp->opcode = JMP32_INSN_OPCODE;
-			tp->rel32 = 0;
+			tp->emulated.opcode = JMP32_INSN_OPCODE;
+			tp->emulated.rel32 = 0;
 			break;
 
 		default: /* unknown instruction */
@@ -1299,7 +1324,7 @@ void __ref text_poke_queue(void *addr, const void *opcode, size_t len, const voi
 	text_poke_flush(addr);
 
 	tp = &tp_vec[tp_vec_nr++];
-	text_poke_loc_init(tp, addr, opcode, len, emulate);
+	text_poke_loc_init(tp, addr, opcode, len, emulate, false);
 }
 
 /**
@@ -1322,7 +1347,7 @@ void __ref text_poke_bp(void *addr, const void *opcode, size_t len, const void *
 		return;
 	}
 
-	text_poke_loc_init(&tp, addr, opcode, len, emulate);
+	text_poke_loc_init(&tp, addr, opcode, len, emulate, false);
 	text_poke_bp_batch(&tp, 1);
 }
 
