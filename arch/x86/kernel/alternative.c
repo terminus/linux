@@ -1442,6 +1442,14 @@ struct text_poke_state {
 
 	unsigned int primary_cpu; /* CPU doing the patching. */
 	unsigned int num_acks; /* Number of Acks needed. */
+
+	/*
+	 * To synchronize with the NMI handler.
+	 */
+	atomic_t nmi_work;
+
+	/* Ensure this is patched atomically against NMIs. */
+	bool nmi_context;
 };
 
 static struct text_poke_state text_poke_state;
@@ -1715,6 +1723,7 @@ static void poke_int3_native(struct pt_regs *regs,
  * on secondary CPUs for all patch sites.
  *
  * Called in thread context with tps->state == PATCH_SYNC_DONE.
+ * Also might be called from NMI context with an arbitrary tps->state.
  * Returns with tps->state == PATCH_DONE.
  */
 static void text_poke_sync_finish(struct text_poke_state *tps)
@@ -1741,6 +1750,12 @@ static void text_poke_sync_finish(struct text_poke_state *tps)
 			cpumask_set_cpu(cpu, &tps->sync_ack_map);
 			smp_cond_load_acquire(&tps->state,
 					      (state != VAL));
+		} else if (in_nmi() && (state & PATCH_SYNC_x)) {
+			/*
+			 * Called in case of NMI so we should be ready
+			 * to be called with any PATCH_SYNC_x.
+			 */
+			text_poke_sync_site(tps);
 		} else if (state == PATCH_SYNC_0) {
 			/*
 			 * PATCH_SYNC_1, PATCH_SYNC_2 are handled
@@ -1751,6 +1766,91 @@ static void text_poke_sync_finish(struct text_poke_state *tps)
 			BUG();
 		}
 	}
+}
+
+/*
+ * text_poke_nmi() - primary CPU comes here (via self NMI) and the
+ * secondary (if there's an NMI.)
+ *
+ * By placing this NMI handler first, we can restrict execution of any
+ * NMI code that might be under patching.
+ * Local NMI handling also does not go through any locking code so it
+ * should be safe to install one.
+ *
+ * In both these roles the state-machine is identical to the one that
+ * we had in task context.
+ */
+static int text_poke_nmi(unsigned int val, struct pt_regs *regs)
+{
+	int ret, cpu = smp_processor_id();
+	struct text_poke_state *tps = &text_poke_state;
+
+	/*
+	 * We came here because there's a text-poke handler
+	 * installed. Get out if there's no work assigned yet.
+	 */
+	if (atomic_read(&tps->nmi_work) == 0)
+		return NMI_DONE;
+
+	if (cpu == tps->primary_cpu) {
+		/*
+		 * Do what we came here for. We can safely patch: any
+		 * secondary CPUs executing in NMI context have been
+		 * captured in the code below and are doing useful
+		 * work.
+		 */
+		tps->patch_worker(tps);
+
+		/*
+		 * Both the primary and the secondary CPUs are done (in NMI
+		 * or thread context.) Mark work done so any future NMIs can
+		 * skip this and go to the real handler.
+		 */
+		atomic_dec(&tps->nmi_work);
+
+		/*
+		 * The NMI was self-induced, consume it.
+		 */
+		ret = NMI_HANDLED;
+	} else {
+		/*
+		 * Unexpected NMI on a secondary CPU: do sync_core()
+		 * work until done.
+		 */
+		text_poke_sync_finish(tps);
+
+		/*
+		 * The NMI was spontaneous, not self-induced.
+		 * Don't consume it.
+		 */
+		ret = NMI_DONE;
+	}
+
+	return ret;
+}
+
+/*
+ * patch_worker_nmi() - sets up an NMI handler to do the
+ * patching work.
+ * This stops any NMIs from interrupting any code that might
+ * be getting patched.
+ */
+static void __maybe_unused patch_worker_nmi(void)
+{
+	atomic_set(&text_poke_state.nmi_work, 1);
+	/*
+	 * We could just use apic->send_IPI_self here. However, for reasons
+	 * that I don't understand, apic->send_IPI() or apic->send_IPI_mask()
+	 * work but apic->send_IPI_self (which internally does apic_write())
+	 * does not.
+	 */
+	apic->send_IPI(smp_processor_id(), NMI_VECTOR);
+
+	/*
+	 * Barrier to ensure that we do actually execute the NMI
+	 * before exiting.
+	 */
+	atomic_cond_read_acquire(&text_poke_state.nmi_work, !VAL);
 }
 
 static int patch_worker(void *t)
@@ -1769,7 +1869,10 @@ static int patch_worker(void *t)
 		 * Generates insns and calls text_poke_site() to do the poking
 		 * and sync.
 		 */
-		tps->patch_worker(tps);
+		if (!tps->nmi_context)
+			tps->patch_worker(tps);
+		else
+			patch_worker_nmi();
 
 		/*
 		 * We are done patching. Switch the state to PATCH_DONE
@@ -1790,7 +1893,8 @@ static int patch_worker(void *t)
  *
  * Return: 0 on success, -errno on failure.
  */
-static int __maybe_unused text_poke_late(patch_worker_t worker, void *stage)
+static int __maybe_unused text_poke_late(patch_worker_t worker, void *stage,
+					 bool nmi)
 {
 	int ret;
 
@@ -1807,11 +1911,19 @@ static int __maybe_unused text_poke_late(patch_worker_t worker, void *stage)
 	text_poke_state.state = PATCH_SYNC_DONE; /* Start state */
 	text_poke_state.primary_cpu = smp_processor_id();
 
+	text_poke_state.nmi_context = nmi;
+
+	if (nmi)
+		register_nmi_handler(NMI_LOCAL, text_poke_nmi,
+				     NMI_FLAG_FIRST, "text_poke_nmi");
 	/*
 	 * Run the worker on all online CPUs. Don't need to do anything
 	 * for offline CPUs as they come back online with a clean cache.
 	 */
 	ret = stop_machine(patch_worker, &text_poke_state, cpu_online_mask);
+
+	if (nmi)
+		unregister_nmi_handler(NMI_LOCAL, "text_poke_nmi");
 
 	return ret;
 }
@@ -1957,13 +2069,13 @@ static void paravirt_worker(struct text_poke_state *tps)
  *
  * Return: 0 on success, -errno on failure.
  */
-int paravirt_runtime_patch(void)
+int paravirt_runtime_patch(bool nmi)
 {
 	lockdep_assert_held(&text_mutex);
 
 	if (!pv_stage.count)
 		return -EINVAL;
 
-	return text_poke_late(paravirt_worker, &pv_stage);
+	return text_poke_late(paravirt_worker, &pv_stage, nmi);
 }
 #endif /* CONFIG_PARAVIRT_RUNTIME */

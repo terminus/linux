@@ -22,7 +22,7 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
 #define __parainstructions_runtime	NULL
 #define __parainstructions_runtime_end	NULL
 #else
-int paravirt_runtime_patch(void);
+int paravirt_runtime_patch(bool nmi);
 #endif
 
 /*
