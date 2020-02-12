@@ -810,6 +810,7 @@ config KVM_GUEST
 	select PARAVIRT_CLOCK
 	select ARCH_CPUIDLE_HALTPOLL
 	select PARAVIRT_RUNTIME
+	select X86_HV_CALLBACK_VECTOR
 	default y
 	---help---
 	  This option enables various optimizations for running under the KVM

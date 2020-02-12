@@ -25,6 +25,8 @@
 #include <linux/nmi.h>
 #include <linux/swait.h>
 #include <linux/memory.h>
+#include <linux/irq.h>
+#include <linux/interrupt.h>
 #include <asm/timer.h>
 #include <asm/cpu.h>
 #include <asm/traps.h>
@@ -438,7 +440,7 @@ static void __init sev_map_percpu_data(void)
 static bool pv_tlb_flush_supported(void)
 {
 	return (kvm_para_has_feature(KVM_FEATURE_PV_TLB_FLUSH) &&
-		!kvm_para_has_hint(KVM_HINTS_REALTIME) &&
+		!kvm_para_has_active_hint(KVM_HINTS_REALTIME) &&
 		kvm_para_has_feature(KVM_FEATURE_STEAL_TIME));
 }
 
@@ -463,7 +465,7 @@ static bool pv_ipi_supported(void)
 static bool pv_sched_yield_supported(void)
 {
 	return (kvm_para_has_feature(KVM_FEATURE_PV_SCHED_YIELD) &&
-		!kvm_para_has_hint(KVM_HINTS_REALTIME) &&
+		!kvm_para_has_active_hint(KVM_HINTS_REALTIME) &&
 	    kvm_para_has_feature(KVM_FEATURE_STEAL_TIME));
 }
 
@@ -568,7 +570,7 @@ static void kvm_smp_send_call_func_ipi(const struct cpumask *mask)
 static void __init kvm_smp_prepare_cpus(unsigned int max_cpus)
 {
 	native_smp_prepare_cpus(max_cpus);
-	if (kvm_para_has_hint(KVM_HINTS_REALTIME))
+	if (kvm_para_has_active_hint(KVM_HINTS_REALTIME))
 		static_branch_disable(&virt_spin_lock_key);
 }
 
@@ -654,6 +656,13 @@ static bool kvm_pv_tlb(void)
 	return cond;
 }
 
+#ifdef CONFIG_PARAVIRT_RUNTIME
+static bool has_dynamic_hint;
+static void __init kvm_register_callback_vector(void);
+#else
+#define has_dynamic_hint false
+#endif /* CONFIG_PARAVIRT_RUNTIME */
+
 static void __init kvm_guest_init(void)
 {
 	int i;
@@ -673,6 +682,12 @@ static void __init kvm_guest_init(void)
 
 	if (kvm_para_has_feature(KVM_FEATURE_PV_EOI))
 		apic_set_eoi_write(kvm_guest_apic_eoi_write);
+
+	if (IS_ENABLED(CONFIG_PARAVIRT_RUNTIME) &&
+	    kvm_para_has_feature(KVM_FEATURE_DYNAMIC_HINTS)) {
+		kvm_register_callback_vector();
+		has_dynamic_hint = true;
+	}
 
 #ifdef CONFIG_SMP
 	smp_ops.smp_prepare_cpus = kvm_smp_prepare_cpus;
@@ -729,11 +744,26 @@ unsigned int kvm_arch_para_features(void)
 	return cpuid_eax(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
 
+/*
+ * Universe of hints that's ever been given to this guest.
+ */
 unsigned int kvm_arch_para_hints(void)
 {
 	return cpuid_edx(kvm_cpuid_base() | KVM_CPUID_FEATURES);
 }
 EXPORT_SYMBOL_GPL(kvm_arch_para_hints);
+
+/*
+ * Currently active set of hints. Reading can race with modifications.
+ */
+unsigned int kvm_arch_para_active_hints(void)
+{
+	if (has_dynamic_hint)
+		return cpuid_ecx(kvm_cpuid_base() | KVM_CPUID_FEATURES);
+	else
+		return kvm_arch_para_hints();
+}
+EXPORT_SYMBOL_GPL(kvm_arch_para_active_hints);
 
 static uint32_t __init kvm_detect(void)
 {
@@ -878,7 +908,7 @@ static inline bool kvm_para_lock_ops(void)
 {
 	/* Does host kernel support KVM_FEATURE_PV_UNHALT? */
 	return kvm_para_has_feature(KVM_FEATURE_PV_UNHALT) &&
-		!kvm_para_has_hint(KVM_HINTS_REALTIME);
+		!kvm_para_has_active_hint(KVM_HINTS_REALTIME);
 }
 
 static bool kvm_pv_spinlock(void)
@@ -974,5 +1004,25 @@ void kvm_trigger_reprobe_cpuid(struct work_struct *work)
 	paravirt_runtime_patch(true);
 
 	mutex_unlock(&text_mutex);
+}
+
+static DECLARE_WORK(trigger_reprobe, kvm_trigger_reprobe_cpuid);
+
+void __irq_entry kvm_do_callback(struct pt_regs *regs)
+{
+	struct pt_regs *old_regs = set_irq_regs(regs);
+
+	irq_enter();
+	inc_irq_stat(irq_hv_callback_count);
+
+	schedule_work(&trigger_reprobe);
+	irq_exit();
+	set_irq_regs(old_regs);
+}
+
+static void __init kvm_register_callback_vector(void)
+{
+	alloc_intr_gate(HYPERVISOR_CALLBACK_VECTOR, kvm_callback_vector);
+	wrmsrl(MSR_KVM_HINT_VECTOR, HYPERVISOR_CALLBACK_VECTOR);
 }
 #endif /* CONFIG_PARAVIRT_RUNTIME */

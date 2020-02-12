@@ -14,4 +14,9 @@ static inline bool kvm_para_has_hint(unsigned int feature)
 {
 	return !!(kvm_arch_para_hints() & (1UL << feature));
 }
+
+static inline bool kvm_para_has_active_hint(unsigned int feature)
+{
+	return !!(kvm_arch_para_active_hints() & BIT(feature));
+}
 #endif /* __LINUX_KVM_PARA_H */

@@ -88,11 +88,13 @@ static inline long kvm_hypercall4(unsigned int nr, unsigned long p1,
 bool kvm_para_available(void);
 unsigned int kvm_arch_para_features(void);
 unsigned int kvm_arch_para_hints(void);
+unsigned int kvm_arch_para_active_hints(void);
 void kvm_async_pf_task_wait(u32 token, int interrupt_kernel);
 void kvm_async_pf_task_wake(u32 token);
 u32 kvm_read_and_reset_pf_reason(void);
 extern void kvm_disable_steal_time(void);
 void do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address);
+void kvm_callback_vector(struct pt_regs *regs);
 
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void __init kvm_spinlock_init(void);
@@ -117,6 +119,11 @@ static inline unsigned int kvm_arch_para_features(void)
 }
 
 static inline unsigned int kvm_arch_para_hints(void)
+{
+	return 0;
+}
+
+static inline unsigned int kvm_arch_para_active_hints(void)
 {
 	return 0;
 }

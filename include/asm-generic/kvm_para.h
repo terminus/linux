@@ -24,6 +24,10 @@ static inline unsigned int kvm_arch_para_hints(void)
 	return 0;
 }
 
+static inline unsigned int kvm_arch_para_active_hints(void)
+{
+	return 0;
+}
 static inline bool kvm_para_available(void)
 {
 	return false;
