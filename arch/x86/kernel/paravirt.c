@@ -458,5 +458,15 @@ NOKPROBE_SYMBOL(native_set_debugreg);
 NOKPROBE_SYMBOL(native_load_idt);
 #endif
 
+#ifdef CONFIG_PARAVIRT_RUNTIME
+__ro_after_init struct paravirt_patch_template native_pv_ops;
+
+void __init paravirt_ops_init(void)
+{
+	native_pv_ops = pv_ops;
+}
+EXPORT_SYMBOL(native_pv_ops);
+#endif
+
 EXPORT_SYMBOL(pv_ops);
 EXPORT_SYMBOL_GPL(pv_info);

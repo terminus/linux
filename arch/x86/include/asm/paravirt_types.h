@@ -339,6 +339,7 @@ extern struct paravirt_patch_template pv_ops;
 
 #ifdef CONFIG_PARAVIRT_RUNTIME
 #define PVRT_SUFFIX ".runtime"
+extern struct paravirt_patch_template native_pv_ops;
 #else
 #define PVRT_SUFFIX ""
 #endif
@@ -775,6 +776,9 @@ extern struct paravirt_patch_site __parainstructions[],
 #ifdef CONFIG_PARAVIRT_RUNTIME
 extern struct paravirt_patch_site __parainstructions_runtime[],
 	__parainstructions_runtime_end[];
+void paravirt_ops_init(void);
+#else
+static inline void paravirt_ops_init(void) { }
 #endif
 
 #endif	/* __ASSEMBLY__ */
