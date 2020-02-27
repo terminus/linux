@@ -1441,27 +1441,57 @@ struct text_poke_state {
 
 static struct text_poke_state text_poke_state;
 
+static void wait_for_acks(struct text_poke_state *tps)
+{
+	int cpu = smp_processor_id();
+
+	cpumask_set_cpu(cpu, &tps->sync_ack_map);
+
+	/* Wait until all CPUs are known to have observed the state change. */
+	while (cpumask_weight(&tps->sync_ack_map) < tps->num_acks)
+		cpu_relax();
+}
+
 /**
- * poke_sync() - transitions to the specified state.
+ * poke_sync() - carries out one poke-step for a single site and
+ * transitions to the specified state.
+ * Called with the target populated in poking_mm and poking_addr.
  *
  * @tps - struct text_poke_state *
  * @state - one of PATCH_SYNC_* states
  * @offset - offset to be patched
  * @insns - insns to write
  * @len - length of insn sequence
+ *
+ * Returns after all CPUs have observed the state change and called
+ * sync_core().
  */
 static void poke_sync(struct text_poke_state *tps, int state, int offset,
 		      const char *insns, int len)
 {
+	if (len)
+		__text_do_poke(offset, insns, len);
 	/*
-	 * STUB: no patching or synchronization, just go through the
-	 * motions.
+	 * Stores to tps.sync_ack_map are ordered with
+	 * smp_load_acquire(tps->state) in text_poke_sync_site()
+	 * so we can safely clear the cpumask.
 	 */
 	smp_store_release(&tps->state, state);
+
+	cpumask_clear(&tps->sync_ack_map);
+
+	/*
+	 * Introduce a synchronizing instruction in local and remote insn
+	 * streams. This flushes any stale cached uops from CPU pipelines.
+	 */
+	sync_one();
+
+	wait_for_acks(tps);
 }
 
 /**
  * text_poke_site() - called on the primary to patch a single call site.
+ * The interlocking sync work on the secondary is done in text_poke_sync_site().
  *
  * Called in thread context with tps->state == PATCH_SYNC_DONE where it
  * takes tps->state through different PATCH_SYNC_* states, returning
@@ -1515,6 +1545,43 @@ static void __maybe_unused text_poke_site(struct text_poke_state *tps,
 }
 
 /**
+ * text_poke_sync_site() -- called to synchronize the CPU pipeline
+ * on secondary CPUs for each patch site.
+ *
+ * Called in thread context with tps->state == PATCH_SYNC_0.
+ *
+ * Returns after having observed tps->state == PATCH_SYNC_DONE.
+ */
+static void text_poke_sync_site(struct text_poke_state *tps)
+{
+	int cpu = smp_processor_id();
+	int prevstate = -1;
+	int acked;
+
+	/*
+	 * In thread context we arrive here expecting tps->state to move
+	 * in-order from PATCH_SYNC_{0 -> 1 -> 2} -> PATCH_SYNC_DONE.
+	 */
+	do {
+		/*
+		 * Wait until there's some work for us to do.
+		 */
+		smp_cond_load_acquire(&tps->state,
+				      prevstate != VAL);
+
+		prevstate = READ_ONCE(tps->state);
+
+		if (prevstate < PATCH_SYNC_DONE) {
+			acked = cpumask_test_cpu(cpu, &tps->sync_ack_map);
+
+			BUG_ON(acked);
+			sync_one();
+			cpumask_set_cpu(cpu, &tps->sync_ack_map);
+		}
+	} while (prevstate < PATCH_SYNC_DONE);
+}
+
+/**
  * text_poke_sync_finish() -- called to synchronize the CPU pipeline
  * on secondary CPUs for all patch sites.
  *
@@ -1525,6 +1592,7 @@ static void text_poke_sync_finish(struct text_poke_state *tps)
 {
 	while (true) {
 		enum patch_state state;
+		int cpu = smp_processor_id();
 
 		state = READ_ONCE(tps->state);
 
@@ -1535,11 +1603,24 @@ static void text_poke_sync_finish(struct text_poke_state *tps)
 		if (state == PATCH_DONE)
 			break;
 
-		/*
-		 * Relax here while the primary makes up its mind on
-		 * whether it is done or not.
-		 */
-		cpu_relax();
+		if (state == PATCH_SYNC_DONE) {
+			/*
+			 * Ack that we've seen the end of this iteration
+			 * and then wait until everybody's ready to move
+			 * to the next iteration or exit.
+			 */
+			cpumask_set_cpu(cpu, &tps->sync_ack_map);
+			smp_cond_load_acquire(&tps->state,
+					      (state != VAL));
+		} else if (state == PATCH_SYNC_0) {
+			/*
+			 * PATCH_SYNC_1, PATCH_SYNC_2 are handled
+			 * inside text_poke_sync_site().
+			 */
+			text_poke_sync_site(tps);
+		} else {
+			BUG();
+		}
 	}
 }
 
@@ -1549,6 +1630,12 @@ static int patch_worker(void *t)
 	struct text_poke_state *tps = t;
 
 	if (cpu == tps->primary_cpu) {
+		/*
+		 * The init state is PATCH_SYNC_DONE. Wait until the
+		 * secondaries have assembled before we start patching.
+		 */
+		wait_for_acks(tps);
+
 		/*
 		 * Generates insns and calls text_poke_site() to do the poking
 		 * and sync.
