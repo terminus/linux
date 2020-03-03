@@ -1307,3 +1307,61 @@ void __ref text_poke_bp(void *addr, const void *opcode, size_t len, const void *
 	text_poke_loc_init(&tp, addr, opcode, len, emulate);
 	text_poke_bp_batch(&tp, 1);
 }
+
+#ifdef CONFIG_PARAVIRT_RUNTIME
+struct paravirt_stage_entry {
+	void *dest;	/* pv_op destination */
+	u8 type;	/* pv_op type */
+};
+
+/*
+ * We don't anticipate many pv-ops being written at runtime.
+ */
+#define PARAVIRT_STAGE_MAX 8
+struct paravirt_stage {
+	struct paravirt_stage_entry ops[PARAVIRT_STAGE_MAX];
+	u32 count;
+};
+
+/* Protected by text_mutex */
+static struct paravirt_stage pv_stage;
+
+/**
+ * text_poke_pv_stage - Stage paravirt-op for poking.
+ * @addr: address in struct paravirt_patch_template
+ * @type: pv-op type
+ * @opfn: destination of the pv-op
+ *
+ * Return: staging status.
+ */
+bool text_poke_pv_stage(u8 type, void *opfn)
+{
+	if (system_state == SYSTEM_BOOTING) { /* Passthrough */
+		PARAVIRT_PATCH_OP(pv_ops, type) = (long)opfn;
+		goto out;
+	}
+
+	lockdep_assert_held(&text_mutex);
+
+	if (PARAVIRT_PATCH_OP(pv_ops, type) == (long)opfn)
+		goto out;
+
+	if (pv_stage.count >= PARAVIRT_STAGE_MAX)
+		goto out;
+
+	pv_stage.ops[pv_stage.count].type = type;
+	pv_stage.ops[pv_stage.count].dest = opfn;
+
+	pv_stage.count++;
+
+	return true;
+out:
+	return false;
+}
+
+void text_poke_pv_stage_zero(void)
+{
+	lockdep_assert_held(&text_mutex);
+	pv_stage.count = 0;
+}
+#endif /* CONFIG_PARAVIRT_RUNTIME */

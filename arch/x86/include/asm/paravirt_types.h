@@ -350,6 +350,12 @@ extern struct paravirt_patch_template native_pv_ops;
 #define PARAVIRT_PATCH(x)					\
 	(offsetof(struct paravirt_patch_template, x) / sizeof(void *))
 
+#define paravirt_stage_alt(do_stage, op, opfn)				\
+	(text_poke_pv_stage(PARAVIRT_PATCH(op),				\
+			    (do_stage) ? (opfn) : (native_pv_ops.op)))
+
+#define paravirt_stage_zero() text_poke_pv_stage_zero()
+
 /*
  * Neat trick to map patch type back to the call within the
  * corresponding structure.
