@@ -86,6 +86,9 @@ KVM_FEATURE_PV_SCHED_YIELD        13          guest checks this feature bit
                                               before using paravirtualized
                                               sched yield.
 
+KVM_FEATURE_DYNAMIC_HINTS	  14	      guest handles feature hints
+					      changing under it.
+
 KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
                                               per-cpu warps are expeced in
                                               kvmclock
@@ -93,9 +96,11 @@ KVM_FEATURE_CLOCSOURCE_STABLE_BIT 24          host will warn if no guest-side
 
 ::
 
-      edx = an OR'ed group of (1 << flag)
+      ecx, edx = an OR'ed group of (1 << flag)
 
-Where ``flag`` here is defined as below:
+Where the ``flag`` in ecx is currently applicable hints, and ``flag`` in
+edx is the union of all hints ever provided to the guest, both drawn from
+the set listed below:
 
 ================== ============ =================================
 flag               value        meaning

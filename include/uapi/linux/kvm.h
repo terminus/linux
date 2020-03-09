@@ -1017,6 +1017,7 @@ struct kvm_ppc_resize_hpt {
 #define KVM_CAP_S390_VCPU_RESETS 179
 #define KVM_CAP_S390_PROTECTED 180
 #define KVM_CAP_PPC_SECURE_GUEST 181
+#define KVM_CAP_CALLBACK	182
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -1517,6 +1518,9 @@ struct kvm_pv_cmd {
 
 /* Available with KVM_CAP_S390_PROTECTED */
 #define KVM_S390_PV_COMMAND		_IOWR(KVMIO, 0xc5, struct kvm_pv_cmd)
+
+/* Available with  KVM_CAP_CALLBACK */
+#define KVM_CALLBACK		  _IO(KVMIO,  0xc6)
 
 /* Secure Encrypted Virtualization command */
 enum sev_cmd_id {

@@ -723,6 +723,8 @@ struct kvm_vcpu_arch {
 	bool nmi_injected;    /* Trying to inject an NMI this entry */
 	bool smi_pending;    /* SMI queued after currently running handler */
 
+	bool callback_pending;	/* Callback queued after running handler */
+
 	struct kvm_mtrr mtrr_state;
 	u64 pat;
 
@@ -982,6 +984,10 @@ struct kvm_arch {
 
 	struct kvm_pmu_event_filter *pmu_event_filter;
 	struct task_struct *nx_lpage_recovery_thread;
+
+	struct {
+		u8 vector;
+	} callback;
 };
 
 struct kvm_vm_stat {

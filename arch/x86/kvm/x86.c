@@ -1282,6 +1282,7 @@ static const u32 emulated_msrs_all[] = {
 
 	MSR_K7_HWCR,
 	MSR_KVM_POLL_CONTROL,
+	MSR_KVM_HINT_VECTOR,
 };
 
 static u32 emulated_msrs[ARRAY_SIZE(emulated_msrs_all)];
@@ -2910,7 +2911,15 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 
 		vcpu->arch.msr_kvm_poll_control = data;
 		break;
+	case MSR_KVM_HINT_VECTOR: {
+		u8 vector = (u8)data;
 
+		if ((u64)data > 0xffUL)
+			return 1;
+
+		vcpu->kvm->arch.callback.vector = vector;
+		break;
+	}
 	case MSR_IA32_MCG_CTL:
 	case MSR_IA32_MCG_STATUS:
 	case MSR_IA32_MC0_CTL ... MSR_IA32_MCx_CTL(KVM_MAX_MCE_BANKS) - 1:
@@ -3156,6 +3165,9 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_KVM_POLL_CONTROL:
 		msr_info->data = vcpu->arch.msr_kvm_poll_control;
 		break;
+	case MSR_KVM_HINT_VECTOR:
+		msr_info->data = vcpu->kvm->arch.callback.vector;
+		break;
 	case MSR_IA32_P5_MC_ADDR:
 	case MSR_IA32_P5_MC_TYPE:
 	case MSR_IA32_MCG_CAP:
@@ -3373,6 +3385,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_GET_MSR_FEATURES:
 	case KVM_CAP_MSR_PLATFORM_INFO:
 	case KVM_CAP_EXCEPTION_PAYLOAD:
+	case KVM_CAP_CALLBACK:
 		r = 1;
 		break;
 	case KVM_CAP_SYNC_REGS:
@@ -3719,6 +3732,20 @@ static int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu,
 	vcpu->arch.pending_external_vector = irq->irq;
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
 	return 0;
+}
+
+static int kvm_vcpu_ioctl_callback(struct kvm_vcpu *vcpu)
+{
+	/*
+	 * Has the guest setup a callback?
+	 */
+	if (vcpu->kvm->arch.callback.vector) {
+		vcpu->arch.callback_pending = true;
+		kvm_make_request(KVM_REQ_EVENT, vcpu);
+		return 0;
+	} else {
+		return -EINVAL;
+	}
 }
 
 static int kvm_vcpu_ioctl_nmi(struct kvm_vcpu *vcpu)
@@ -4609,6 +4636,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_to_user(cpuid_arg, &cpuid, sizeof(cpuid)))
 			goto out;
 		r = 0;
+		break;
+	}
+	case KVM_CALLBACK: {
+		r = kvm_vcpu_ioctl_callback(vcpu);
 		break;
 	}
 	default:
@@ -7737,6 +7768,14 @@ static int inject_pending_event(struct kvm_vcpu *vcpu)
 		--vcpu->arch.nmi_pending;
 		vcpu->arch.nmi_injected = true;
 		kvm_x86_ops.set_nmi(vcpu);
+	} else if (vcpu->arch.callback_pending) {
+		if (kvm_x86_ops.interrupt_allowed(vcpu)) {
+			vcpu->arch.callback_pending = false;
+			kvm_queue_interrupt(vcpu,
+					    vcpu->kvm->arch.callback.vector,
+					    false);
+			kvm_x86_ops.set_irq(vcpu);
+		}
 	} else if (kvm_cpu_has_injectable_intr(vcpu)) {
 		/*
 		 * Because interrupts can be injected asynchronously, we are

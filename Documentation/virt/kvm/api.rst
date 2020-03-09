@@ -4690,6 +4690,17 @@ KVM_PV_VM_VERIFY
   Verify the integrity of the unpacked image. Only if this succeeds,
   KVM is allowed to start protected VCPUs.
 
+4.126 KVM_CALLBACK
+------------------
+
+:Capability: KVM_CAP_CALLBACK
+:Architectures: x86
+:Type: vcpu ioctl
+:Parameters: none
+:Returns: 0 on success, -1 on error
+
+Queues a callback on the guess's vcpu if a callback has been regisered.
+
 
 5. The kvm_run structure
 ========================
@@ -6109,3 +6120,9 @@ KVM can therefore start protected VMs.
 This capability governs the KVM_S390_PV_COMMAND ioctl and the
 KVM_MP_STATE_LOAD MP_STATE. KVM_SET_MP_STATE can fail for protected
 guests when the state change is invalid.
+
+8.24 KVM_CAP_CALLBACK
+
+Architectures: x86_64
+
+This capability indicates that the ioctl KVM_CALLBACK is available.
