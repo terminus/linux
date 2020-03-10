@@ -951,6 +951,20 @@ void __init kvm_spinlock_init(void)
 static inline bool kvm_pv_spinlock(void) { return false; }
 #endif	/* CONFIG_PARAVIRT_SPINLOCKS */
 
+static BLOCKING_NOTIFIER_HEAD(realtime_notifier);
+
+void kvm_realtime_notifier_register(struct notifier_block *nb)
+{
+	blocking_notifier_chain_register(&realtime_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(kvm_realtime_notifier_register);
+
+void kvm_realtime_notifier_unregister(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&realtime_notifier, nb);
+}
+EXPORT_SYMBOL_GPL(kvm_realtime_notifier_unregister);
+
 #ifdef CONFIG_ARCH_CPUIDLE_HALTPOLL
 
 static void kvm_disable_host_haltpoll(void *i)
@@ -1004,6 +1018,8 @@ void kvm_trigger_reprobe_cpuid(struct work_struct *work)
 	paravirt_runtime_patch(true);
 
 	mutex_unlock(&text_mutex);
+
+	blocking_notifier_call_chain(&realtime_notifier, 0, NULL);
 }
 
 static DECLARE_WORK(trigger_reprobe, kvm_trigger_reprobe_cpuid);

@@ -33,4 +33,12 @@ static inline bool kvm_para_available(void)
 	return false;
 }
 
+static inline void kvm_realtime_notifier_register(struct notifier_block *nb)
+{
+}
+
+static inline void kvm_realtime_notifier_unregister(struct notifier_block *nb)
+{
+}
+
 #endif

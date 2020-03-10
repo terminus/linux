@@ -2,6 +2,7 @@
 #ifndef _ASM_X86_KVM_PARA_H
 #define _ASM_X86_KVM_PARA_H
 
+#include <linux/notifier.h>
 #include <asm/processor.h>
 #include <asm/alternative.h>
 #include <uapi/asm/kvm_para.h>
@@ -96,6 +97,9 @@ extern void kvm_disable_steal_time(void);
 void do_async_page_fault(struct pt_regs *regs, unsigned long error_code, unsigned long address);
 void kvm_callback_vector(struct pt_regs *regs);
 
+void kvm_realtime_notifier_register(struct notifier_block *nb);
+void kvm_realtime_notifier_unregister(struct notifier_block *nb);
+
 #ifdef CONFIG_PARAVIRT_SPINLOCKS
 void __init kvm_spinlock_init(void);
 #else /* !CONFIG_PARAVIRT_SPINLOCKS */
@@ -136,6 +140,14 @@ static inline u32 kvm_read_and_reset_pf_reason(void)
 static inline void kvm_disable_steal_time(void)
 {
 	return;
+}
+
+static inline void kvm_realtime_notifier_register(struct notifier_block *nb)
+{
+}
+
+static inline void kvm_realtime_notifier_unregister(struct notifier_block *nb)
+{
 }
 #endif
 
