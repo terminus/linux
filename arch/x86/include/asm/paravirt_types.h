@@ -337,6 +337,12 @@ struct paravirt_patch_template {
 extern struct pv_info pv_info;
 extern struct paravirt_patch_template pv_ops;
 
+#ifdef CONFIG_PARAVIRT_RUNTIME
+#define PVRT_SUFFIX ".runtime"
+#else
+#define PVRT_SUFFIX ""
+#endif
+
 /* Sub-section for .parainstructions */
 #define PV_SUFFIX ""
 
@@ -692,6 +698,49 @@ int paravirt_disable_iospace(void);
 	_PVOP_CALL4(PV_SUFFIX, rettype, op, arg1, arg2, arg3, arg4)
 #define PVOP_VCALL4(op, arg1, arg2, arg3, arg4)				\
 	_PVOP_VCALL4(PV_SUFFIX, op, arg1, arg2, arg3, arg4)
+
+/*
+ * PVRTOP macros for .parainstructions.runtime
+ */
+#define PVRTOP_CALL0(rettype, op)					\
+	_PVOP_CALL0(PVRT_SUFFIX, rettype, op)
+#define PVRTOP_VCALL0(op)						\
+	_PVOP_VCALL0(PVRT_SUFFIX, op)
+
+#define PVRTOP_CALLEE0(rettype, op)					\
+	_PVOP_CALLEE0(PVRT_SUFFIX, rettype, op)
+#define PVRTOP_VCALLEE0(op)						\
+	_PVOP_VCALLEE0(PVRT_SUFFIX, op)
+
+#define PVRTOP_CALL1(rettype, op, arg1)					\
+	_PVOP_CALL1(PVRT_SUFFIX, rettype, op, arg1)
+#define PVRTOP_VCALL1(op, arg1)						\
+	_PVOP_VCALL1(PVRT_SUFFIX, op, arg1)
+
+#define PVRTOP_CALLEE1(rettype, op, arg1)				\
+	_PVOP_CALLEE1(PVRT_SUFFIX, rettype, op, arg1)
+#define PVRTOP_VCALLEE1(op, arg1)					\
+	_PVOP_VCALLEE1(PVRT_SUFFIX, op, arg1)
+
+#define PVRTOP_CALL2(rettype, op, arg1, arg2)				\
+	_PVOP_CALL2(PVRT_SUFFIX, rettype, op, arg1, arg2)
+#define PVRTOP_VCALL2(op, arg1, arg2)					\
+	_PVOP_VCALL2(PVRT_SUFFIX, op, arg1, arg2)
+
+#define PVRTOP_CALLEE2(rettype, op, arg1, arg2)				\
+	_PVOP_CALLEE2(PVRT_SUFFIX, rettype, op, arg1, arg2)
+#define PVRTOP_VCALLEE2(op, arg1, arg2)					\
+	_PVOP_VCALLEE2(PVRT_SUFFIX, op, arg1, arg2)
+
+#define PVRTOP_CALL3(rettype, op, arg1, arg2, arg3)			\
+	_PVOP_CALL3(PVRT_SUFFIX, rettype, op, arg1, arg2, arg3)
+#define PVRTOP_VCALL3(op, arg1, arg2, arg3)				\
+	_PVOP_VCALL3(PVRT_SUFFIX, op, arg1, arg2, arg3)
+
+#define PVRTOP_CALL4(rettype, op, arg1, arg2, arg3, arg4)		\
+	_PVOP_CALL4(PVRT_SUFFIX, rettype, op, arg1, arg2, arg3, arg4)
+#define PVRTOP_VCALL4(op, arg1, arg2, arg3, arg4)			\
+	_PVOP_VCALL4(PVRT_SUFFIX, op, arg1, arg2, arg3, arg4)
 
 /* Lazy mode for batching updates / context switch */
 enum paravirt_lazy_mode {
