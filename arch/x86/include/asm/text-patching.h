@@ -18,6 +18,11 @@ static inline void apply_paravirt(struct paravirt_patch_site *start,
 #define __parainstructions_end	NULL
 #endif
 
+#ifndef CONFIG_PARAVIRT_RUNTIME
+#define __parainstructions_runtime	NULL
+#define __parainstructions_runtime_end	NULL
+#endif
+
 /*
  * Currently, the max observed size in the kernel code is
  * JUMP_LABEL_NOP_SIZE/RELATIVEJUMP_SIZE, which are 5.

@@ -269,6 +269,7 @@ SECTIONS
 	.parainstructions : AT(ADDR(.parainstructions) - LOAD_OFFSET) {
 		__parainstructions = .;
 		*(.parainstructions)
+		PARAVIRT_DISCARD(.parainstructions.runtime)
 		__parainstructions_end = .;
 	}
 
@@ -347,6 +348,21 @@ SECTIONS
 		. = ALIGN(PAGE_SIZE);
 		__smp_locks_end = .;
 	}
+
+#ifdef CONFIG_PARAVIRT_RUNTIME
+	/*
+	 * .parainstructions.runtime sticks around in memory after
+	 * init so it doesn't need to be page-aligned but everything
+	 * around us is so we will be too.
+	 */
+	. = ALIGN(8);
+	.parainstructions.runtime : AT(ADDR(.parainstructions.runtime) - \
+								LOAD_OFFSET) {
+		__parainstructions_runtime = .;
+		PARAVIRT_KEEP(.parainstructions.runtime)
+		__parainstructions_runtime_end = .;
+	}
+#endif
 
 #ifdef CONFIG_X86_64
 	.data_nosave : AT(ADDR(.data_nosave) - LOAD_OFFSET) {

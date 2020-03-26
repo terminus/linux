@@ -764,6 +764,18 @@ config PARAVIRT
 	  over full virtualization.  However, when run without a hypervisor
 	  the kernel is theoretically slower and slightly larger.
 
+config PARAVIRT_RUNTIME
+	bool "Enable paravirtualized ops to be patched at runtime"
+	depends on PARAVIRT
+	help
+	  Enable the paravirtualized guest kernel to switch pv-ops based on
+	  changed host conditions, potentially improving performance
+	  significantly.
+
+	  This would increase the memory footprint of the running kernel
+	  slightly (depending mostly on whether lock and unlock are inlined
+	  or not.)
+
 config PARAVIRT_XXL
 	bool
 

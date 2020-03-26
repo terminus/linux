@@ -135,6 +135,14 @@
 #define MEM_DISCARD(sec) *(.mem##sec)
 #endif
 
+#if defined(CONFIG_PARAVIRT_RUNTIME)
+#define PARAVIRT_KEEP(sec)	*(sec)
+#define PARAVIRT_DISCARD(sec)
+#else
+#define PARAVIRT_KEEP(sec)
+#define PARAVIRT_DISCARD(sec)	*(sec)
+#endif
+
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 /*
  * The ftrace call sites are logged to a section whose name depends on the

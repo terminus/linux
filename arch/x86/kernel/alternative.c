@@ -740,6 +740,8 @@ void __init alternative_instructions(void)
 #endif
 
 	apply_paravirt(__parainstructions, __parainstructions_end);
+	apply_paravirt(__parainstructions_runtime,
+		       __parainstructions_runtime_end);
 
 	restart_nmi();
 	alternatives_patched = 1;

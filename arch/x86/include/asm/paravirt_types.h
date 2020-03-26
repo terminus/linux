@@ -723,6 +723,11 @@ struct paravirt_patch_site {
 extern struct paravirt_patch_site __parainstructions[],
 	__parainstructions_end[];
 
+#ifdef CONFIG_PARAVIRT_RUNTIME
+extern struct paravirt_patch_site __parainstructions_runtime[],
+	__parainstructions_runtime_end[];
+#endif
+
 #endif	/* __ASSEMBLY__ */
 
 #endif	/* _ASM_X86_PARAVIRT_TYPES_H */
