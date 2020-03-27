@@ -477,7 +477,7 @@ static inline void alternatives_smp_unlock(const s32 *start, const s32 *end,
 					   u8 *text, u8 *text_end) { }
 #endif	/* CONFIG_SMP */
 
-struct smp_alt_module {
+struct alt_module {
 	/* what is this ??? */
 	struct module	*mod;
 	char		*name;
@@ -492,14 +492,14 @@ struct smp_alt_module {
 
 	struct list_head next;
 };
-static LIST_HEAD(smp_alt_modules);
 
-void __init_or_module alternatives_smp_module_add(struct module *mod,
-						  char *name,
-						  void *locks, void *locks_end,
-						  void *text,  void *text_end)
+static LIST_HEAD(alt_modules);
+
+void __init_or_module alternatives_module_add(struct module *mod, char *name,
+					      void *locks, void *locks_end,
+					      void *text,  void *text_end)
 {
-	struct smp_alt_module *smp;
+	struct alt_module *alt;
 
 #ifdef CONFIG_SMP
 	/* Patch to UP if other cpus not imminent. */
@@ -511,36 +511,36 @@ void __init_or_module alternatives_smp_module_add(struct module *mod,
 
 	mutex_lock(&text_mutex);
 
-	smp = kzalloc(sizeof(*smp), GFP_KERNEL | __GFP_NOFAIL);
+	alt = kzalloc(sizeof(*alt), GFP_KERNEL | __GFP_NOFAIL);
 
-	smp->mod	= mod;
-	smp->name	= name;
+	alt->mod	= mod;
+	alt->name	= name;
 
 	if (num_possible_cpus() != 1 || uniproc_patched) {
 		/* Remember only if we'll need to undo it. */
-		smp->locks	= locks;
-		smp->locks_end	= locks_end;
+		alt->locks	= locks;
+		alt->locks_end	= locks_end;
 	}
 
-	smp->text	= text;
-	smp->text_end	= text_end;
+	alt->text	= text;
+	alt->text_end	= text_end;
 	DPRINTK("locks %p -> %p, text %p -> %p, name %s\n",
-		smp->locks, smp->locks_end,
-		smp->text, smp->text_end, smp->name);
+		alt->locks, alt->locks_end,
+		alt->text, alt->text_end, alt->name);
 
-	list_add_tail(&smp->next, &smp_alt_modules);
+	list_add_tail(&alt->next, &alt_modules);
 
 	if (uniproc_patched)
 		alternatives_smp_unlock(locks, locks_end, text, text_end);
 	mutex_unlock(&text_mutex);
 }
 
-void __init_or_module alternatives_smp_module_del(struct module *mod)
+void __init_or_module alternatives_module_del(struct module *mod)
 {
-	struct smp_alt_module *item;
+	struct alt_module *item;
 
 	mutex_lock(&text_mutex);
-	list_for_each_entry(item, &smp_alt_modules, next) {
+	list_for_each_entry(item, &alt_modules, next) {
 		if (mod != item->mod)
 			continue;
 		list_del(&item->next);
@@ -553,7 +553,7 @@ void __init_or_module alternatives_smp_module_del(struct module *mod)
 #ifdef CONFIG_SMP
 void alternatives_enable_smp(void)
 {
-	struct smp_alt_module *mod;
+	struct alt_module *mod;
 
 	/* Why bother if there are no other CPUs? */
 	BUG_ON(num_possible_cpus() == 1);
@@ -565,7 +565,7 @@ void alternatives_enable_smp(void)
 		BUG_ON(num_online_cpus() != 1);
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_UP);
 		clear_cpu_cap(&cpu_data(0), X86_FEATURE_UP);
-		list_for_each_entry(mod, &smp_alt_modules, next)
+		list_for_each_entry(mod, &alt_modules, next)
 			alternatives_smp_lock(mod->locks, mod->locks_end,
 					      mod->text, mod->text_end);
 		uniproc_patched = false;
@@ -580,14 +580,14 @@ void alternatives_enable_smp(void)
  */
 int alternatives_text_reserved(void *start, void *end)
 {
-	struct smp_alt_module *mod;
+	struct alt_module *mod;
 	const s32 *poff;
 	u8 *text_start = start;
 	u8 *text_end = end;
 
 	lockdep_assert_held(&text_mutex);
 
-	list_for_each_entry(mod, &smp_alt_modules, next) {
+	list_for_each_entry(mod, &alt_modules, next) {
 		if (mod->text > text_end || mod->text_end < text_start)
 			continue;
 		for (poff = mod->locks; poff < mod->locks_end; poff++) {
@@ -734,9 +734,9 @@ void __init alternative_instructions(void)
 
 	apply_alternatives(__alt_instructions, __alt_instructions_end);
 
-	alternatives_smp_module_add(NULL, "core kernel",
-				    __smp_locks, __smp_locks_end,
-				    _text, _etext);
+	alternatives_module_add(NULL, "core kernel",
+				__smp_locks, __smp_locks_end,
+				_text, _etext);
 
 	if (!uniproc_patched || num_possible_cpus() == 1) {
 		free_init_pages("SMP alternatives",

@@ -75,11 +75,11 @@ extern void apply_alternatives(struct alt_instr *start, struct alt_instr *end);
 
 struct module;
 
-extern void alternatives_smp_module_add(struct module *mod, char *name,
-					void *locks, void *locks_end,
-					void *text, void *text_end);
-extern void alternatives_smp_module_del(struct module *mod);
-extern int alternatives_text_reserved(void *start, void *end);
+void alternatives_module_add(struct module *mod, char *name,
+			     void *locks, void *locks_end,
+			     void *text, void *text_end);
+void alternatives_module_del(struct module *mod);
+int alternatives_text_reserved(void *start, void *end);
 #ifdef CONFIG_SMP
 extern void alternatives_enable_smp(void);
 #else

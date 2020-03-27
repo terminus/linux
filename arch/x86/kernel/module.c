@@ -251,9 +251,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 	if (locks && text) {
 		void *lseg = (void *)locks->sh_addr;
 		void *tseg = (void *)text->sh_addr;
-		alternatives_smp_module_add(me, me->name,
-					    lseg, lseg + locks->sh_size,
-					    tseg, tseg + text->sh_size);
+		alternatives_module_add(me, me->name,
+					lseg, lseg + locks->sh_size,
+					tseg, tseg + text->sh_size);
 	}
 
 	if (para) {
@@ -278,5 +278,5 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 void module_arch_cleanup(struct module *mod)
 {
-	alternatives_smp_module_del(mod);
+	alternatives_module_del(mod);
 }
