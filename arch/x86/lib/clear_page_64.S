@@ -58,3 +58,24 @@ SYM_FUNC_START(clear_pages_erms)
 	RET
 SYM_FUNC_END(clear_pages_erms)
 EXPORT_SYMBOL_GPL(clear_pages_erms)
+
+SYM_FUNC_START(clear_pages_movnt)
+	xorl	%eax,%eax
+	movq	%rsi,%rcx
+	shlq    $PAGE_SHIFT, %rcx
+
+	.p2align 4
+.Lstart:
+	movnti  %rax, 0x00(%rdi)
+	movnti  %rax, 0x08(%rdi)
+	movnti  %rax, 0x10(%rdi)
+	movnti  %rax, 0x18(%rdi)
+	movnti  %rax, 0x20(%rdi)
+	movnti  %rax, 0x28(%rdi)
+	movnti  %rax, 0x30(%rdi)
+	movnti  %rax, 0x38(%rdi)
+	addq    $0x40, %rdi
+	subl    $0x40, %ecx
+	ja      .Lstart
+	RET
+SYM_FUNC_END(clear_pages_movnt)
