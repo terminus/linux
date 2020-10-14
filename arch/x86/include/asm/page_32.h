@@ -39,6 +39,15 @@ static inline void clear_page(void *page)
 	memset(page, 0, PAGE_SIZE);
 }
 
+static inline void clear_page_uncached(__incoherent void *page)
+{
+	clear_page((__force void *) page);
+}
+
+static inline void clear_page_uncached_make_coherent(void)
+{
+}
+
 static inline void copy_page(void *to, void *from)
 {
 	memcpy(to, from, PAGE_SIZE);
