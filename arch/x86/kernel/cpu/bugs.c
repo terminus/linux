@@ -85,6 +85,22 @@ EXPORT_SYMBOL_GPL(mds_idle_clear);
  */
 DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
+/*
+ * check_movnt_quirks() sets X86_FEATURE_MOVNT_SLOW for uarchs where
+ * clear_pages_movnti() is slower for bulk page clearing than the standard
+ * cached clear_page() idiom (typically rep-stosb/rep-stosq.)
+ *
+ * (Bulk clearing defined as LLC-sized or larger.)
+ *
+ * x86_64 only since clear_pages_movnti() is only defined there.
+ */
+void check_movnt_quirks(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+
+#endif
+}
+
 void __init check_bugs(void)
 {
 	identify_boot_cpu();
