@@ -84,6 +84,21 @@ EXPORT_SYMBOL_GPL(mds_idle_clear);
  */
 DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 
+void check_movnt_quirks(struct cpuinfo_x86 *c)
+{
+#ifdef CONFIG_X86_64
+	/*
+	 * Check if MOVNT is slower than the model specific clear_page()
+	 * idiom (movq/rep-stosb/rep-stosq etc) for bulk page clearing.
+	 * (Bulk is defined here as LLC-sized or larger.)
+	 *
+	 * Condition this check on CONFIG_X86_64 so we don't have
+	 * to worry about any CONFIG_X86_32 families that don't
+	 * support SSE2/MOVNT.
+	 */
+#endif /* CONFIG_X86_64*/
+}
+
 void __init check_bugs(void)
 {
 	identify_boot_cpu();
