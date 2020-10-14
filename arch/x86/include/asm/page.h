@@ -28,6 +28,16 @@ static inline void clear_user_page(void *page, unsigned long vaddr,
 	clear_page(page);
 }
 
+#define clear_user_page_uncached clear_user_page_uncached
+/*
+ * clear_page_uncached: allowed on only __incoherent memory regions.
+ */
+static inline void clear_user_page_uncached(__incoherent void *page,
+					unsigned long vaddr, struct page *pg)
+{
+	clear_page_uncached(page);
+}
+
 static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 				  struct page *topage)
 {

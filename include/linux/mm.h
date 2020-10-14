@@ -3192,6 +3192,20 @@ static inline bool vma_is_special_huge(const struct vm_area_struct *vma)
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
+#ifndef clear_user_page_uncached
+/*
+ * clear_user_page_uncached: fallback to the standard clear_user_page().
+ */
+static inline void clear_user_page_uncached(__incoherent void *page,
+					unsigned long vaddr, struct page *pg)
+{
+	clear_user_page((__force void *)page, vaddr, pg);
+}
+
+static inline void clear_page_uncached_make_coherent(void) { }
+#endif
+
+
 #ifdef CONFIG_DEBUG_PAGEALLOC
 extern unsigned int _debug_guardpage_minorder;
 DECLARE_STATIC_KEY_FALSE(_debug_guardpage_enabled);
