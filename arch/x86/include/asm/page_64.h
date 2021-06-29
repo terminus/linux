@@ -56,6 +56,7 @@ void clear_pages_orig(void *page, unsigned long npages);
 void clear_pages_rep(void *page, unsigned long npages);
 void clear_pages_erms(void *page, unsigned long npages);
 void clear_pages_movnt(void *page, unsigned long npages);
+void clear_pages_clzero(void *page, unsigned long npages);
 
 #define __HAVE_ARCH_CLEAR_USER_PAGES
 static inline void clear_pages(void *page, unsigned int npages)
