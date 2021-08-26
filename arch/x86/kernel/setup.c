@@ -50,6 +50,7 @@
 #include <asm/thermal.h>
 #include <asm/unwind.h>
 #include <asm/vsyscall.h>
+#include <asm/cacheinfo.h>
 #include <linux/vmalloc.h>
 
 /*
@@ -1293,3 +1294,8 @@ static int __init register_kernel_offset_dumper(void)
 	return 0;
 }
 __initcall(register_kernel_offset_dumper);
+
+unsigned long __init arch_clear_page_non_caching_threshold(void)
+{
+	return cacheinfo_lookup_max_size(0);
+}
