@@ -1033,3 +1033,16 @@ int populate_cache_leaves(unsigned int cpu)
 
 	return 0;
 }
+
+int cacheinfo_lookup_max_size(int cpu)
+{
+	struct cpu_cacheinfo *this_cpu_ci = get_cpu_cacheinfo(cpu);
+	struct cacheinfo *this_leaf = this_cpu_ci->info_list;
+	struct cacheinfo *max_leaf;
+
+	/*
+	 * Assume that cache sizes always increase with level.
+	 */
+	max_leaf = this_leaf + this_cpu_ci->num_leaves - 1;
+	return max_leaf->size;
+}
