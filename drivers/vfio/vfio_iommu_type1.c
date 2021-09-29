@@ -557,6 +557,9 @@ static int vaddr_get_pfns(struct mm_struct *mm, unsigned long vaddr,
 	if (prot & IOMMU_WRITE)
 		flags |= FOLL_WRITE;
 
+	/* Tell gup that this iterations is part of larger set of pins. */
+	flags |= FOLL_HINT_BULK;
+
 	mmap_read_lock(mm);
 	ret = pin_user_pages_remote(mm, vaddr, npages, flags | FOLL_LONGTERM,
 				    pages, NULL, NULL);
