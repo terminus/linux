@@ -4874,6 +4874,7 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 	spinlock_t *ptl;
 	unsigned long haddr = address & huge_page_mask(h);
 	bool new_page, new_pagecache_page = false;
+	bool uncached = false;
 
 	/*
 	 * Currently, we are forced to kill the process in the event the
@@ -4928,7 +4929,7 @@ retry:
 			spin_unlock(ptl);
 			goto out;
 		}
-		clear_huge_page(page, address, pages_per_huge_page(h));
+		clear_huge_page(page, address, pages_per_huge_page(h), uncached);
 		__SetPageUptodate(page);
 		new_page = true;
 
