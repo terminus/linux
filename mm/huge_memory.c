@@ -594,7 +594,7 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
 	pgtable_t pgtable;
 	unsigned long haddr = vmf->address & HPAGE_PMD_MASK;
 	vm_fault_t ret = 0;
-	bool non_cached = false;
+	bool non_cached = vmf->flags & FAULT_FLAG_NON_CACHING;
 
 	VM_BUG_ON_PAGE(!PageCompound(page), page);
 

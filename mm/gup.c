@@ -944,6 +944,13 @@ static int faultin_page(struct vm_area_struct *vma,
 		 */
 		fault_flags |= FAULT_FLAG_TRIED;
 	}
+	if (*flags & FOLL_HINT_BULK) {
+		/*
+		 * This page is part of a large region being faulted-in
+		 * so attempt to minimize cache-pollution.
+		 */
+		fault_flags |= FAULT_FLAG_NON_CACHING;
+	}
 	if (unshare) {
 		fault_flags |= FAULT_FLAG_UNSHARE;
 		/* FAULT_FLAG_WRITE and FAULT_FLAG_UNSHARE are incompatible */
@@ -1115,6 +1122,17 @@ static long __get_user_pages(struct mm_struct *mm,
 	 */
 	if (!(gup_flags & FOLL_FORCE))
 		gup_flags |= FOLL_NUMA;
+
+	/*
+	 * Non-cached page clearing is generally faster when clearing regions
+	 * larger than O(LLC-size). So hint the non-caching path based on
+	 * clear_page_prefer_non_caching().
+	 *
+	 * Note, however this check is optimistic -- nr_pages is the upper
+	 * limit and we might be clearing less than that.
+	 */
+	if (clear_page_prefer_non_caching(nr_pages * PAGE_SIZE))
+		gup_flags |= FOLL_HINT_BULK;
 
 	do {
 		struct page *page;
