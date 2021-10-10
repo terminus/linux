@@ -636,6 +636,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	loff_t hpage_size = huge_page_size(h);
 	unsigned long hpage_shift = huge_page_shift(h);
 	pgoff_t start, index, end;
+	bool hint_uncached;
 	int error;
 	u32 hash;
 
@@ -652,6 +653,9 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 	 */
 	start = offset >> hpage_shift;
 	end = (offset + len + hpage_size - 1) >> hpage_shift;
+
+	/* Don't pollute the cache if we are fallocte'ing a large region. */
+	hint_uncached = clear_page_prefer_uncached((end - start) << hpage_shift);
 
 	inode_lock(inode);
 
@@ -731,7 +735,8 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 			error = PTR_ERR(page);
 			goto out;
 		}
-		clear_huge_page(page, addr, pages_per_huge_page(h));
+		clear_huge_page(page, addr, pages_per_huge_page(h),
+				hint_uncached);
 		__SetPageUptodate(page);
 		error = huge_add_to_page_cache(page, mapping, index);
 		if (unlikely(error)) {

@@ -933,6 +933,13 @@ static int faultin_page(struct vm_area_struct *vma,
 		 */
 		fault_flags |= FAULT_FLAG_TRIED;
 	}
+	if (*flags & FOLL_HINT_BULK) {
+		/*
+		 * From the user hint, we might be faulting-in a large region
+		 * so minimize cache-pollution.
+		 */
+		fault_flags |= FAULT_FLAG_UNCACHED;
+	}
 
 	ret = handle_mm_fault(vma, address, fault_flags, NULL);
 	if (ret & VM_FAULT_ERROR) {
@@ -1099,6 +1106,19 @@ static long __get_user_pages(struct mm_struct *mm,
 	 */
 	if (!(gup_flags & FOLL_FORCE))
 		gup_flags |= FOLL_NUMA;
+
+	/*
+	 * Uncached page clearing is generally faster when clearing regions
+	 * sized ~LLC/2 or thereabouts. So hint the uncached path based
+	 * on clear_page_prefer_uncached().
+	 *
+	 * Note, however that this get_user_pages() call might end up
+	 * needing to clear an extent smaller than nr_pages when we have
+	 * taken the (potentially slower) uncached path based on the
+	 * expectation of a larger nr_pages value.
+	 */
+	if (clear_page_prefer_uncached(nr_pages * PAGE_SIZE))
+		gup_flags |= FOLL_HINT_BULK;
 
 	do {
 		struct page *page;

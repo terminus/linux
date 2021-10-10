@@ -4874,7 +4874,7 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 	spinlock_t *ptl;
 	unsigned long haddr = address & huge_page_mask(h);
 	bool new_page, new_pagecache_page = false;
-	bool uncached = false;
+	bool uncached = flags & FAULT_FLAG_UNCACHED;
 
 	/*
 	 * Currently, we are forced to kill the process in the event the
@@ -5502,6 +5502,13 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
 				 * FAULT_FLAG_TRIED can co-exist
 				 */
 				fault_flags |= FAULT_FLAG_TRIED;
+			}
+			if (flags & FOLL_HINT_BULK) {
+				/*
+				 * From the user hint, we might be faulting-in a large
+				 * region so minimize cache-pollution.
+				 */
+				fault_flags |= FAULT_FLAG_UNCACHED;
 			}
 			ret = hugetlb_fault(mm, vma, vaddr, fault_flags);
 			if (ret & VM_FAULT_ERROR) {
