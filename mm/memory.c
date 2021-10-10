@@ -5347,6 +5347,27 @@ static inline void process_huge_page(
 	}
 }
 
+/*
+ * clear_subpage_uncached: clear the page in an uncached fashion.
+ */
+static void clear_subpage_uncached(unsigned long addr, int idx, void *arg)
+{
+	__incoherent void *kaddr;
+	struct page *page = arg;
+
+	page = page + idx;
+
+	/*
+	 * Do the kmap explicitly here since clear_user_page_uncached()
+	 * only handles __incoherent addresses.
+	 *
+	 * Caller is responsible for making the region coherent again.
+	 */
+	kaddr = (__incoherent void *)kmap_atomic(page);
+	clear_user_page_uncached(kaddr, addr + idx * PAGE_SIZE, page);
+	kunmap_atomic((__force void *)kaddr);
+}
+
 static void clear_gigantic_page(struct page *page,
 				unsigned long addr,
 				unsigned int pages_per_huge_page)
@@ -5358,7 +5379,8 @@ static void clear_gigantic_page(struct page *page,
 	for (i = 0; i < pages_per_huge_page;
 	     i++, p = mem_map_next(p, page, i)) {
 		cond_resched();
-		clear_user_highpage(p, addr + i * PAGE_SIZE);
+
+		clear_subpage_uncached(addr + i * PAGE_SIZE, 0, p);
 	}
 }
 
@@ -5369,18 +5391,34 @@ static void clear_subpage(unsigned long addr, int idx, void *arg)
 	clear_user_highpage(page + idx, addr);
 }
 
-void clear_huge_page(struct page *page,
-		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+void clear_huge_page(struct page *page, unsigned long addr_hint,
+			unsigned int pages_per_huge_page, bool uncached)
 {
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
 
 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
 		clear_gigantic_page(page, addr, pages_per_huge_page);
+
+		/* Gigantic page clearing always uses __incoherent. */
+		clear_page_uncached_make_coherent();
 		return;
 	}
 
-	process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
+	/*
+	 * The uncached path is typically slower for small extents so take it
+	 * only if the user provides an explicit hint or if the extent is large
+	 * enough that there are no cache expectations.
+	 */
+	if (uncached ||
+		clear_page_prefer_uncached(pages_per_huge_page * PAGE_SIZE)) {
+		process_huge_page(addr_hint, pages_per_huge_page,
+					clear_subpage_uncached, page);
+
+		clear_page_uncached_make_coherent();
+	} else {
+		process_huge_page(addr_hint, pages_per_huge_page, clear_subpage, page);
+	}
 }
 
 static void copy_user_gigantic_page(struct page *dst, struct page *src,
