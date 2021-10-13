@@ -5266,6 +5266,36 @@ EXPORT_SYMBOL(__might_fault);
 #endif
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
+
+static unsigned long __read_mostly clear_page_uncached_threshold =
+					CLEAR_PAGE_UNCACHED_THRESHOLD;
+
+/* Arch code can override for a machine specific value. */
+unsigned long __weak __init arch_clear_page_uncached_threshold(void)
+{
+	return CLEAR_PAGE_UNCACHED_THRESHOLD;
+}
+
+static int __init setup_clear_page_uncached_threshold(void)
+{
+	clear_page_uncached_threshold =
+		arch_clear_page_uncached_threshold() / PAGE_SIZE;
+	return 0;
+}
+
+/*
+ * cacheinfo is setup via device_initcall and we want to get set after
+ * that. Use the default value until then.
+ */
+late_initcall(setup_clear_page_uncached_threshold);
+
+bool clear_page_prefer_uncached(unsigned long extent)
+{
+	unsigned long pages = extent / PAGE_SIZE;
+
+	return pages >= clear_page_uncached_threshold;
+}
+
 /*
  * Process all subpages of the specified huge page with the specified
  * operation.  The target subpage will be processed last to keep its
