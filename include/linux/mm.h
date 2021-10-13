@@ -3190,6 +3190,24 @@ static inline bool vma_is_special_huge(const struct vm_area_struct *vma)
 				   (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)));
 }
 
+/*
+ * Default size beyond which huge page clearing uses the uncached
+ * path. We size it for a reasonably sized LLC.
+ */
+#define CLEAR_PAGE_UNCACHED_THRESHOLD	(8 << 20)
+
+/*
+ * Arch specific code can define arch_clear_page_uncached_threshold()
+ * to override CLEAR_PAGE_UNCACHED_THRESHOLD with a machine specific value.
+ */
+extern unsigned long __init arch_clear_page_uncached_threshold(void);
+
+extern bool clear_page_prefer_uncached(unsigned long extent);
+#else
+static inline bool clear_page_prefer_uncached(unsigned long extent)
+{
+	return false;
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
 #ifndef clear_user_page_uncached
