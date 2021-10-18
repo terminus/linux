@@ -97,7 +97,21 @@ DEFINE_STATIC_KEY_FALSE(switch_mm_cond_l1d_flush);
 void check_movnt_quirks(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_X86_64
-
+	if (c->x86_vendor == X86_VENDOR_INTEL) {
+		if (c->x86 == 6) {
+			switch (c->x86_model) {
+			case INTEL_FAM6_SKYLAKE_L:
+				fallthrough;
+			case INTEL_FAM6_SKYLAKE:
+				fallthrough;
+			case INTEL_FAM6_SKYLAKE_X:
+				set_cpu_cap(c, X86_FEATURE_MOVNT_SLOW);
+				break;
+			default:
+				break;
+			}
+		}
+	}
 #endif
 }
 
