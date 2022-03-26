@@ -159,5 +159,6 @@ extern unsigned long PAGE_OFFSET;
 #endif /* !(__ASSEMBLY__) */
 
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _SPARC64_PAGE_H */

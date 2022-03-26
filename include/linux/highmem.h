@@ -208,6 +208,29 @@ static inline void clear_user_highpage(struct page *page, unsigned long vaddr)
 }
 #endif
 
+#ifdef __HAVE_ARCH_CLEAR_USER_PAGES
+static inline void clear_user_highpages(struct page *page, unsigned long vaddr,
+					unsigned int npages)
+{
+	void *addr = page_address(page);
+
+	clear_user_pages(addr, vaddr, page, npages);
+}
+#else
+static inline void clear_user_highpages(struct page *page, unsigned long vaddr,
+					unsigned int npages)
+{
+	void *addr;
+	unsigned int i;
+
+	for (i = 0; i < npages; i++, page++, vaddr += PAGE_SIZE) {
+		addr = kmap_local_page(page);
+		clear_user_page(addr, vaddr, page);
+		kunmap_local(addr);
+	}
+}
+#endif /* __HAVE_ARCH_CLEAR_USER_PAGES */
+
 #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 /**
  * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move

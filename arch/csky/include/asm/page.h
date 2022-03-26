@@ -89,6 +89,7 @@ extern unsigned long va_pa_offset;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __ASM_CSKY_PAGE_H */

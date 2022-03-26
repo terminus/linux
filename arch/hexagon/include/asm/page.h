@@ -142,6 +142,7 @@ static inline void clear_page(void *page)
 #include <asm-generic/memory_model.h>
 /* XXX Todo: implement assembly-optimized version of getorder. */
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* ifdef __ASSEMBLY__ */
 #endif /* ifdef __KERNEL__ */

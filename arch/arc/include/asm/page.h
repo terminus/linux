@@ -133,6 +133,7 @@ extern int pfn_valid(unsigned long pfn);
 
 #include <asm-generic/memory_model.h>   /* page_to_pfn, pfn_to_page */
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* !__ASSEMBLY__ */
 

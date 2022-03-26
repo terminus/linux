@@ -88,5 +88,6 @@ typedef struct page *pgtable_t;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* __ASM_OPENRISC_PAGE_H */

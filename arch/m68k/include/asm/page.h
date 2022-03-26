@@ -68,5 +68,6 @@ extern unsigned long _ramend;
 #endif
 
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _M68K_PAGE_H */

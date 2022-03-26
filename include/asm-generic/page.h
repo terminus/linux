@@ -93,5 +93,6 @@ extern unsigned long memory_end;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* __ASM_GENERIC_PAGE_H */

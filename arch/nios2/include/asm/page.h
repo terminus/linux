@@ -104,6 +104,8 @@ static inline bool pfn_valid(unsigned long pfn)
 
 #include <asm-generic/getorder.h>
 
+#include <asm-generic/clear_page.h>
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_NIOS2_PAGE_H */

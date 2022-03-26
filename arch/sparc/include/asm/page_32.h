@@ -135,5 +135,6 @@ extern unsigned long pfn_base;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _SPARC_PAGE_H */

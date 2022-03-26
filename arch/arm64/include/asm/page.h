@@ -50,5 +50,6 @@ int pfn_is_map_memory(unsigned long pfn);
 #define VM_DATA_DEFAULT_FLAGS	(VM_DATA_FLAGS_TSK_EXEC | VM_MTE_ALLOWED)
 
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif

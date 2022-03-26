@@ -200,4 +200,5 @@ static inline unsigned long ___pa(unsigned long va)
 #endif /* __ASSEMBLY__ */
 
 #include <asm-generic/memory_model.h>
+#include <asm-generic/clear_page.h>
 #endif /* _XTENSA_PAGE_H */

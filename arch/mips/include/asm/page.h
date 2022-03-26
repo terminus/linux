@@ -269,5 +269,6 @@ static inline unsigned long kaslr_offset(void)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _ASM_PAGE_H */

@@ -137,5 +137,6 @@ extern int page_is_ram(unsigned long pfn);
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _ASM_MICROBLAZE_PAGE_H */

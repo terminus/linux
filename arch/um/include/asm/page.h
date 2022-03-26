@@ -113,6 +113,7 @@ extern unsigned long uml_physmem;
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif	/* __ASSEMBLY__ */
 

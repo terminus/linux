@@ -207,5 +207,6 @@ int arch_make_page_accessible(struct page *page);
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #endif /* _S390_PAGE_H */

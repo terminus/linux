@@ -85,6 +85,7 @@ static __always_inline u64 __is_canonical_address(u64 vaddr, u8 vaddr_bits)
 
 #include <asm-generic/memory_model.h>
 #include <asm-generic/getorder.h>
+#include <asm-generic/clear_page.h>
 
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA
 
