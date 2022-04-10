@@ -5585,7 +5585,7 @@ struct subpage_arg {
 static inline void process_huge_page(struct subpage_arg *sa,
 	unsigned long addr_hint, unsigned int pages_per_huge_page,
 	void (*process_subpage)(struct subpage_arg *sa,
-				unsigned long addr, int idx))
+				unsigned long base_addr, int idx))
 {
 	int i, n, base, l;
 	unsigned long addr = addr_hint &
@@ -5601,7 +5601,7 @@ static inline void process_huge_page(struct subpage_arg *sa,
 		/* Process subpages at the end of huge page */
 		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
 			cond_resched();
-			process_subpage(sa, addr + i * PAGE_SIZE, i);
+			process_subpage(sa, addr, i);
 		}
 	} else {
 		/* If target subpage in second half of huge page */
@@ -5610,7 +5610,7 @@ static inline void process_huge_page(struct subpage_arg *sa,
 		/* Process subpages at the begin of huge page */
 		for (i = 0; i < base; i++) {
 			cond_resched();
-			process_subpage(sa, addr + i * PAGE_SIZE, i);
+			process_subpage(sa, addr, i);
 		}
 	}
 	/*
@@ -5622,9 +5622,9 @@ static inline void process_huge_page(struct subpage_arg *sa,
 		int right_idx = base + 2 * l - 1 - i;
 
 		cond_resched();
-		process_subpage(sa, addr + left_idx * PAGE_SIZE, left_idx);
+		process_subpage(sa, addr, left_idx);
 		cond_resched();
-		process_subpage(sa, addr + right_idx * PAGE_SIZE, right_idx);
+		process_subpage(sa, addr, right_idx);
 	}
 }
 
@@ -5643,11 +5643,12 @@ static void clear_gigantic_page(struct page *page,
 	}
 }
 
-static void clear_subpage(struct subpage_arg *sa, unsigned long addr, int idx)
+static void clear_subpage(struct subpage_arg *sa,
+			  unsigned long base_addr, int idx)
 {
 	struct page *page = sa->dst;
 
-	clear_user_highpage(page + idx, addr);
+	clear_user_highpage(page + idx, base_addr + idx * PAGE_SIZE);
 }
 
 void clear_huge_page(struct page *page,
@@ -5689,10 +5690,10 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
 }
 
 static void copy_subpage(struct subpage_arg *copy_arg,
-			 unsigned long addr, int idx)
+			 unsigned long base_addr, int idx)
 {
 	copy_user_highpage(copy_arg->dst + idx, copy_arg->src + idx,
-			   addr, copy_arg->vma);
+			   base_addr + idx * PAGE_SIZE, copy_arg->vma);
 }
 
 void copy_user_huge_page(struct page *dst, struct page *src,
