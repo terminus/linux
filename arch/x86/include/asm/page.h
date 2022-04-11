@@ -22,6 +22,18 @@ struct page;
 extern struct range pfn_mapped[];
 extern int nr_pfn_mapped;
 
+#ifdef __HAVE_ARCH_CLEAR_USER_PAGES	/* x86_64 */
+
+#define clear_page(page) clear_pages(page, 1)
+
+static inline void clear_user_pages(void *page, unsigned long vaddr,
+				    struct page *pg, unsigned int npages)
+{
+	clear_pages(page, npages);
+}
+
+#endif /* __HAVE_ARCH_CLEAR_USER_PAGES */
+
 static inline void clear_user_page(void *page, unsigned long vaddr,
 				   struct page *pg)
 {

@@ -41,16 +41,28 @@ extern unsigned long __phys_addr_symbol(unsigned long);
 #define pfn_valid(pfn)          ((pfn) < max_pfn)
 #endif
 
-void clear_page_orig(void *page);
-void clear_page_rep(void *page);
-void clear_page_erms(void *page);
+/*
+ * Clear in chunks of 256 pages/1024KB.
+ *
+ * Assuming a clearing BW of 3b/cyc (recent generation processors have
+ * more), this amounts to around 400K cycles for each chunk.
+ *
+ * With a cpufreq of ~2.5GHz, this amounts to ~160us for each chunk
+ * (which would also be the interval between calls to cond_resched().)
+ */
+#define ARCH_MAX_CLEAR_PAGES_ORDER	8
 
-static inline void clear_page(void *page)
+void clear_pages_orig(void *page, unsigned long npages);
+void clear_pages_rep(void *page, unsigned long npages);
+void clear_pages_erms(void *page, unsigned long npages);
+
+#define __HAVE_ARCH_CLEAR_USER_PAGES
+static inline void clear_pages(void *page, unsigned int npages)
 {
-	alternative_call_2(clear_page_orig,
-			   clear_page_rep, X86_FEATURE_REP_GOOD,
-			   clear_page_erms, X86_FEATURE_ERMS,
-			   "=D" (page),
+	alternative_call_2(clear_pages_orig,
+			   clear_pages_rep, X86_FEATURE_REP_GOOD,
+			   clear_pages_erms, X86_FEATURE_ERMS,
+			   "=D" (page), "S" ((unsigned long) npages),
 			   "0" (page)
 			   : "cc", "memory", "rax", "rcx");
 }

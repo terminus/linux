@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 #include <linux/linkage.h>
 #include <asm/export.h>
+#include <asm/page_types.h>
 
 /*
  * Most CPUs support enhanced REP MOVSB/STOSB instructions. It is
@@ -10,23 +11,29 @@
  */
 
 /*
- * Zero a page.
- * %rdi	- page
+ * Zero pages.
+ * %rdi	- base page
+ * %rsi	- number of pages
+ *
+ * Note: clear_pages_*() have differing alignments restrictions
+ * but callers are always expected to page align.
  */
-SYM_FUNC_START(clear_page_rep)
-	movl $4096/8,%ecx
+SYM_FUNC_START(clear_pages_rep)
+	movq %rsi,%rcx
+	shlq $(PAGE_SHIFT - 3),%rcx
 	xorl %eax,%eax
 	rep stosq
 	RET
-SYM_FUNC_END(clear_page_rep)
-EXPORT_SYMBOL_GPL(clear_page_rep)
+SYM_FUNC_END(clear_pages_rep)
+EXPORT_SYMBOL_GPL(clear_pages_rep)
 
-SYM_FUNC_START(clear_page_orig)
+SYM_FUNC_START(clear_pages_orig)
 	xorl   %eax,%eax
-	movl   $4096/64,%ecx
+	movq   %rsi,%rcx
+	shlq   $(PAGE_SHIFT - 6),%rcx
 	.p2align 4
 .Lloop:
-	decl	%ecx
+	decq	%rcx
 #define PUT(x) movq %rax,x*8(%rdi)
 	movq %rax,(%rdi)
 	PUT(1)
@@ -40,13 +47,14 @@ SYM_FUNC_START(clear_page_orig)
 	jnz	.Lloop
 	nop
 	RET
-SYM_FUNC_END(clear_page_orig)
-EXPORT_SYMBOL_GPL(clear_page_orig)
+SYM_FUNC_END(clear_pages_orig)
+EXPORT_SYMBOL_GPL(clear_pages_orig)
 
-SYM_FUNC_START(clear_page_erms)
-	movl $4096,%ecx
+SYM_FUNC_START(clear_pages_erms)
+	movq %rsi,%rcx
+	shlq $PAGE_SHIFT, %rcx
 	xorl %eax,%eax
 	rep stosb
 	RET
-SYM_FUNC_END(clear_page_erms)
-EXPORT_SYMBOL_GPL(clear_page_erms)
+SYM_FUNC_END(clear_pages_erms)
+EXPORT_SYMBOL_GPL(clear_pages_erms)
