@@ -5614,11 +5614,18 @@ bool clear_page_prefer_non_caching(unsigned long extent)
  *
  * With ARCH_MAX_CLEAR_PAGES == 1, clear_user_highpages() drops down
  * to page-at-a-time mode. Or, funnels through to clear_user_pages().
+ *
+ * With coherent == false, we use incoherent stores and the caller is
+ * responsible for making the region coherent again by calling
+ * clear_page_make_coherent().
  */
 static void clear_user_extent(struct page *start_page, unsigned long vaddr,
-			      unsigned int npages)
+			      unsigned int npages, bool coherent)
 {
-	clear_user_highpages(start_page, vaddr, npages);
+	if (coherent)
+		clear_user_highpages(start_page, vaddr, npages);
+	else
+		clear_user_highpages_incoherent(start_page, vaddr, npages);
 }
 
 struct subpage_arg {
@@ -5717,6 +5724,13 @@ static void clear_gigantic_page(struct page *page,
 {
 	int i;
 	struct page *p = page;
+	bool coherent;
+
+	/*
+	 * Gigantic pages are large enough, that there are no cache
+	 * expectations. Use the incoherent path.
+	 */
+	coherent = false;
 
 	might_sleep();
 	for (i = 0; i < pages_per_huge_page;
@@ -5726,9 +5740,16 @@ static void clear_gigantic_page(struct page *page,
 		 * guarantees that p[0] and p[clear_page_unit-1]
 		 * never straddle a mem_map discontiguity.
 		 */
-		clear_user_extent(p, base_addr + i * PAGE_SIZE, clear_page_unit);
+		clear_user_extent(p, base_addr + i * PAGE_SIZE,
+				  clear_page_unit, coherent);
 		cond_resched();
 	}
+
+	/*
+	 * We need to make sure that writes above are ordered before
+	 * updating the PTE and marking SetPageUptodate().
+	 */
+	clear_page_make_coherent();
 }
 
 static void clear_subpages(struct subpage_arg *sa,
@@ -5744,15 +5765,16 @@ static void clear_subpages(struct subpage_arg *sa,
 
 		n = min(clear_page_unit, remaining);
 
-		clear_user_extent(page + i, base_addr + i * PAGE_SIZE, n);
+		clear_user_extent(page + i, base_addr + i * PAGE_SIZE,
+				  n, true);
 		i += n;
 
 		cond_resched();
 	}
 }
 
-void clear_huge_page(struct page *page,
-		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+void clear_huge_page(struct page *page, unsigned long addr_hint,
+		     unsigned int pages_per_huge_page, bool non_cached)
 {
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
@@ -5763,7 +5785,21 @@ void clear_huge_page(struct page *page,
 		.page_unit = clear_page_unit,
 	};
 
-	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
+	/*
+	 * The non-caching path is typically slower for small extents so use
+	 * it only if the caller explicitly hints it or if the extent is
+	 * large enough that there are no cache expectations.
+	 *
+	 * We let the gigantic page path handle the details.
+	 */
+	non_cached |=
+		clear_page_prefer_non_caching(pages_per_huge_page * PAGE_SIZE);
+
+	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES || non_cached)) {
+		/*
+		 * Gigantic page clearing always uses incoherent clearing
+		 * internally.
+		 */
 		clear_gigantic_page(page, addr, pages_per_huge_page);
 		return;
 	}
