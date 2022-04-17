@@ -16,6 +16,9 @@
 #if defined(CONFIG_HIGHMEM) && defined(__HAVE_ARCH_CLEAR_USER_PAGES)
 #error CONFIG_HIGHMEM is incompatible with __HAVE_ARCH_CLEAR_USER_PAGES
 #endif
+#if defined(CONFIG_HIGHMEM) && defined(__HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT)
+#error CONFIG_HIGHMEM is incompatible with __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT
+#endif
 
 #ifndef __HAVE_ARCH_CLEAR_USER_PAGES
 
@@ -40,5 +43,23 @@ static inline void clear_user_pages(void *page, unsigned long vaddr,
 #endif /* __HAVE_ARCH_CLEAR_USER_PAGES */
 
 #define ARCH_MAX_CLEAR_PAGES	(1 << ARCH_MAX_CLEAR_PAGES_ORDER)
+
+#ifndef __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT
+#ifndef __ASSEMBLY__
+/*
+ * Fallback path (via clear_user_pages()) if the architecture does not
+ * support incoherent clearing.
+ */
+static inline void clear_user_pages_incoherent(__incoherent void *page,
+					       unsigned long vaddr,
+					       struct page *pg,
+					       unsigned int npages)
+{
+	clear_user_pages((__force void *)page, vaddr, pg, npages);
+}
+
+static inline void clear_page_make_coherent(void) { }
+#endif /* __ASSEMBLY__ */
+#endif /* __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT */
 
 #endif /* __ASM_GENERIC_CLEAR_PAGE_H */

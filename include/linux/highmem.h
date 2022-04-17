@@ -231,6 +231,29 @@ static inline void clear_user_highpages(struct page *page, unsigned long vaddr,
 }
 #endif /* __HAVE_ARCH_CLEAR_USER_PAGES */
 
+#ifdef __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT
+static inline void clear_user_highpages_incoherent(struct page *page,
+						   unsigned long vaddr,
+						   unsigned int npages)
+{
+	__incoherent void *addr = (__incoherent void *) page_address(page);
+
+	clear_user_pages_incoherent(addr, vaddr, page, npages);
+}
+#else
+static inline void clear_user_highpages_incoherent(struct page *page,
+						   unsigned long vaddr,
+						   unsigned int npages)
+{
+	/*
+	 * We fallback to clear_user_highpages() for the CONFIG_HIGHMEM
+	 * configs.
+	 * For !CONFIG_HIGHMEM, this will get translated to clear_user_pages().
+	 */
+	clear_user_highpages(page, vaddr, npages);
+}
+#endif /* __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT */
+
 #ifndef __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE_MOVABLE
 /**
  * alloc_zeroed_user_highpage_movable - Allocate a zeroed HIGHMEM page for a VMA that the caller knows can move
