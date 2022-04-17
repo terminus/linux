@@ -40,6 +40,19 @@ static inline void clear_user_page(void *page, unsigned long vaddr,
 	clear_page(page);
 }
 
+#ifdef __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT /* x86_64 */
+/*
+ * clear_pages_incoherent: valid on only __incoherent memory regions.
+ */
+static inline void clear_user_pages_incoherent(__incoherent void *page,
+					       unsigned long vaddr,
+					       struct page *pg,
+					       unsigned int npages)
+{
+	clear_pages_incoherent(page, npages);
+}
+#endif /* __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT */
+
 static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
 				  struct page *topage)
 {

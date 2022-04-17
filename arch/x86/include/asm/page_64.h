@@ -69,6 +69,40 @@ static inline void clear_pages(void *page, unsigned int npages)
 			   : "cc", "memory", "rax", "rcx");
 }
 
+#define __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT
+/*
+ * clear_pages_incoherent: only allowed on __incoherent memory regions.
+ */
+static inline void clear_pages_incoherent(__incoherent void *page,
+					  unsigned int npages)
+{
+	alternative_call_2(clear_pages_movnt,
+			   clear_pages, X86_FEATURE_MOVNT_SLOW,
+			   clear_pages_clzero, X86_FEATURE_CLZERO,
+			   "=D" (page), "S" ((unsigned long) npages),
+			   "0" (page)
+			   : "cc", "memory", "rax", "rcx");
+}
+
+/*
+ * clear_page_make_coherent: execute the necessary store fence
+ * after which __incoherent regions can be safely accessed.
+ */
+static inline void clear_page_make_coherent(void)
+{
+	/*
+	 * Keep the sfence for oldinstr and clzero separate to guard against
+	 * the possibility that a CPU has both X86_FEATURE_MOVNT_SLOW and
+	 * X86_FEATURE_CLZERO.
+	 *
+	 * The alternatives need to be in the same order as the ones
+	 * in clear_pages_incoherent().
+	 */
+	alternative_2("sfence",
+		      "", X86_FEATURE_MOVNT_SLOW,
+		      "sfence", X86_FEATURE_CLZERO);
+}
+
 void copy_page(void *to, void *from);
 
 #ifdef CONFIG_X86_5LEVEL
