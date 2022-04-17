@@ -62,4 +62,8 @@ static inline void clear_page_make_coherent(void) { }
 #endif /* __ASSEMBLY__ */
 #endif /* __HAVE_ARCH_CLEAR_USER_PAGES_INCOHERENT */
 
+#ifndef __ASSEMBLY__
+extern unsigned long __init arch_clear_page_non_caching_threshold(void);
+#endif
+
 #endif /* __ASM_GENERIC_CLEAR_PAGE_H */

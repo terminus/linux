@@ -5571,10 +5571,28 @@ EXPORT_SYMBOL(__might_fault);
 
 #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
 
+/*
+ * Default size beyond which huge page clearing uses the non-caching
+ * path. Size it for a reasonable sized LLC.
+ */
+#define CLEAR_PAGE_NON_CACHING_THRESHOLD	(8 << 20)
 static unsigned int __ro_after_init clear_page_unit = 1;
+
+static unsigned long __read_mostly clear_page_non_caching_threshold_pages =
+				CLEAR_PAGE_NON_CACHING_THRESHOLD / PAGE_SIZE;
+
+/* Arch code can override for a machine specific value. */
+unsigned long __weak __init arch_clear_page_non_caching_threshold(void)
+{
+	return CLEAR_PAGE_NON_CACHING_THRESHOLD;
+}
+
 static int __init setup_clear_page_params(void)
 {
 	clear_page_unit = 1 << min(MAX_ORDER - 1, ARCH_MAX_CLEAR_PAGES_ORDER);
+
+	clear_page_non_caching_threshold_pages =
+		arch_clear_page_non_caching_threshold() / PAGE_SIZE;
 	return 0;
 }
 
@@ -5583,6 +5601,13 @@ static int __init setup_clear_page_params(void)
  * that. Use the default value until then.
  */
 late_initcall(setup_clear_page_params);
+
+bool clear_page_prefer_non_caching(unsigned long extent)
+{
+	unsigned long pages = extent / PAGE_SIZE;
+
+	return pages >= clear_page_non_caching_threshold_pages;
+}
 
 /*
  * Clear a page extent.

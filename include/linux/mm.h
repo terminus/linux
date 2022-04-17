@@ -3328,6 +3328,12 @@ static inline bool vma_is_special_huge(const struct vm_area_struct *vma)
 				   (vma->vm_flags & (VM_PFNMAP | VM_MIXEDMAP)));
 }
 
+extern bool clear_page_prefer_non_caching(unsigned long extent);
+#else /* !(CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS) */
+static inline bool clear_page_prefer_non_caching(unsigned long extent)
+{
+	return false;
+}
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLBFS */
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
