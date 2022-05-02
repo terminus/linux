@@ -5600,8 +5600,10 @@ struct subpage_arg {
 	struct page *dst;
 	struct page *src;
 	struct vm_area_struct *vma;
+	int page_unit;
 };
 
+#define NWIDTH 4
 /*
  * Process all subpages of the specified huge page with the specified
  * operation.  The target subpage will be processed last to keep its
@@ -5612,37 +5614,75 @@ static inline void process_huge_page(struct subpage_arg *sa,
 	void (*process_subpages)(struct subpage_arg *sa,
 				 unsigned long base_addr, int lidx, int ridx))
 {
-	int i, n, base, l;
+	int n, lbound, rbound;
+	int remaining, unit = sa->page_unit;
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+
+	lbound = 0;
+	rbound = pages_per_huge_page - 1;
+	remaining = pages_per_huge_page;
 
 	/* Process target subpage last to keep its cache lines hot */
 	n = (addr_hint - addr) / PAGE_SIZE;
 
-	if (2 * n <= pages_per_huge_page) {
-		/* If target subpage in first half of huge page */
-		base = 0;
-		l = n;
-		/* Process subpages at the end of huge page */
-		process_subpages(sa, addr, 2*n, pages_per_huge_page-1);
-	} else {
-		/* If target subpage in second half of huge page */
-		base = pages_per_huge_page - 2 * (pages_per_huge_page - n);
-		l = pages_per_huge_page - n;
-
-		/* Process subpages at the begin of huge page */
-		process_subpages(sa, addr, 0, base);
-	}
 	/*
-	 * Process remaining subpages in left-right-left-right pattern
-	 * towards the target subpage
+	 * Process subpages in a left-right-left-right pattern towards the
+	 * faulting subpage to keep spatially close cachelines hot.
+	 *
+	 * If the architecture advertises multi-page clearing/copying, use
+	 * the largest extent available, process it in the forward direction,
+	 * while iteratively narrowing as the target gets closer.
+	 *
+	 * Clearing in large chunks allows for uarch specific optimizations.
+	 * Do this, however, only for far away subpages because we don't
+	 * care about keeping those cachelines hot.
+	 *
+	 * In addition, while narrowing towards the target, access both the
+	 * left and right chunks in the forward direction instead of the
+	 * reverse -- x86 string instructions perform better that way.
 	 */
-	for (i = 0; i < l; i++) {
-		int left_idx = base + i;
-		int right_idx = base + 2 * l - 1 - i;
+	while (remaining) {
+		int left_gap = n - lbound;
+		int right_gap = rbound - n;
+		int neighbourhood;
 
-		process_subpages(sa, addr, left_idx, left_idx);
-		process_subpages(sa, addr, right_idx, right_idx);
+		/*
+		 * We want to defer processing of the immediate neighbourhood of
+		 * the target until rest of the huge-page is exhausted.
+		 */
+		neighbourhood = NWIDTH * (left_gap > NWIDTH ||
+					  right_gap > NWIDTH);
+
+		/*
+		 * Width of the remaining region on the left: n - lbound + 1.
+		 * In addition hold an additional neighbourhood region, which is
+		 * non-zero until the left, right gaps have been cleared.
+		 *
+		 * [ddddd....xxxxN
+		 *       ^   |   `---- target
+		 *       `---|-- lbound
+		 *           `------------ left neighbourhood edge
+		 */
+		if ((n - lbound + 1) >= unit + neighbourhood) {
+			process_subpages(sa, addr, lbound, lbound + unit - 1);
+			lbound += unit;
+			remaining -= unit;
+		}
+
+		/*
+		 * Similarly the right:
+		 *               Nxxxx....ddd]
+		 */
+		if ((rbound - n) >= (unit + neighbourhood)) {
+			process_subpages(sa, addr, rbound - unit + 1, rbound);
+			rbound -= unit;
+			remaining -= unit;
+		}
+
+		unit = min(sa->page_unit, unit >> 1);
+		if (unit == 0)
+			unit = 1;
 	}
 }
 
@@ -5695,6 +5735,7 @@ void clear_huge_page(struct page *page,
 		.dst = page,
 		.src = NULL,
 		.vma = NULL,
+		.page_unit = clear_page_unit,
 	};
 
 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
@@ -5749,6 +5790,7 @@ void copy_user_huge_page(struct page *dst, struct page *src,
 		.dst = dst,
 		.src = src,
 		.vma = vma,
+		.page_unit = 1,
 	};
 
 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
