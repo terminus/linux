@@ -5645,8 +5645,12 @@ static void clear_gigantic_page(struct page *page,
 	}
 }
 
-void clear_huge_page(struct page *page,
-		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+/*
+ * clear_huge_page(): does page-at-a-time clearing to handle the
+ * CONFIG_HIGHMEM case.
+ */
+__weak void clear_huge_page(struct page *page,
+			    unsigned long addr_hint, unsigned int pages_per_huge_page)
 {
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
@@ -5712,9 +5716,13 @@ static void copy_user_gigantic_page(struct page *dst, struct page *src,
 	}
 }
 
-void copy_user_huge_page(struct page *dst, struct page *src,
-			 unsigned long addr_hint, struct vm_area_struct *vma,
-			 unsigned int pages_per_huge_page)
+/*
+ * copy_user_huge_page(): does page-at-a-time copying to handle
+ * the CONFIG_HIGHMEM case.
+ */
+__weak void copy_user_huge_page(struct page *dst, struct page *src,
+				unsigned long addr_hint, struct vm_area_struct *vma,
+				unsigned int pages_per_huge_page)
 {
 	unsigned long addr = addr_hint &
 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
