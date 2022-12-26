@@ -2,6 +2,8 @@
 #include <linux/linkage.h>
 #include <asm/asm.h>
 #include <asm/export.h>
+#include <asm/cpufeatures.h>
+#include <asm/alternative.h>
 
 /*
  * Most CPUs support enhanced REP MOVSB/STOSB instructions. It is
@@ -13,18 +15,30 @@
 /*
  * Zero a page.
  * %rdi	- page
+ * %esi	- page-length
+ *
+ * Clobbers: %rax, %rcx
  */
-SYM_FUNC_START(clear_page_rep)
-	movl $4096/8,%ecx
+SYM_FUNC_START(clear_pages_rep)
+	movl %esi, %ecx
 	xorl %eax,%eax
+	shrl $3,%ecx
 	rep stosq
 	RET
-SYM_FUNC_END(clear_page_rep)
-EXPORT_SYMBOL_GPL(clear_page_rep)
+SYM_FUNC_END(clear_pages_rep)
+EXPORT_SYMBOL_GPL(clear_pages_rep)
 
-SYM_FUNC_START(clear_page_orig)
+/*
+ * Original page zeroing loop.
+ * %rdi	- page
+ * %esi	- page-length
+ *
+ * Clobbers: %rax, %rcx, %rflags
+ */
+SYM_FUNC_START(clear_pages_orig)
+	movl   %esi, %ecx
 	xorl   %eax,%eax
-	movl   $4096/64,%ecx
+	shrl   $6,%ecx
 	.p2align 4
 .Lloop:
 	decl	%ecx
@@ -41,16 +55,23 @@ SYM_FUNC_START(clear_page_orig)
 	jnz	.Lloop
 	nop
 	RET
-SYM_FUNC_END(clear_page_orig)
-EXPORT_SYMBOL_GPL(clear_page_orig)
+SYM_FUNC_END(clear_pages_orig)
+EXPORT_SYMBOL_GPL(clear_pages_orig)
 
-SYM_FUNC_START(clear_page_erms)
-	movl $4096,%ecx
+/*
+ * Zero a page.
+ * %rdi	- page
+ * %esi	- page-length
+ *
+ * Clobbers: %rax, %rcx
+ */
+SYM_FUNC_START(clear_pages_erms)
+	movl %esi, %ecx
 	xorl %eax,%eax
 	rep stosb
 	RET
-SYM_FUNC_END(clear_page_erms)
-EXPORT_SYMBOL_GPL(clear_page_erms)
+SYM_FUNC_END(clear_pages_erms)
+EXPORT_SYMBOL_GPL(clear_pages_erms)
 
 /*
  * Default clear user-space.
