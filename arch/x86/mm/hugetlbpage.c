@@ -148,6 +148,55 @@ get_unmapped_area:
 		return hugetlb_get_unmapped_area_topdown(file, addr, len,
 				pgoff, flags);
 }
+
+/*
+ * This is used on all !CONFIG_HIGHMEM configurations.
+ *
+ * CONFIG_HIGHMEM, falls back to the __weak version.
+ */
+#ifndef CONFIG_HIGHMEM
+static void clear_contig_region(struct page *page, unsigned long vaddr,
+				unsigned int npages)
+{
+	clear_user_pages(page_address(page), vaddr, page, npages);
+}
+
+void clear_huge_page(struct page *page,
+		     unsigned long addr_hint, unsigned int pages_per_huge_page)
+{
+	unsigned long addr = addr_hint &
+		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
+	const long pgidx = (addr_hint - addr) / PAGE_SIZE;
+	const int first_pg = 0, last_pg = pages_per_huge_page - 1;
+	const int width = 2; /* pages cleared last on either side */
+	int sidx[3], eidx[3];
+	int i, n;
+
+	if (pages_per_huge_page > MAX_ORDER_NR_PAGES)
+		return clear_contig_region(page, addr, pages_per_huge_page);
+
+	/*
+	 * Neighbourhood of the fault. Cleared at the end to ensure
+	 * it sticks around in the cache.
+	 */
+	n = 2;
+	sidx[n] = (pgidx - width) < first_pg ? first_pg : (pgidx - width);
+	eidx[n] = (pgidx + width) > last_pg  ? last_pg  : (pgidx + width);
+
+	sidx[0] = first_pg;	/* Region to the left of the fault */
+	eidx[0] = sidx[n] - 1;
+
+	sidx[1] = eidx[n] + 1;	/* Region to the right of the fault */
+	eidx[1] = last_pg;
+
+	for (i = 0; i <= 2; i++) {
+		if (eidx[i] >= sidx[i])
+			clear_contig_region(page + sidx[i],
+					    addr + sidx[i] * PAGE_SIZE,
+					    eidx[i] - sidx[i] + 1);
+	}
+}
+#endif /* CONFIG_HIGHMEM */
 #endif /* CONFIG_HUGETLB_PAGE */
 
 #ifdef CONFIG_X86_64
