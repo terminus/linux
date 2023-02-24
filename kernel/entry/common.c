@@ -389,6 +389,13 @@ void raw_irqentry_exit_cond_resched(void)
 			preempt_schedule_irq();
 	}
 }
+
+void irqentry_exit_allow_resched(void)
+{
+	if (resched_allowed())
+		raw_irqentry_exit_cond_resched();
+}
+
 #ifdef CONFIG_PREEMPT_DYNAMIC
 #if defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
 DEFINE_STATIC_CALL(irqentry_exit_cond_resched, raw_irqentry_exit_cond_resched);
@@ -396,8 +403,10 @@ DEFINE_STATIC_CALL(irqentry_exit_cond_resched, raw_irqentry_exit_cond_resched);
 DEFINE_STATIC_KEY_TRUE(sk_dynamic_irqentry_exit_cond_resched);
 void dynamic_irqentry_exit_cond_resched(void)
 {
-	if (!static_branch_unlikely(&sk_dynamic_irqentry_exit_cond_resched))
+	if (!static_branch_unlikely(&sk_dynamic_irqentry_exit_cond_resched)) {
+		irqentry_exit_allow_resched();
 		return;
+	}
 	raw_irqentry_exit_cond_resched();
 }
 #endif
@@ -430,6 +439,8 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		instrumentation_begin();
 		if (IS_ENABLED(CONFIG_PREEMPTION))
 			irqentry_exit_cond_resched();
+		else
+			irqentry_exit_allow_resched();
 
 		/* Covers both tracing and lockdep */
 		trace_hardirqs_on();
