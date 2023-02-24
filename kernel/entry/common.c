@@ -390,6 +390,9 @@ void raw_irqentry_exit_cond_resched(void)
 			preempt_schedule_irq();
 	}
 }
+
+void irqentry_exit_allow_resched(void) __alias(raw_irqentry_exit_cond_resched);
+
 #ifdef CONFIG_PREEMPT_DYNAMIC
 #if defined(CONFIG_HAVE_PREEMPT_DYNAMIC_CALL)
 DEFINE_STATIC_CALL(irqentry_exit_cond_resched, raw_irqentry_exit_cond_resched);
@@ -431,6 +434,11 @@ noinstr void irqentry_exit(struct pt_regs *regs, irqentry_state_t state)
 		instrumentation_begin();
 		if (IS_ENABLED(CONFIG_PREEMPTION))
 			irqentry_exit_cond_resched();
+		/*
+		 * We care about this clause only in the dynamic !preemptible case.
+		 */
+		if (unlikely(!preempt_model_preemptible() && resched_allowed()))
+			irqentry_exit_allow_resched();
 
 		/* Covers both tracing and lockdep */
 		trace_hardirqs_on();
