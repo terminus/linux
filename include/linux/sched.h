@@ -2230,6 +2230,35 @@ static __always_inline bool need_resched(void)
 }
 
 /*
+ * Define this in common code to avoid include hell.
+ */
+static __always_inline bool resched_allowed(void)
+{
+#ifndef TIF_RESCHED_ALLOW
+	return false;
+#else
+	return unlikely(test_tsk_thread_flag(current, TIF_RESCHED_ALLOW));
+#endif
+}
+
+static inline void allow_resched(void)
+{
+	/*
+	 * allow_resched() allows preemption via the irqexit context.
+	 * To ensure that we stick around on the current runqueue,
+	 * disallow migration.
+	 */
+	migrate_disable();
+	set_tsk_thread_flag(current, TIF_RESCHED_ALLOW);
+}
+
+static inline void disallow_resched(void)
+{
+	clear_tsk_thread_flag(current, TIF_RESCHED_ALLOW);
+	migrate_enable();
+}
+
+/*
  * Wrappers for p->thread_info->cpu access. No-op on UP.
  */
 #ifdef CONFIG_SMP
