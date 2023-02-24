@@ -158,7 +158,17 @@ get_unmapped_area:
 static void clear_contig_region(struct page *page, unsigned long vaddr,
 				unsigned int npages)
 {
+	might_sleep();
+
+	/*
+	 * We might be clearing a large region.
+	 * Allow rescheduling.
+	 */
+	allow_resched();
 	clear_user_pages(page_address(page), vaddr, page, npages);
+	disallow_resched();
+
+	cond_resched();
 }
 
 void clear_huge_page(struct page *page,
