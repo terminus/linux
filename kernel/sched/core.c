@@ -65,12 +65,6 @@
 #include <linux/wait_api.h>
 #include <linux/workqueue_api.h>
 
-#ifdef CONFIG_PREEMPT_DYNAMIC
-# ifdef CONFIG_GENERIC_ENTRY
-#  include <linux/entry-common.h>
-# endif
-#endif
-
 #include <uapi/linux/sched/types.h>
 
 #include <asm/irq_regs.h>
