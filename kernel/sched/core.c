@@ -7001,13 +7001,13 @@ static int preempt_dynamic_mode = preempt_dynamic_full;
 static int sched_dynamic_mode(const char *str)
 {
 	if (!strcmp(str, "none"))
-		return preempt_dynamic_none;
+		return 0;
 
 	if (!strcmp(str, "voluntary"))
-		return preempt_dynamic_voluntary;
+		return 1;
 
 	if (!strcmp(str, "full"))
-		return preempt_dynamic_full;
+		return 2;
 
 	return -1;
 }
