@@ -2081,32 +2081,11 @@ static inline int test_tsk_need_resched(struct task_struct *tsk)
  * value indicates whether a reschedule was done in fact.
  * cond_resched_lock() will drop the spinlock before scheduling,
  */
-#if !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC)
-extern int __cond_resched(void);
-
-#ifdef CONFIG_PREEMPT_DYNAMIC
-
-DECLARE_STATIC_CALL(cond_resched, __cond_resched);
-
-static __always_inline int _cond_resched(void)
-{
-	return static_call(cond_resched)();
-}
-
+#ifndef CONFIG_PREEMPTION
+extern int _cond_resched(void);
 #else
-
-static inline int _cond_resched(void)
-{
-	return __cond_resched();
-}
-
-#endif /* CONFIG_PREEMPT_DYNAMIC */
-
-#else
-
 static inline int _cond_resched(void) { return 0; }
-
-#endif /* !defined(CONFIG_PREEMPTION) || defined(CONFIG_PREEMPT_DYNAMIC) */
+#endif
 
 #define cond_resched() ({			\
 	__might_resched(__FILE__, __LINE__, 0);	\

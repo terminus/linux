@@ -30,7 +30,6 @@
 #include <linux/printk.h>
 #include <linux/build_bug.h>
 #include <linux/sprintf.h>
-#include <linux/static_call_types.h>
 #include <linux/instruction_pointer.h>
 #include <asm/byteorder.h>
 
@@ -97,26 +96,11 @@ struct completion;
 struct user;
 
 #ifdef CONFIG_PREEMPT_VOLUNTARY
-
-extern int __cond_resched(void);
-# define might_resched() __cond_resched()
-
-#elif defined(CONFIG_PREEMPT_DYNAMIC)
-
-extern int __cond_resched(void);
-
-DECLARE_STATIC_CALL(might_resched, __cond_resched);
-
-static __always_inline void might_resched(void)
-{
-	static_call(might_resched)();
-}
-
+extern int _cond_resched(void);
+# define might_resched() _cond_resched()
 #else
-
 # define might_resched() do { } while (0)
-
-#endif /* CONFIG_PREEMPT_* */
+#endif
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
 extern void __might_resched(const char *file, int line, unsigned int offsets);
