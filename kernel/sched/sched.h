@@ -3274,12 +3274,6 @@ extern void __prepare_to_swait(struct swait_queue_head *q, struct swait_queue *w
 
 extern int try_to_wake_up(struct task_struct *tsk, unsigned int state, int wake_flags);
 
-#ifdef CONFIG_PREEMPT_DYNAMIC
-extern int preempt_dynamic_mode;
-extern int sched_dynamic_mode(const char *str);
-extern void sched_dynamic_update(int mode);
-#endif
-
 static inline void update_current_exec_runtime(struct task_struct *curr,
 						u64 now, u64 delta_exec)
 {
