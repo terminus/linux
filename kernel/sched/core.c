@@ -899,14 +899,14 @@ static inline void hrtick_rq_init(struct rq *rq)
 
 #if defined(CONFIG_SMP) && defined(TIF_POLLING_NRFLAG)
 /*
- * Atomically set TIF_NEED_RESCHED and test for TIF_POLLING_NRFLAG,
+ * Atomically set TIF_NEED_RESCHED[_LAZY] and test for TIF_POLLING_NRFLAG,
  * this avoids any races wrt polling state changes and thereby avoids
  * spurious IPIs.
  */
-static inline bool set_nr_and_not_polling(struct task_struct *p)
+static inline bool set_nr_and_not_polling(struct task_struct *p, resched_t rs)
 {
 	struct thread_info *ti = task_thread_info(p);
-	return !(fetch_or(&ti->flags, _TIF_NEED_RESCHED) & _TIF_POLLING_NRFLAG);
+	return !(fetch_or(&ti->flags, _tif_resched(rs)) & _TIF_POLLING_NRFLAG);
 }
 
 /*
@@ -931,9 +931,9 @@ static bool set_nr_if_polling(struct task_struct *p)
 }
 
 #else
-static inline bool set_nr_and_not_polling(struct task_struct *p)
+static inline bool set_nr_and_not_polling(struct task_struct *p, resched_t rs)
 {
-	__set_tsk_need_resched(p, RESCHED_NOW);
+	__set_tsk_need_resched(p, rs);
 	return true;
 }
 
@@ -1041,25 +1041,34 @@ void wake_up_q(struct wake_q_head *head)
 void resched_curr(struct rq *rq)
 {
 	struct task_struct *curr = rq->curr;
+	resched_t rs = RESCHED_NOW;
 	int cpu;
 
 	lockdep_assert_rq_held(rq);
 
-	if (__test_tsk_need_resched(curr, RESCHED_NOW))
+	/*
+	 * TIF_NEED_RESCHED is the higher priority bit, so if it is already
+	 * set, nothing more to be done.
+	 */
+	if (__test_tsk_need_resched(curr, RESCHED_NOW) ||
+	    (rs == RESCHED_LAZY && __test_tsk_need_resched(curr, RESCHED_LAZY)))
 		return;
 
 	cpu = cpu_of(rq);
 
 	if (cpu == smp_processor_id()) {
-		__set_tsk_need_resched(curr, RESCHED_NOW);
-		set_preempt_need_resched();
+		__set_tsk_need_resched(curr, rs);
+		if (rs == RESCHED_NOW)
+			set_preempt_need_resched();
 		return;
 	}
 
-	if (set_nr_and_not_polling(curr))
-		smp_send_reschedule(cpu);
-	else
+	if (set_nr_and_not_polling(curr, rs)) {
+		if (rs == RESCHED_NOW)
+			smp_send_reschedule(cpu);
+	} else {
 		trace_sched_wake_idle_without_ipi(cpu);
+	}
 }
 
 void resched_cpu(int cpu)
@@ -1154,7 +1163,7 @@ static void wake_up_idle_cpu(int cpu)
 	 * and testing of the above solutions didn't appear to report
 	 * much benefits.
 	 */
-	if (set_nr_and_not_polling(rq->idle))
+	if (set_nr_and_not_polling(rq->idle, RESCHED_NOW))
 		smp_send_reschedule(cpu);
 	else
 		trace_sched_wake_idle_without_ipi(cpu);
@@ -6704,6 +6713,8 @@ static void __sched notrace __schedule(unsigned int sched_mode)
 	}
 
 	next = pick_next_task(rq, prev, &rf);
+
+	/* Clear both TIF_NEED_RESCHED, TIF_NEED_RESCHED_LAZY */
 	clear_tsk_need_resched(prev);
 	clear_preempt_need_resched();
 #ifdef CONFIG_SCHED_DEBUG
