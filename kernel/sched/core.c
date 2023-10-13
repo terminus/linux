@@ -1027,13 +1027,13 @@ void wake_up_q(struct wake_q_head *head)
 }
 
 /*
- * resched_curr - mark rq's current task 'to be rescheduled now'.
+ * __resched_curr - mark rq's current task 'to be rescheduled'.
  *
- * On UP this means the setting of the need_resched flag, on SMP it
- * might also involve a cross-CPU call to trigger the scheduler on
- * the target CPU.
+ * On UP this means the setting of the need_resched flag, on SMP, for
+ * eager resched it might also involve a cross-CPU call to trigger
+ * the scheduler on the target CPU.
  */
-void resched_curr(struct rq *rq)
+void __resched_curr(struct rq *rq, resched_t rs)
 {
 	struct task_struct *curr = rq->curr;
 	int cpu;
@@ -1046,15 +1046,75 @@ void resched_curr(struct rq *rq)
 	cpu = cpu_of(rq);
 
 	if (cpu == smp_processor_id()) {
-		set_tsk_need_resched(curr, RESCHED_eager);
-		set_preempt_need_resched();
+		set_tsk_need_resched(curr, rs);
+		if (rs == RESCHED_eager)
+			set_preempt_need_resched();
 		return;
 	}
 
-	if (set_nr_and_not_polling(curr, RESCHED_eager))
-		smp_send_reschedule(cpu);
-	else
+	if (set_nr_and_not_polling(curr, rs)) {
+		if (rs == RESCHED_eager)
+			smp_send_reschedule(cpu);
+	} else if (rs == RESCHED_eager)
 		trace_sched_wake_idle_without_ipi(cpu);
+}
+
+/*
+ * resched_curr - mark rq's current task 'to be rescheduled' eagerly
+ * or lazily according to the current policy.
+ *
+ * Always schedule eagerly, if:
+ *
+ *  - running under full preemption
+ *
+ *  - idle: when not polling (or if we don't have TIF_POLLING_NRFLAG)
+ *    force TIF_NEED_RESCHED to be set and send a resched IPI.
+ *    (the polling case has already set TIF_NEED_RESCHED via
+ *     set_nr_if_polling()).
+ *
+ *  - in userspace: run to completion semantics are only for kernel tasks
+ *
+ * Otherwise (regardless of priority), run to completion.
+ */
+void resched_curr(struct rq *rq)
+{
+	resched_t rs = RESCHED_lazy;
+	int context;
+
+	if (IS_ENABLED(CONFIG_PREEMPT) ||
+	    (rq->curr->sched_class == &idle_sched_class)) {
+		rs = RESCHED_eager;
+		goto resched;
+	}
+
+	/*
+	 * We might race with the target CPU while checking its ct_state:
+	 *
+	 * 1. The task might have just entered the kernel, but has not yet
+	 * called user_exit(). We will see stale state (CONTEXT_USER) and
+	 * send an unnecessary resched-IPI.
+	 *
+	 * 2. The user task is through with exit_to_user_mode_loop() but has
+	 * not yet called user_enter().
+	 *
+	 * We'll see the thread's state as CONTEXT_KERNEL and will try to
+	 * schedule it lazily. There's obviously nothing that will handle
+	 * this need-resched bit until the thread enters the kernel next.
+	 *
+	 * The scheduler will still do tick accounting, but a potentially
+	 * higher priority task waited to be scheduled for a user tick,
+	 * instead of execution time in the kernel.
+	 */
+	context = ct_state_cpu(cpu_of(rq));
+	if ((context == CONTEXT_USER) ||
+	    (context == CONTEXT_GUEST)) {
+
+		rs = RESCHED_eager;
+		goto resched;
+	}
+
+resched:
+	__resched_curr(rq, rs);
 }
 
 void resched_cpu(int cpu)
