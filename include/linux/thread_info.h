@@ -59,6 +59,27 @@ enum syscall_work_bit {
 
 #include <asm/thread_info.h>
 
+#ifndef TIF_NEED_RESCHED_LAZY
+#error "Arch needs to define TIF_NEED_RESCHED_LAZY"
+#endif
+
+#define TIF_NEED_RESCHED_LAZY_OFFSET	(TIF_NEED_RESCHED_LAZY - TIF_NEED_RESCHED)
+
+typedef enum {
+	RESCHED_eager = 0,
+	RESCHED_lazy = TIF_NEED_RESCHED_LAZY_OFFSET,
+} resched_t;
+
+static inline int tif_resched(resched_t r)
+{
+	return TIF_NEED_RESCHED + r;
+}
+
+static inline int _tif_resched(resched_t r)
+{
+	return 1 << tif_resched(r);
+}
+
 #ifdef __KERNEL__
 
 #ifndef arch_set_restart_data
