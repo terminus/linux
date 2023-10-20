@@ -2062,7 +2062,12 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock);
 
 static __always_inline bool need_resched(void)
 {
-	return unlikely(tif_need_resched());
+	return unlikely(__tif_need_resched(RESCHED_NOW));
+}
+
+static __always_inline bool need_resched_lazy(void)
+{
+	return unlikely(__tif_need_resched(RESCHED_LAZY));
 }
 
 /*

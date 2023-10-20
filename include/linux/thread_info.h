@@ -216,21 +216,43 @@ static __always_inline unsigned long read_ti_thread_flags(struct thread_info *ti
 
 #ifdef _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H
 
-static __always_inline bool tif_need_resched(void)
+static __always_inline bool __tif_need_resched_bitop(int nr_flag)
 {
-	return arch_test_bit(TIF_NEED_RESCHED,
-			     (unsigned long *)(&current_thread_info()->flags));
+	return arch_test_bit(nr_flag,
+		     (unsigned long *)(&current_thread_info()->flags));
 }
 
 #else
 
-static __always_inline bool tif_need_resched(void)
+static __always_inline bool __tif_need_resched_bitop(int nr_flag)
 {
-	return test_bit(TIF_NEED_RESCHED,
-			(unsigned long *)(&current_thread_info()->flags));
+	return test_bit(nr_flag,
+		(unsigned long *)(&current_thread_info()->flags));
 }
 
 #endif /* _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H */
+
+static __always_inline bool __tif_need_resched(resched_t rs)
+{
+	/*
+	 * With !PREEMPT_AUTO, this check is only meaningful if we
+	 * are checking if tif_resched(RESCHED_NOW) is set.
+	 */
+	if (IS_ENABLED(CONFIG_PREEMPT_AUTO) || rs == RESCHED_NOW)
+		return __tif_need_resched_bitop(tif_resched(rs));
+	else
+		return false;
+}
+
+static __always_inline bool tif_need_resched(void)
+{
+	return __tif_need_resched(RESCHED_NOW);
+}
+
+static __always_inline bool tif_need_resched_lazy(void)
+{
+	return __tif_need_resched(RESCHED_LAZY);
+}
 
 #ifndef CONFIG_HAVE_ARCH_WITHIN_STACK_FRAMES
 static inline int arch_within_stack_frames(const void * const stack,

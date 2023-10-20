@@ -312,7 +312,7 @@ do { \
 } while (0)
 #define preempt_fold_need_resched() \
 do { \
-	if (tif_need_resched()) \
+	if (__tif_need_resched(RESCHED_NOW)) \
 		set_preempt_need_resched(); \
 } while (0)
 
