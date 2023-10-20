@@ -71,6 +71,31 @@ enum syscall_work_bit {
 #define _TIF_NEED_RESCHED_LAZY _TIF_NEED_RESCHED
 #endif
 
+typedef enum {
+	RESCHED_NOW = 0,
+	RESCHED_LAZY = 1,
+} resched_t;
+
+/*
+ * tif_resched(r) maps to TIF_NEED_RESCHED[_LAZY] with CONFIG_PREEMPT_AUTO.
+ *
+ * For !CONFIG_PREEMPT_AUTO, both tif_resched(RESCHED_NOW) and
+ * tif_resched(RESCHED_LAZY) reduce to the same value (TIF_NEED_RESCHED)
+ * leaving any scheduling behaviour unchanged.
+ */
+static __always_inline int tif_resched(resched_t rs)
+{
+	if (IS_ENABLED(CONFIG_PREEMPT_AUTO))
+		return (rs == RESCHED_NOW) ? TIF_NEED_RESCHED : TIF_NEED_RESCHED_LAZY;
+	else
+		return TIF_NEED_RESCHED;
+}
+
+static __always_inline int _tif_resched(resched_t rs)
+{
+	return 1 << tif_resched(rs);
+}
+
 #ifdef __KERNEL__
 
 #ifndef arch_set_restart_data
