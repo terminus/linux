@@ -200,17 +200,17 @@ static __always_inline unsigned long read_ti_thread_flags(struct thread_info *ti
 
 #ifdef _ASM_GENERIC_BITOPS_INSTRUMENTED_NON_ATOMIC_H
 
-static __always_inline bool tif_need_resched(void)
+static __always_inline bool tif_need_resched(resched_t r)
 {
-	return arch_test_bit(TIF_NEED_RESCHED,
+	return arch_test_bit(tif_resched(r),
 			     (unsigned long *)(&current_thread_info()->flags));
 }
 
 #else
 
-static __always_inline bool tif_need_resched(void)
+static __always_inline bool tif_need_resched(resched_t r)
 {
-	return test_bit(TIF_NEED_RESCHED,
+	return test_bit(tif_resched(r),
 			(unsigned long *)(&current_thread_info()->flags));
 }
 

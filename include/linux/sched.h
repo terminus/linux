@@ -2172,8 +2172,10 @@ static inline int rwlock_needbreak(rwlock_t *lock)
 
 static __always_inline bool need_resched(void)
 {
-	return unlikely(tif_need_resched());
+	return unlikely(tif_need_resched(RESCHED_eager) ||
+			tif_need_resched(RESCHED_lazy));
 }
+
 
 /*
  * Wrappers for p->thread_info->cpu access. No-op on UP.
