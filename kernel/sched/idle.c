@@ -329,7 +329,7 @@ static enum hrtimer_restart idle_inject_timer_fn(struct hrtimer *timer)
 	struct idle_timer *it = container_of(timer, struct idle_timer, timer);
 
 	WRITE_ONCE(it->done, 1);
-	set_tsk_need_resched(current);
+	set_tsk_need_resched(current, RESCHED_eager);
 
 	return HRTIMER_NORESTART;
 }

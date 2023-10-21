@@ -705,7 +705,7 @@ static void print_cpu_stall(unsigned long gps)
 	 * progress and it could be we're stuck in kernel space without context
 	 * switches for an entirely unreasonable amount of time.
 	 */
-	set_tsk_need_resched(current);
+	set_tsk_need_resched(current, RESCHED_eager);
 	set_preempt_need_resched();
 }
 

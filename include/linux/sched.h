@@ -2060,19 +2060,26 @@ static inline bool test_tsk_thread_flag(struct task_struct *tsk, int flag)
 	return test_ti_thread_flag(task_thread_info(tsk), flag);
 }
 
-static inline void set_tsk_need_resched(struct task_struct *tsk)
+static inline void set_tsk_need_resched(struct task_struct *tsk, resched_t lazy)
 {
-	set_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
+	set_tsk_thread_flag(tsk, tif_resched(lazy));
 }
 
 static inline void clear_tsk_need_resched(struct task_struct *tsk)
 {
-	clear_tsk_thread_flag(tsk,TIF_NEED_RESCHED);
+	clear_tsk_thread_flag(tsk, tif_resched(RESCHED_eager));
+	clear_tsk_thread_flag(tsk, tif_resched(RESCHED_lazy));
 }
 
-static inline bool test_tsk_need_resched(struct task_struct *tsk)
+static inline bool test_tsk_need_resched(struct task_struct *tsk, resched_t lazy)
 {
-	return unlikely(test_tsk_thread_flag(tsk,TIF_NEED_RESCHED));
+	return unlikely(test_tsk_thread_flag(tsk, tif_resched(lazy)));
+}
+
+static inline bool test_tsk_need_resched_any(struct task_struct *tsk)
+{
+	return test_tsk_need_resched(tsk, RESCHED_eager) ||
+			test_tsk_need_resched(tsk, RESCHED_lazy);
 }
 
 /*
