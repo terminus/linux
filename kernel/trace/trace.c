@@ -2513,6 +2513,8 @@ unsigned int tracing_gen_ctx_irq_test(unsigned int irqs_status)
 
 	if (__tif_need_resched(RESCHED_NOW))
 		trace_flags |= TRACE_FLAG_NEED_RESCHED;
+	if (__tif_need_resched(RESCHED_LAZY))
+		trace_flags |= TRACE_FLAG_NEED_RESCHED_LAZY;
 	if (test_preempt_need_resched())
 		trace_flags |= TRACE_FLAG_PREEMPT_RESCHED;
 	return (trace_flags << 16) | (min_t(unsigned int, pc & 0xff, 0xf)) |
@@ -4096,17 +4098,23 @@ unsigned long trace_total_entries(struct trace_array *tr)
 	return entries;
 }
 
+#ifdef CONFIG_PREEMPT_AUTO
+#define NR_LEGEND "l: lazy, n: now, p: preempt, b: l|n, L: l|p, N: n|p, B: l|n|p"
+#else
+#define NR_LEGEND "n: now, p: preempt, N: n|p"
+#endif
+
 static void print_lat_help_header(struct seq_file *m)
 {
-	seq_puts(m, "#                    _------=> CPU#            \n"
-		    "#                   / _-----=> irqs-off/BH-disabled\n"
-		    "#                  | / _----=> need-resched    \n"
-		    "#                  || / _---=> hardirq/softirq \n"
-		    "#                  ||| / _--=> preempt-depth   \n"
-		    "#                  |||| / _-=> migrate-disable \n"
-		    "#                  ||||| /     delay           \n"
-		    "#  cmd     pid     |||||| time  |   caller     \n"
-		    "#     \\   /        ||||||  \\    |    /       \n");
+	seq_printf(m, "#                    _------=> CPU#            \n"
+		      "#                   / _-----=> irqs-off/BH-disabled\n"
+		      "#                  | / _----=> need-resched ( %s ) \n"
+		      "#                  || / _---=> hardirq/softirq \n"
+		      "#                  ||| / _--=> preempt-depth   \n"
+		      "#                  |||| / _-=> migrate-disable \n"
+		      "#                  ||||| /     delay           \n"
+		      "#  cmd     pid     |||||| time  |   caller     \n"
+		      "#     \\   /        ||||||  \\    |    /       \n", NR_LEGEND);
 }
 
 static void print_event_info(struct array_buffer *buf, struct seq_file *m)
@@ -4141,7 +4149,7 @@ static void print_func_help_header_irq(struct array_buffer *buf, struct seq_file
 	print_event_info(buf, m);
 
 	seq_printf(m, "#                            %.*s  _-----=> irqs-off/BH-disabled\n", prec, space);
-	seq_printf(m, "#                            %.*s / _----=> need-resched\n", prec, space);
+	seq_printf(m, "#                            %.*s / _----=> need-resched ( %s )\n", prec, space, NR_LEGEND);
 	seq_printf(m, "#                            %.*s| / _---=> hardirq/softirq\n", prec, space);
 	seq_printf(m, "#                            %.*s|| / _--=> preempt-depth\n", prec, space);
 	seq_printf(m, "#                            %.*s||| / _-=> migrate-disable\n", prec, space);
