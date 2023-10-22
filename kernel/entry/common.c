@@ -384,7 +384,15 @@ void irqentry_exit_cond_resched(void)
 		rcu_irq_exit_check_preempt();
 		if (IS_ENABLED(CONFIG_DEBUG_ENTRY))
 			WARN_ON_ONCE(!on_thread_stack());
-		if (need_resched())
+
+		/*
+		 * If the scheduler really wants us to preempt while returning
+		 * to kernel, it would set TIF_NEED_RESCHED.
+		 * On some archs the flag gets folded in preempt_count, and
+		 * thus would be covered in the conditional above, but not all
+		 * archs do that, so check explicitly.
+		 */
+		if (tif_need_resched(RESCHED_eager))
 			preempt_schedule_irq();
 	}
 }
