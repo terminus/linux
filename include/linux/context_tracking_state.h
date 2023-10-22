@@ -53,6 +53,13 @@ static __always_inline int __ct_state(void)
 {
 	return raw_atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_STATE_MASK;
 }
+
+static __always_inline int __ct_state_cpu(int cpu)
+{
+	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
+
+	return atomic_read(&ct->state) & CT_STATE_MASK;
+}
 #endif
 
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
@@ -134,6 +141,20 @@ static __always_inline int ct_state(void)
 
 	preempt_disable();
 	ret = __ct_state();
+	preempt_enable();
+
+	return ret;
+}
+
+static __always_inline int ct_state_cpu(int cpu)
+{
+	int ret;
+
+	if (!context_tracking_enabled_cpu(cpu))
+		return CONTEXT_DISABLED;
+
+	preempt_disable();
+	ret = __ct_state_cpu(cpu);
 	preempt_enable();
 
 	return ret;

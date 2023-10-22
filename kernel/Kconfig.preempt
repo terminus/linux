@@ -80,6 +80,7 @@ config PREEMPT_COUNT
 config PREEMPTION
        bool
        select PREEMPT_COUNT
+       select CONTEXT_TRACKING_USER
 
 config SCHED_CORE
 	bool "Core Scheduling for SMT"
