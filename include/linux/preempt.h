@@ -197,7 +197,9 @@ extern void preempt_count_sub(int val);
 #define preempt_count_inc() preempt_count_add(1)
 #define preempt_count_dec() preempt_count_sub(1)
 
-#ifdef CONFIG_PREEMPT_COUNT
+#if !defined(CONFIG_PREEMPTION) || !defined(CONFIG_PREEMPT_COUNT)
+#error "Configurations with !CONFIG_PREEMPTION or !CONFIG_PREEMPT_COUNT are not supported."
+#endif
 
 #define preempt_disable() \
 do { \
@@ -215,7 +217,6 @@ do { \
 
 #define preemptible()	(preempt_count() == 0 && !irqs_disabled())
 
-#ifdef CONFIG_PREEMPTION
 #define preempt_enable() \
 do { \
 	barrier(); \
@@ -236,22 +237,6 @@ do { \
 		__preempt_schedule(); \
 } while (0)
 
-#else /* !CONFIG_PREEMPTION */
-#define preempt_enable() \
-do { \
-	barrier(); \
-	preempt_count_dec(); \
-} while (0)
-
-#define preempt_enable_notrace() \
-do { \
-	barrier(); \
-	__preempt_count_dec(); \
-} while (0)
-
-#define preempt_check_resched() do { } while (0)
-#endif /* CONFIG_PREEMPTION */
-
 #define preempt_disable_notrace() \
 do { \
 	__preempt_count_inc(); \
@@ -263,27 +248,6 @@ do { \
 	barrier(); \
 	__preempt_count_dec(); \
 } while (0)
-
-#else /* !CONFIG_PREEMPT_COUNT */
-
-/*
- * Even if we don't have any preemption, we need preempt disable/enable
- * to be barriers, so that we don't have things like get_user/put_user
- * that can cause faults and scheduling migrate into our preempt-protected
- * region.
- */
-#define preempt_disable()			barrier()
-#define sched_preempt_enable_no_resched()	barrier()
-#define preempt_enable_no_resched()		barrier()
-#define preempt_enable()			barrier()
-#define preempt_check_resched()			do { } while (0)
-
-#define preempt_disable_notrace()		barrier()
-#define preempt_enable_no_resched_notrace()	barrier()
-#define preempt_enable_notrace()		barrier()
-#define preemptible()				0
-
-#endif /* CONFIG_PREEMPT_COUNT */
 
 #ifdef MODULE
 /*

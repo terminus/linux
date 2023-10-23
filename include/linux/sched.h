@@ -2088,9 +2088,7 @@ static inline bool test_tsk_need_resched_any(struct task_struct *tsk)
  * value indicates whether a reschedule was done in fact.
  * cond_resched_lock() will drop the spinlock before scheduling,
  */
-#ifndef CONFIG_PREEMPTION
-extern int _cond_resched(void);
-#else
+#ifdef CONFIG_PREEMPTION
 static inline int _cond_resched(void) { return 0; }
 #endif
 
