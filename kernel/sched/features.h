@@ -90,6 +90,12 @@ SCHED_FEAT(LATENCY_WARN, false)
 
 SCHED_FEAT(HZ_BW, true)
 
+#ifndef CONFIG_ARCH_NO_PREEMPT
+/*
+ * Architectures with CONFIG_ARCH_NO_PREEMPT cannot safely preempt.
+ * So even though they enable CONFIG_PREEMPTION, they never have the
+ * option to dynamically switch preemption models.
+ */
 #if defined(CONFIG_PREEMPT)
 SCHED_FEAT(FORCE_PREEMPT, true)
 SCHED_FEAT(PREEMPT_PRIORITY, true)
@@ -99,4 +105,5 @@ SCHED_FEAT(PREEMPT_PRIORITY, true)
 #else
 SCHED_FEAT(FORCE_PREEMPT, false)
 SCHED_FEAT(PREEMPT_PRIORITY, false)
+#endif
 #endif

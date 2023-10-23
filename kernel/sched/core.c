@@ -1059,6 +1059,14 @@ void __resched_curr(struct rq *rq, resched_t rs)
 		trace_sched_wake_idle_without_ipi(cpu);
 }
 
+#ifndef CONFIG_ARCH_NO_PREEMPT
+#define force_preempt() sched_feat(FORCE_PREEMPT)
+#define preempt_priority() sched_feat(PREEMPT_PRIORITY)
+#else
+#define force_preempt() false
+#define preempt_priority() false
+#endif
+
 /*
  * resched_curr - mark rq's current task 'to be rescheduled' eagerly
  * or lazily according to the current policy.
@@ -1084,7 +1092,7 @@ void resched_curr(struct rq *rq, bool above)
 	resched_t rs = RESCHED_lazy;
 	int context;
 
-	if (sched_feat(FORCE_PREEMPT) ||
+	if (force_preempt() ||
 	    (rq->curr->sched_class == &idle_sched_class)) {
 		rs = RESCHED_eager;
 		goto resched;
@@ -1115,7 +1123,7 @@ void resched_curr(struct rq *rq, bool above)
 		goto resched;
 	}
 
-	if (sched_feat(PREEMPT_PRIORITY) && above)
+	if (preempt_priority() && above)
 		rs = RESCHED_eager;
 
 resched:
