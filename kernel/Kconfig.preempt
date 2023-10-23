@@ -6,20 +6,23 @@ choice
 
 config PREEMPT_NONE
 	bool "No Forced Preemption (Server)"
+	select PREEMPTION
 	help
 	  This is the traditional Linux preemption model, geared towards
 	  throughput. It will still provide good latencies most of the
-	  time, but there are no guarantees and occasional longer delays
-	  are possible.
+	  time, but occasional delays are possible.
 
 	  Select this option if you are building a kernel for a server or
 	  scientific/computation system, or if you want to maximize the
 	  raw processing power of the kernel, irrespective of scheduling
-	  latencies.
+	  latencies. Unless your architecture actively disables preemption,
+	  you can always switch to one of the other preemption models
+	  at runtime.
 
 config PREEMPT_VOLUNTARY
 	bool "Voluntary Kernel Preemption (Desktop)"
 	depends on !ARCH_NO_PREEMPT
+	select PREEMPTION
 	help
 	  This option reduces the latency of the kernel by adding more
 	  "explicit preemption points" to the kernel code. These new
@@ -53,7 +56,8 @@ config PREEMPT
 
 	  Select this if you are building a kernel for a desktop or
 	  embedded system with latency requirements in the milliseconds
-	  range.
+	  range. You can always switch to one of lower preemption options
+	  at runtime.
 
 config PREEMPT_RT
 	bool "Fully Preemptible Kernel (Real-Time)"

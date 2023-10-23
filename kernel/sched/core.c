@@ -1065,7 +1065,7 @@ void __resched_curr(struct rq *rq, resched_t rs)
  *
  * Always schedule eagerly, if:
  *
- *  - running under full preemption
+ *  - running under full preemption (sched_feat(FORCE_PREEMPT))
  *
  *  - idle: when not polling (or if we don't have TIF_POLLING_NRFLAG)
  *    force TIF_NEED_RESCHED to be set and send a resched IPI.
@@ -1081,7 +1081,7 @@ void resched_curr(struct rq *rq)
 	resched_t rs = RESCHED_lazy;
 	int context;
 
-	if (IS_ENABLED(CONFIG_PREEMPT) ||
+	if (sched_feat(FORCE_PREEMPT) ||
 	    (rq->curr->sched_class == &idle_sched_class)) {
 		rs = RESCHED_eager;
 		goto resched;
@@ -1108,7 +1108,6 @@ void resched_curr(struct rq *rq)
 	context = ct_state_cpu(cpu_of(rq));
 	if ((context == CONTEXT_USER) ||
 	    (context == CONTEXT_GUEST)) {
-
 		rs = RESCHED_eager;
 		goto resched;
 	}
@@ -6597,20 +6596,18 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  *
  *   1. Explicit blocking: mutex, semaphore, waitqueue, etc.
  *
- *   2. TIF_NEED_RESCHED flag is checked on interrupt and userspace return
- *      paths. For example, see arch/x86/entry_64.S.
+ *   2. TIF_NEED_RESCHED flag is checked on interrupt and TIF_NEED_RESCHED[_LAZY]
+ *      flags on userspace return paths. For example, see arch/x86/entry_64.S.
  *
- *      To drive preemption between tasks, the scheduler sets the flag in timer
- *      interrupt handler scheduler_tick().
+ *      To drive preemption between tasks, the scheduler sets one of these
+ *      flags in timer interrupt handler scheduler_tick().
  *
  *   3. Wakeups don't really cause entry into schedule(). They add a
  *      task to the run-queue and that's it.
  *
- *      Now, if the new task added to the run-queue preempts the current
- *      task, then the wakeup sets TIF_NEED_RESCHED and schedule() gets
- *      called on the nearest possible occasion:
- *
- *       - If the kernel is preemptible (CONFIG_PREEMPTION=y):
+ *      - Now, if the new task added to the run-queue preempts the current
+ *        task, then the wakeup sets TIF_NEED_RESCHED and schedule() gets
+ *        called on the nearest possible occasion:
  *
  *         - in syscall or exception context, at the next outmost
  *           preempt_enable(). (this might be as soon as the wake_up()'s
@@ -6619,10 +6616,9 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  *         - in IRQ context, return from interrupt-handler to
  *           preemptible context
  *
- *       - If the kernel is not preemptible (CONFIG_PREEMPTION is not set)
- *         then at the next:
+ *      - If the new task preempts the current task, but the scheduling
+ *        policy is only preempt voluntarily, then at the next:
  *
- *          - cond_resched() call
  *          - explicit schedule() call
  *          - return from syscall or exception to user-space
  *          - return from interrupt-handler to user-space
