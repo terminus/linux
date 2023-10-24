@@ -963,7 +963,8 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp)
  */
 static void rcu_flavor_sched_clock_irq(int user)
 {
-	if (user || rcu_is_cpu_rrupt_from_idle()) {
+	if (user || rcu_is_cpu_rrupt_from_idle() ||
+	    !(preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK))) {
 
 		/*
 		 * Get here if this CPU took its interrupt from user
