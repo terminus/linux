@@ -1531,34 +1531,21 @@ static int run_osnoise(void)
 
 		/*
 		 * In some cases, notably when running on a nohz_full CPU with
-		 * a stopped tick PREEMPT_RCU has no way to account for QSs.
-		 * This will eventually cause unwarranted noise as PREEMPT_RCU
-		 * will force preemption as the means of ending the current
-		 * grace period. We avoid this problem by calling
-		 * rcu_momentary_dyntick_idle(), which performs a zero duration
-		 * EQS allowing PREEMPT_RCU to end the current grace period.
-		 * This call shouldn't be wrapped inside an RCU critical
-		 * section.
-		 *
-		 * Note that in non PREEMPT_RCU kernels QSs are handled through
-		 * cond_resched()
+		 * a stopped tick RCU has no way to account for QSs. This will
+		 * eventually cause unwarranted noise as RCU forces preemption
+		 * as the means of ending the current grace period.
+		 * We avoid this problem by calling rcu_momentary_dyntick_idle(),
+		 * which performs a zero duration EQS allowing RCU to end the
+		 * current grace period. This call shouldn't be wrapped inside
+		 * an RCU critical section.
 		 */
-		if (IS_ENABLED(CONFIG_PREEMPT_RCU)) {
-			if (!disable_irq)
-				local_irq_disable();
+		if (!disable_irq)
+			local_irq_disable();
 
-			rcu_momentary_dyntick_idle();
+		rcu_momentary_dyntick_idle();
 
-			if (!disable_irq)
-				local_irq_enable();
-		}
-
-		/*
-		 * For the non-preemptive kernel config: let threads runs, if
-		 * they so wish, unless set not do to so.
-		 */
-		if (!disable_irq && !disable_preemption)
-			cond_resched();
+		if (!disable_irq)
+			local_irq_enable();
 
 		last_sample = sample;
 		last_int_count = int_count;
