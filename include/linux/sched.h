@@ -2100,6 +2100,7 @@ static inline int _cond_resched(void) { return 0; }
 extern int __cond_resched_lock(spinlock_t *lock);
 extern int __cond_resched_rwlock_read(rwlock_t *lock);
 extern int __cond_resched_rwlock_write(rwlock_t *lock);
+extern int __cond_resched_stall(void);
 
 #define MIGHT_RESCHED_RCU_SHIFT		8
 #define MIGHT_RESCHED_PREEMPT_MASK	((1U << MIGHT_RESCHED_RCU_SHIFT) - 1)
@@ -2133,6 +2134,11 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock);
 #define cond_resched_rwlock_write(lock) ({					\
 	__might_resched(__FILE__, __LINE__, PREEMPT_LOCK_RESCHED_OFFSETS);	\
 	__cond_resched_rwlock_write(lock);					\
+})
+
+#define cond_resched_stall() ({					\
+	__might_resched(__FILE__, __LINE__, 0);			\
+	__cond_resched_stall();					\
 })
 
 static inline void cond_resched_rcu(void)

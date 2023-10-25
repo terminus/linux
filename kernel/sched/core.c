@@ -8652,6 +8652,18 @@ int __cond_resched_rwlock_write(rwlock_t *lock)
 }
 EXPORT_SYMBOL(__cond_resched_rwlock_write);
 
+int __cond_resched_stall(void)
+{
+	if (tif_need_resched(RESCHED_eager)) {
+		__preempt_schedule();
+		return 1;
+	} else {
+		cpu_relax();
+		return 0;
+	}
+}
+EXPORT_SYMBOL(__cond_resched_stall);
+
 /**
  * yield - yield the current processor to other threads.
  *
