@@ -25,7 +25,6 @@ static void bpf_array_free_percpu(struct bpf_array *array)
 
 	for (i = 0; i < array->map.max_entries; i++) {
 		free_percpu(array->pptrs[i]);
-		cond_resched();
 	}
 }
 
@@ -42,7 +41,6 @@ static int bpf_array_alloc_percpu(struct bpf_array *array)
 			return -ENOMEM;
 		}
 		array->pptrs[i] = ptr;
-		cond_resched();
 	}
 
 	return 0;
@@ -423,7 +421,6 @@ static void array_map_free(struct bpf_map *map)
 
 				for_each_possible_cpu(cpu) {
 					bpf_obj_free_fields(map->record, per_cpu_ptr(pptr, cpu));
-					cond_resched();
 				}
 			}
 		} else {

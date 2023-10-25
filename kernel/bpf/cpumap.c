@@ -290,8 +290,6 @@ static int cpu_map_kthread_run(void *data)
 			} else {
 				__set_current_state(TASK_RUNNING);
 			}
-		} else {
-			sched = cond_resched();
 		}
 
 		/*

@@ -16489,9 +16489,6 @@ static int do_check(struct bpf_verifier_env *env)
 		if (signal_pending(current))
 			return -EAGAIN;
 
-		if (need_resched())
-			cond_resched();
-
 		if (env->log.level & BPF_LOG_LEVEL2 && do_print_state) {
 			verbose(env, "\nfrom %d to %d%s:",
 				env->prev_insn_idx, env->insn_idx,
@@ -18017,7 +18014,6 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			err = -ENOTSUPP;
 			goto out_free;
 		}
-		cond_resched();
 	}
 
 	/* at this point all bpf functions were successfully JITed
@@ -18061,7 +18057,6 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 			err = -ENOTSUPP;
 			goto out_free;
 		}
-		cond_resched();
 	}
 
 	/* finally lock prog and jit images for all functions and

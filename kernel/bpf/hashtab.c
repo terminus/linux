@@ -142,7 +142,6 @@ static void htab_init_buckets(struct bpf_htab *htab)
 		raw_spin_lock_init(&htab->buckets[i].raw_lock);
 		lockdep_set_class(&htab->buckets[i].raw_lock,
 					  &htab->lockdep_key);
-		cond_resched();
 	}
 }
 
@@ -232,7 +231,6 @@ static void htab_free_prealloced_timers(struct bpf_htab *htab)
 
 		elem = get_htab_elem(htab, i);
 		bpf_obj_free_timer(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
-		cond_resched();
 	}
 }
 
@@ -255,13 +253,10 @@ static void htab_free_prealloced_fields(struct bpf_htab *htab)
 
 			for_each_possible_cpu(cpu) {
 				bpf_obj_free_fields(htab->map.record, per_cpu_ptr(pptr, cpu));
-				cond_resched();
 			}
 		} else {
 			bpf_obj_free_fields(htab->map.record, elem->key + round_up(htab->map.key_size, 8));
-			cond_resched();
 		}
-		cond_resched();
 	}
 }
 
@@ -278,7 +273,6 @@ static void htab_free_elems(struct bpf_htab *htab)
 		pptr = htab_elem_get_ptr(get_htab_elem(htab, i),
 					 htab->map.key_size);
 		free_percpu(pptr);
-		cond_resched();
 	}
 free_elems:
 	bpf_map_area_free(htab->elems);
@@ -337,7 +331,6 @@ static int prealloc_init(struct bpf_htab *htab)
 			goto free_elems;
 		htab_elem_set_ptr(get_htab_elem(htab, i), htab->map.key_size,
 				  pptr);
-		cond_resched();
 	}
 
 skip_percpu_elems:

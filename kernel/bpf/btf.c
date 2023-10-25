@@ -5361,8 +5361,6 @@ btf_parse_struct_metas(struct bpf_verifier_log *log, struct btf *btf)
 		if (!__btf_type_is_struct(t))
 			continue;
 
-		cond_resched();
-
 		for_each_member(j, t, member) {
 			if (btf_id_set_contains(&aof.set, member->type))
 				goto parse;
@@ -5426,8 +5424,6 @@ static int btf_check_type_tags(struct btf_verifier_env *env,
 			return -EINVAL;
 		if (!btf_type_is_modifier(t))
 			continue;
-
-		cond_resched();
 
 		in_tags = btf_type_is_type_tag(t);
 		while (btf_type_is_modifier(t)) {
@@ -8295,11 +8291,6 @@ bpf_core_add_cands(struct bpf_cand_cache *cands, const struct btf *targ_btf,
 		targ_name = btf_name_by_offset(targ_btf, t->name_off);
 		if (!targ_name)
 			continue;
-
-		/* the resched point is before strncmp to make sure that search
-		 * for non-existing name will have a chance to schedule().
-		 */
-		cond_resched();
 
 		if (strncmp(cands->name, targ_name, cands->name_len) != 0)
 			continue;
