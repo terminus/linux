@@ -55,10 +55,7 @@ static void memfd_tag_pins(struct xa_state *xas)
 			continue;
 		latency = 0;
 
-		xas_pause(xas);
-		xas_unlock_irq(xas);
-		cond_resched();
-		xas_lock_irq(xas);
+		cond_resched_xas_lock_irq(xas);
 	}
 	xas_unlock_irq(xas);
 }
@@ -123,10 +120,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 				continue;
 			latency = 0;
 
-			xas_pause(&xas);
-			xas_unlock_irq(&xas);
-			cond_resched();
-			xas_lock_irq(&xas);
+			cond_resched_xas_lock_irq(&xas);
 		}
 		xas_unlock_irq(&xas);
 	}

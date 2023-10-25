@@ -2351,10 +2351,7 @@ void tag_pages_for_writeback(struct address_space *mapping,
 		if (++tagged % XA_CHECK_SCHED)
 			continue;
 
-		xas_pause(&xas);
-		xas_unlock_irq(&xas);
-		cond_resched();
-		xas_lock_irq(&xas);
+		cond_resched_xas_lock_irq(&xas);
 	}
 	xas_unlock_irq(&xas);
 }

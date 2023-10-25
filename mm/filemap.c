@@ -4210,10 +4210,7 @@ static void filemap_cachestat(struct address_space *mapping,
 			cs->nr_writeback += nr_pages;
 
 resched:
-		if (need_resched()) {
-			xas_pause(&xas);
-			cond_resched_rcu();
-		}
+		cond_resched_xas_rcu(&xas);
 	}
 	rcu_read_unlock();
 }

@@ -2290,10 +2290,7 @@ static int hpage_collapse_scan_file(struct mm_struct *mm, unsigned long addr,
 
 		present++;
 
-		if (need_resched()) {
-			xas_pause(&xas);
-			cond_resched_rcu();
-		}
+		cond_resched_xas_rcu(&xas);
 	}
 	rcu_read_unlock();
 

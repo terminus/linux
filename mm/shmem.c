@@ -882,10 +882,7 @@ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
 			swapped++;
 		if (xas.xa_index == max)
 			break;
-		if (need_resched()) {
-			xas_pause(&xas);
-			cond_resched_rcu();
-		}
+		cond_resched_xas_rcu(&xas);
 	}
 
 	rcu_read_unlock();
@@ -1299,10 +1296,7 @@ static int shmem_find_swap_entries(struct address_space *mapping,
 		if (!folio_batch_add(fbatch, folio))
 			break;
 
-		if (need_resched()) {
-			xas_pause(&xas);
-			cond_resched_rcu();
-		}
+		cond_resched_xas_rcu(&xas);
 	}
 	rcu_read_unlock();
 

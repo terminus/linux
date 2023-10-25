@@ -726,10 +726,7 @@ struct page *dax_layout_busy_page_range(struct address_space *mapping,
 		if (++scanned % XA_CHECK_SCHED)
 			continue;
 
-		xas_pause(&xas);
-		xas_unlock_irq(&xas);
-		cond_resched();
-		xas_lock_irq(&xas);
+		cond_resched_xas_lock_irq(&xas);
 	}
 	xas_unlock_irq(&xas);
 	return page;
@@ -784,10 +781,7 @@ static int __dax_clear_dirty_range(struct address_space *mapping,
 		if (++scanned % XA_CHECK_SCHED)
 			continue;
 
-		xas_pause(&xas);
-		xas_unlock_irq(&xas);
-		cond_resched();
-		xas_lock_irq(&xas);
+		cond_resched_xas_lock_irq(&xas);
 	}
 	xas_unlock_irq(&xas);
 
@@ -1052,10 +1046,7 @@ int dax_writeback_mapping_range(struct address_space *mapping,
 		if (++scanned % XA_CHECK_SCHED)
 			continue;
 
-		xas_pause(&xas);
-		xas_unlock_irq(&xas);
-		cond_resched();
-		xas_lock_irq(&xas);
+		cond_resched_xas_lock_irq(&xas);
 	}
 	xas_unlock_irq(&xas);
 	trace_dax_writeback_range_done(inode, xas.xa_index, end_index);
