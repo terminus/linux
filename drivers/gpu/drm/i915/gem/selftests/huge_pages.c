@@ -1447,8 +1447,6 @@ out_put:
 
 		if (err)
 			break;
-
-		cond_resched();
 	}
 
 	return err;
@@ -1538,8 +1536,6 @@ static int igt_ppgtt_sanity_check(void *arg)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -1738,8 +1734,6 @@ static int igt_ppgtt_mixed(void *arg)
 			break;
 
 		addr += obj->base.size;
-
-		cond_resched();
 	}
 
 	i915_gem_context_unlock_engines(ctx);

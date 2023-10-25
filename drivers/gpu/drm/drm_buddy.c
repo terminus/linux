@@ -311,7 +311,6 @@ void drm_buddy_free_list(struct drm_buddy *mm, struct list_head *objects)
 
 	list_for_each_entry_safe(block, on, objects, link) {
 		drm_buddy_free_block(mm, block);
-		cond_resched();
 	}
 	INIT_LIST_HEAD(objects);
 }

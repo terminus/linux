@@ -438,8 +438,6 @@ static void __igt_breadcrumbs_smoketest(struct kthread_work *work)
 
 		num_fences += count;
 		num_waits++;
-
-		cond_resched();
 	}
 
 	atomic_long_add(num_fences, &t->num_fences);

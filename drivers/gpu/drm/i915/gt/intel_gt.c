@@ -664,7 +664,7 @@ int intel_gt_wait_for_idle(struct intel_gt *gt, long timeout)
 
 	while ((timeout = intel_gt_retire_requests_timeout(gt, timeout,
 							   &remaining_timeout)) > 0) {
-		cond_resched();
+		cond_resched_stall();
 		if (signal_pending(current))
 			return -EINTR;
 	}

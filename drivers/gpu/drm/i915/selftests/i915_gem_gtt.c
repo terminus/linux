@@ -201,7 +201,6 @@ retry:
 		}
 
 		ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash, 0, size);
-		cond_resched();
 
 		ppgtt->vm.clear_range(&ppgtt->vm, 0, size);
 
@@ -224,7 +223,6 @@ retry:
 
 		ppgtt->vm.allocate_va_range(&ppgtt->vm, &stash,
 					    last, size - last);
-		cond_resched();
 
 		i915_vm_free_pt_stash(&ppgtt->vm, &stash);
 	}

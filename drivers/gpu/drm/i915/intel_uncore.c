@@ -487,7 +487,6 @@ intel_uncore_forcewake_reset(struct intel_uncore *uncore)
 		}
 
 		spin_unlock_irqrestore(&uncore->lock, irqflags);
-		cond_resched();
 	}
 
 	drm_WARN_ON(&uncore->i915->drm, active_domains);

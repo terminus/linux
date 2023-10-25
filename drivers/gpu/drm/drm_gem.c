@@ -506,7 +506,6 @@ static void drm_gem_check_release_batch(struct folio_batch *fbatch)
 {
 	check_move_unevictable_folios(fbatch);
 	__folio_batch_release(fbatch);
-	cond_resched();
 }
 
 /**

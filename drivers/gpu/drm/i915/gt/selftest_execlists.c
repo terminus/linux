@@ -60,8 +60,6 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 
 		if (done)
 			return -ETIME;
-
-		cond_resched();
 	} while (1);
 }
 
@@ -72,7 +70,6 @@ static int wait_for_reset(struct intel_engine_cs *engine,
 	timeout += jiffies;
 
 	do {
-		cond_resched();
 		intel_engine_flush_submission(engine);
 
 		if (READ_ONCE(engine->execlists.pending[0]))
@@ -1373,7 +1370,6 @@ static int live_timeslice_queue(void *arg)
 
 		/* Wait until we ack the release_queue and start timeslicing */
 		do {
-			cond_resched();
 			intel_engine_flush_submission(engine);
 		} while (READ_ONCE(engine->execlists.pending[0]));
 

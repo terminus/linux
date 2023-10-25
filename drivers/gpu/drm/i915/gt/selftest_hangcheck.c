@@ -939,8 +939,6 @@ static void active_engine(struct kthread_work *work)
 			pr_err("[%s] Request put failed: %d!\n", engine->name, err);
 			break;
 		}
-
-		cond_resched();
 	}
 
 	for (count = 0; count < ARRAY_SIZE(rq); count++) {

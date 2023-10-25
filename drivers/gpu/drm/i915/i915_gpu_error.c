@@ -320,8 +320,6 @@ static int compress_page(struct i915_vma_compress *c,
 
 		if (zlib_deflate(zstream, Z_NO_FLUSH) != Z_OK)
 			return -EIO;
-
-		cond_resched();
 	} while (zstream->avail_in);
 
 	/* Fallback to uncompressed if we increase size? */
@@ -408,7 +406,6 @@ static int compress_page(struct i915_vma_compress *c,
 	if (!(wc && i915_memcpy_from_wc(ptr, src, PAGE_SIZE)))
 		memcpy(ptr, src, PAGE_SIZE);
 	list_add_tail(&virt_to_page(ptr)->lru, &dst->page_list);
-	cond_resched();
 
 	return 0;
 }
@@ -2325,13 +2322,6 @@ void intel_klog_error_capture(struct intel_gt *gt,
 						 l_count, line++, ptr2);
 					ptr[pos] = chr;
 					ptr2 = ptr + pos;
-
-					/*
-					 * If spewing large amounts of data via a serial console,
-					 * this can be a very slow process. So be friendly and try
-					 * not to cause 'softlockup on CPU' problems.
-					 */
-					cond_resched();
 				}
 
 				if (ptr2 < (ptr + count))
@@ -2352,8 +2342,12 @@ void intel_klog_error_capture(struct intel_gt *gt,
 				got--;
 			}
 
-			/* As above. */
-			cond_resched();
+			/*
+			 * If spewing large amounts of data via a serial console,
+			 * this can be a very slow process. So be friendly and try
+			 * not to cause 'softlockup on CPU' problems.
+			 */
+			cond_resched_stall();
 		}
 
 		if (got)

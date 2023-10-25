@@ -70,8 +70,6 @@ static int wait_for_submit(struct intel_engine_cs *engine,
 
 		if (done)
 			return -ETIME;
-
-		cond_resched();
 	} while (1);
 }
 

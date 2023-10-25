@@ -1013,7 +1013,7 @@ static int samsung_dsim_wait_for_hdr_fifo(struct samsung_dsim *dsi)
 		if (reg & DSIM_SFR_HEADER_EMPTY)
 			return 0;
 
-		if (!cond_resched())
+		if (!cond_resched_stall())
 			usleep_range(950, 1050);
 	} while (--timeout);
 

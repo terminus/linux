@@ -26,7 +26,6 @@ static void check_release_folio_batch(struct folio_batch *fbatch)
 {
 	check_move_unevictable_folios(fbatch);
 	__folio_batch_release(fbatch);
-	cond_resched();
 }
 
 void shmem_sg_free_table(struct sg_table *st, struct address_space *mapping,
@@ -108,7 +107,6 @@ int shmem_sg_alloc_table(struct drm_i915_private *i915, struct sg_table *st,
 		gfp_t gfp = noreclaim;
 
 		do {
-			cond_resched();
 			folio = shmem_read_folio_gfp(mapping, i, gfp);
 			if (!IS_ERR(folio))
 				break;

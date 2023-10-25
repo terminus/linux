@@ -1812,7 +1812,7 @@ repeat:
 		err = eb_copy_relocations(eb);
 		have_copy = err == 0;
 	} else {
-		cond_resched();
+		cond_resched_stall();
 		err = 0;
 	}
 

@@ -865,7 +865,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 
 	/* Wait until the previous preallocation is completed */
 	while (!llist_empty(&ref->preallocated_barriers))
-		cond_resched();
+		cond_resched_stall();
 
 	/*
 	 * Preallocate a node for each physical engine supporting the target

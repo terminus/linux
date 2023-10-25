@@ -29,7 +29,6 @@ static bool __timeout(unsigned long timeout, const char *fmt, ...)
 	va_list va;
 
 	if (!signal_pending(current)) {
-		cond_resched();
 		if (time_before(jiffies, timeout))
 			return false;
 	}
@@ -485,8 +484,6 @@ retry:
 
 		if (err || timeout)
 			break;
-
-		cond_resched();
 	}
 
 	kfree(order);
@@ -681,8 +678,6 @@ static void drm_test_buddy_alloc_range(struct kunit *test)
 		rem -= size;
 		if (!rem)
 			break;
-
-		cond_resched();
 	}
 
 	drm_buddy_free_list(&mm, &blocks);

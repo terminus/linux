@@ -221,7 +221,6 @@ static int check_partial_mappings(struct drm_i915_gem_object *obj,
 		u32 *cpu;
 
 		GEM_BUG_ON(view.partial.size > nreal);
-		cond_resched();
 
 		vma = i915_gem_object_ggtt_pin(obj, &view, 0, 0, PIN_MAPPABLE);
 		if (IS_ERR(vma)) {
@@ -1026,8 +1025,6 @@ static void igt_close_objects(struct drm_i915_private *i915,
 		i915_gem_object_put(obj);
 	}
 
-	cond_resched();
-
 	i915_gem_drain_freed_objects(i915);
 }
 
@@ -1041,8 +1038,6 @@ static void igt_make_evictable(struct list_head *objects)
 			i915_gem_object_unpin_pages(obj);
 		i915_gem_object_unlock(obj);
 	}
-
-	cond_resched();
 }
 
 static int igt_fill_mappable(struct intel_memory_region *mr,

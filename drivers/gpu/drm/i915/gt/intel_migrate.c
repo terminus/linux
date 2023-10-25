@@ -906,8 +906,6 @@ out_rq:
 			err = -EINVAL;
 			break;
 		}
-
-		cond_resched();
 	} while (1);
 
 out_ce:
@@ -1067,8 +1065,6 @@ out_rq:
 		i915_request_add(rq);
 		if (err || !it.sg || !sg_dma_len(it.sg))
 			break;
-
-		cond_resched();
 	} while (1);
 
 out_ce:

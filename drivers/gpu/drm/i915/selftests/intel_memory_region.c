@@ -46,8 +46,6 @@ static void close_objects(struct intel_memory_region *mem,
 		i915_gem_object_put(obj);
 	}
 
-	cond_resched();
-
 	i915_gem_drain_freed_objects(i915);
 }
 
@@ -1290,8 +1288,6 @@ static int _perf_memcpy(struct intel_memory_region *src_mr,
 			div64_u64(mul_u32_u32(4 * size,
 					      1000 * 1000 * 1000),
 				  t[1] + 2 * t[2] + t[3]) >> 20);
-
-		cond_resched();
 	}
 
 	i915_gem_object_unpin_map(dst);

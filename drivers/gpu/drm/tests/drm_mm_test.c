@@ -474,8 +474,6 @@ static void drm_test_mm_reserve(struct kunit *test)
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size - 1));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_reserve(test, count, size + 1));
-
-		cond_resched();
 	}
 }
 
@@ -645,8 +643,6 @@ static int __drm_test_mm_insert(struct kunit *test, unsigned int count, u64 size
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
-
-		cond_resched();
 	}
 
 	ret = 0;
@@ -671,8 +667,6 @@ static void drm_test_mm_insert(struct kunit *test)
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size - 1, false));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size, false));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size + 1, false));
-
-		cond_resched();
 	}
 }
 
@@ -693,8 +687,6 @@ static void drm_test_mm_replace(struct kunit *test)
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size - 1, true));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size, true));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert(test, count, size + 1, true));
-
-		cond_resched();
 	}
 }
 
@@ -882,8 +874,6 @@ static int __drm_test_mm_insert_range(struct kunit *test, unsigned int count, u6
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
-
-		cond_resched();
 	}
 
 	ret = 0;
@@ -942,8 +932,6 @@ static void drm_test_mm_insert_range(struct kunit *test)
 								    max / 2, max));
 		KUNIT_ASSERT_FALSE(test, __drm_test_mm_insert_range(test, count, size,
 								    max / 4 + 1, 3 * max / 4 - 1));
-
-		cond_resched();
 	}
 }
 
@@ -1086,8 +1074,6 @@ static void drm_test_mm_align(struct kunit *test)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
-
-		cond_resched();
 	}
 
 out:
@@ -1122,8 +1108,6 @@ static void drm_test_mm_align_pot(struct kunit *test, int max)
 			KUNIT_FAIL(test, "insert failed with alignment=%llx [%d]", align, bit);
 			goto out;
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -1465,8 +1449,6 @@ static void drm_test_mm_evict(struct kunit *test)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -1547,8 +1529,6 @@ static void drm_test_mm_evict_range(struct kunit *test)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -1658,7 +1638,6 @@ static void drm_test_mm_topdown(struct kunit *test)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
-		cond_resched();
 	}
 
 out:
@@ -1750,7 +1729,6 @@ static void drm_test_mm_bottomup(struct kunit *test)
 		drm_mm_for_each_node_safe(node, next, &mm)
 			drm_mm_remove_node(node);
 		DRM_MM_BUG_ON(!drm_mm_clean(&mm));
-		cond_resched();
 	}
 
 out:
@@ -1968,8 +1946,6 @@ static void drm_test_mm_color(struct kunit *test)
 			drm_mm_remove_node(node);
 			kfree(node);
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -2038,7 +2014,6 @@ static int evict_color(struct kunit *test, struct drm_mm *mm, u64 range_start,
 		}
 	}
 
-	cond_resched();
 	return 0;
 }
 
@@ -2110,8 +2085,6 @@ static void drm_test_mm_color_evict(struct kunit *test)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 out:
@@ -2196,8 +2169,6 @@ static void drm_test_mm_color_evict_range(struct kunit *test)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 out:

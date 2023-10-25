@@ -179,7 +179,6 @@ static int __run_selftests(const char *name,
 		if (!st->enabled)
 			continue;
 
-		cond_resched();
 		if (signal_pending(current))
 			return -EINTR;
 
@@ -381,7 +380,6 @@ int __i915_subtests(const char *caller,
 	int err;
 
 	for (; count--; st++) {
-		cond_resched();
 		if (signal_pending(current))
 			return -EINTR;
 
@@ -414,7 +412,6 @@ bool __igt_timeout(unsigned long timeout, const char *fmt, ...)
 	va_list va;
 
 	if (!signal_pending(current)) {
-		cond_resched();
 		if (time_before(jiffies, timeout))
 			return false;
 	}

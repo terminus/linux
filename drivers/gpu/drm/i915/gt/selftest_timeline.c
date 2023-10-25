@@ -352,7 +352,6 @@ static int bench_sync(void *arg)
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
 	mock_timeline_fini(&tl);
-	cond_resched();
 
 	mock_timeline_init(&tl, 0);
 
@@ -382,7 +381,6 @@ static int bench_sync(void *arg)
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 
 	mock_timeline_fini(&tl);
-	cond_resched();
 
 	mock_timeline_init(&tl, 0);
 
@@ -405,7 +403,6 @@ static int bench_sync(void *arg)
 	pr_info("%s: %lu repeated insert/lookups, %lluns/op\n",
 		__func__, count, (long long)div64_ul(ktime_to_ns(kt), count));
 	mock_timeline_fini(&tl);
-	cond_resched();
 
 	/* Benchmark searching for a known context id and changing the seqno */
 	for (last_order = 1, order = 1; order < 32;
@@ -434,7 +431,6 @@ static int bench_sync(void *arg)
 			__func__, count, order,
 			(long long)div64_ul(ktime_to_ns(kt), count));
 		mock_timeline_fini(&tl);
-		cond_resched();
 	}
 
 	return 0;

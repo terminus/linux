@@ -267,8 +267,6 @@ search_again:
 	if (ret)
 		return ret;
 
-	cond_resched();
-
 	flags |= PIN_NONBLOCK;
 	goto search_again;
 

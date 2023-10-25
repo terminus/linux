@@ -197,8 +197,6 @@ static int igt_vma_create(void *arg)
 			list_del_init(&ctx->link);
 			mock_context_close(ctx);
 		}
-
-		cond_resched();
 	}
 
 end:
@@ -347,8 +345,6 @@ static int igt_vma_pin1(void *arg)
 				goto out;
 			}
 		}
-
-		cond_resched();
 	}
 
 	err = 0;
@@ -697,7 +693,6 @@ static int igt_vma_rotate_remap(void *arg)
 						pr_err("Unbinding returned %i\n", err);
 						goto out_object;
 					}
-					cond_resched();
 				}
 			}
 		}
@@ -858,8 +853,6 @@ static int igt_vma_partial(void *arg)
 					pr_err("Unbinding returned %i\n", err);
 					goto out_object;
 				}
-
-				cond_resched();
 			}
 		}
 
@@ -1085,8 +1078,6 @@ static int igt_vma_remapped_gtt(void *arg)
 				}
 			}
 			i915_vma_unpin_iomap(vma);
-
-			cond_resched();
 		}
 	}
 

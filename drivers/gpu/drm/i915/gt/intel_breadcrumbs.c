@@ -315,7 +315,7 @@ void __intel_breadcrumbs_park(struct intel_breadcrumbs *b)
 		local_irq_disable();
 		signal_irq_work(&b->irq_work);
 		local_irq_enable();
-		cond_resched();
+		cond_resched_stall();
 	}
 }
 
