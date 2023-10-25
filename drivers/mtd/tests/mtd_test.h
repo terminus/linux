@@ -4,7 +4,7 @@
 
 static inline int mtdtest_relax(void)
 {
-	cond_resched();
+	cond_resched_stall();
 	if (signal_pending(current)) {
 		pr_info("aborting test due to pending signal!\n");
 		return -EINTR;

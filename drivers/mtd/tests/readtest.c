@@ -91,7 +91,6 @@ static void dump_eraseblock(int ebnum)
 		for (j = 0; j < 32 && i < n; j++, i++)
 			p += sprintf(p, "%02x", (unsigned int)iobuf[i]);
 		printk(KERN_CRIT "%s\n", line);
-		cond_resched();
 	}
 	if (!mtd->oobsize)
 		return;
@@ -106,7 +105,6 @@ static void dump_eraseblock(int ebnum)
 				p += sprintf(p, "%02x",
 					     (unsigned int)iobuf1[i]);
 			printk(KERN_CRIT "%s\n", line);
-			cond_resched();
 		}
 }
 

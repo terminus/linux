@@ -819,7 +819,7 @@ static int hisi_nfc_suspend(struct device *dev)
 		if (((hinfc_read(host, HINFC504_STATUS) & 0x1) == 0x0) &&
 		    (hinfc_read(host, HINFC504_DMA_CTRL) &
 		     HINFC504_DMA_CTRL_DMA_START)) {
-			cond_resched();
+			cond_resched_stall();
 			return 0;
 		}
 	}

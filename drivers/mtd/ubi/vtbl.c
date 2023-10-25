@@ -163,8 +163,6 @@ static int vtbl_check(const struct ubi_device *ubi,
 	const char *name;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {
-		cond_resched();
-
 		reserved_pebs = be32_to_cpu(vtbl[i].reserved_pebs);
 		alignment = be32_to_cpu(vtbl[i].alignment);
 		data_pad = be32_to_cpu(vtbl[i].data_pad);
@@ -526,8 +524,6 @@ static int init_volumes(struct ubi_device *ubi,
 	struct ubi_volume *vol;
 
 	for (i = 0; i < ubi->vtbl_slots; i++) {
-		cond_resched();
-
 		if (be32_to_cpu(vtbl[i].reserved_pebs) == 0)
 			continue; /* Empty record */
 
@@ -736,8 +732,6 @@ static int check_attaching_info(const struct ubi_device *ubi,
 	}
 
 	for (i = 0; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
-		cond_resched();
-
 		av = ubi_find_av(ai, i);
 		vol = ubi->volumes[i];
 		if (!vol) {

@@ -738,8 +738,6 @@ static void stfsm_wait_seq(struct stfsm *fsm)
 
 		if (stfsm_is_idle(fsm))
 			return;
-
-		cond_resched();
 	}
 
 	dev_err(fsm->dev, "timeout on sequence completion\n");
@@ -901,8 +899,6 @@ static uint8_t stfsm_wait_busy(struct stfsm *fsm)
 		if (!timeout)
 			/* Restart */
 			writel(seq->seq_cfg, fsm->base + SPI_FAST_SEQ_CFG);
-
-		cond_resched();
 	}
 
 	dev_err(fsm->dev, "timeout on wait_busy\n");

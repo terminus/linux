@@ -132,8 +132,7 @@ static int sst25l_wait_till_ready(struct sst25l_flash *flash)
 			return err;
 		if (!(status & SST25L_STATUS_BUSY))
 			return 0;
-
-		cond_resched();
+		cond_resched_stall();
 	} while (!time_after_eq(jiffies, deadline));
 
 	return -ETIMEDOUT;

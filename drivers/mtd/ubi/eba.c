@@ -1408,9 +1408,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		aldata_size = data_size =
 			ubi_calc_data_len(ubi, ubi->peb_buf, data_size);
 
-	cond_resched();
 	crc = crc32(UBI_CRC32_INIT, ubi->peb_buf, data_size);
-	cond_resched();
 
 	/*
 	 * It may turn out to be that the whole @from physical eraseblock
@@ -1432,8 +1430,6 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 		goto out_unlock_buf;
 	}
 
-	cond_resched();
-
 	/* Read the VID header back and check if it was written correctly */
 	err = ubi_io_read_vid_hdr(ubi, to, vidb, 1);
 	if (err) {
@@ -1454,8 +1450,6 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 				err = MOVE_TARGET_WR_ERR;
 			goto out_unlock_buf;
 		}
-
-		cond_resched();
 	}
 
 	ubi_assert(vol->eba_tbl->entries[lnum].pnum == from);
@@ -1639,8 +1633,6 @@ int ubi_eba_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		vol = ubi->volumes[i];
 		if (!vol)
 			continue;
-
-		cond_resched();
 
 		tbl = ubi_eba_create_table(vol, vol->reserved_pebs);
 		if (IS_ERR(tbl)) {

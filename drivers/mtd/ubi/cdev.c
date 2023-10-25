@@ -209,8 +209,6 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	lnum = div_u64_rem(*offp, vol->usable_leb_size, &off);
 
 	do {
-		cond_resched();
-
 		if (off + len >= vol->usable_leb_size)
 			len = vol->usable_leb_size - off;
 
@@ -289,8 +287,6 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	len = count > tbuf_size ? tbuf_size : count;
 
 	while (count) {
-		cond_resched();
-
 		if (off + len >= vol->usable_leb_size)
 			len = vol->usable_leb_size - off;
 

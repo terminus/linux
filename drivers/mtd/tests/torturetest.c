@@ -390,7 +390,6 @@ static void report_corrupt(unsigned char *read, unsigned char *written)
 	       " what was read from flash and what was expected\n");
 
 	for (i = 0; i < check_len; i += pgsize) {
-		cond_resched();
 		bytes = bits = 0;
 		first = countdiffs(written, read, i, pgsize, &bytes,
 				   &bits);

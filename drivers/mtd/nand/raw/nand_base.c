@@ -730,8 +730,7 @@ int nand_gpio_waitrdy(struct nand_chip *chip, struct gpio_desc *gpiod,
 	do {
 		if (gpiod_get_value_cansleep(gpiod))
 			return 0;
-
-		cond_resched();
+		cond_resched_stall();
 	} while	(time_before(jiffies, timeout_ms));
 
 	return gpiod_get_value_cansleep(gpiod) ? 0 : -ETIMEDOUT;

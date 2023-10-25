@@ -278,7 +278,7 @@ static int spear_smi_wait_till_ready(struct spear_smi *dev, u32 bank,
 			return 0;
 		}
 
-		cond_resched();
+		cond_resched_stall();
 	} while (!time_after_eq(jiffies, finish));
 
 	dev_err(&dev->pdev->dev, "smi controller is busy, timeout\n");

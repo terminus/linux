@@ -1105,7 +1105,6 @@ static void __xipram xip_udelay(struct map_info *map, struct flchip *chip,
 			local_irq_enable();
 			mutex_unlock(&chip->mutex);
 			xip_iprefetch();
-			cond_resched();
 
 			/*
 			 * We're back.  However someone else might have

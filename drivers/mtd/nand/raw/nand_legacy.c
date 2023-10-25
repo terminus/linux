@@ -203,7 +203,13 @@ void nand_wait_ready(struct nand_chip *chip)
 	do {
 		if (chip->legacy.dev_ready(chip))
 			return;
-		cond_resched();
+		/*
+		 * Use a cond_resched_stall() to avoid spinning in
+		 * a tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should timeout or event wait?
+		 */
+		cond_resched_stall();
 	} while (time_before(jiffies, timeo));
 
 	if (!chip->legacy.dev_ready(chip))
@@ -565,7 +571,14 @@ static int nand_wait(struct nand_chip *chip)
 				if (status & NAND_STATUS_READY)
 					break;
 			}
-			cond_resched();
+
+			/*
+			 * Use a cond_resched_stall() to avoid spinning in
+			 * a tight loop.
+			 * Though, given that the timeout is in milliseconds,
+			 * maybe this should timeout or event wait?
+			 */
+			cond_resched_stall();
 		} while (time_before(jiffies, timeo));
 	}
 

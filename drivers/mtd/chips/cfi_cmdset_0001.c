@@ -1208,7 +1208,6 @@ static int __xipram xip_wait_for_operation(
 			local_irq_enable();
 			mutex_unlock(&chip->mutex);
 			xip_iprefetch();
-			cond_resched();
 
 			/*
 			 * We're back.  However someone else might have
@@ -1337,7 +1336,6 @@ static int inval_cache_and_wait_for_operation(
 			sleep_time = 1000000/HZ;
 		} else {
 			udelay(1);
-			cond_resched();
 			timeo--;
 		}
 		mutex_lock(&chip->mutex);
@@ -1912,10 +1910,6 @@ static int cfi_intelext_writev (struct mtd_info *mtd, const struct kvec *vecs,
 			if (chipnum == cfi->numchips)
 				return 0;
 		}
-
-		/* Be nice and reschedule with the chip in a usable state for other
-		   processes. */
-		cond_resched();
 
 	} while (len);
 

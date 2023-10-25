@@ -190,8 +190,6 @@ static int do_work(struct ubi_device *ubi)
 	int err;
 	struct ubi_work *wrk;
 
-	cond_resched();
-
 	/*
 	 * @ubi->work_sem is used to synchronize with the workers. Workers take
 	 * it in read mode, so many of them may be doing works at a time. But
@@ -519,7 +517,6 @@ repeat:
 			 * too long.
 			 */
 			spin_unlock(&ubi->wl_lock);
-			cond_resched();
 			goto repeat;
 		}
 	}
@@ -1703,8 +1700,6 @@ int ubi_thread(void *u)
 			}
 		} else
 			failures = 0;
-
-		cond_resched();
 	}
 
 	dbg_wl("background thread \"%s\" is killed", ubi->bgt_name);
@@ -1805,8 +1800,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 	ubi->free_count = 0;
 	list_for_each_entry_safe(aeb, tmp, &ai->erase, u.list) {
-		cond_resched();
-
 		err = erase_aeb(ubi, aeb, false);
 		if (err)
 			goto out_free;
@@ -1815,8 +1808,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	}
 
 	list_for_each_entry(aeb, &ai->free, u.list) {
-		cond_resched();
-
 		e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 		if (!e) {
 			err = -ENOMEM;
@@ -1837,8 +1828,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb) {
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb) {
-			cond_resched();
-
 			e = kmem_cache_alloc(ubi_wl_entry_slab, GFP_KERNEL);
 			if (!e) {
 				err = -ENOMEM;
@@ -1864,8 +1853,6 @@ int ubi_wl_init(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	}
 
 	list_for_each_entry(aeb, &ai->fastmap, u.list) {
-		cond_resched();
-
 		e = ubi_find_fm_block(ubi, aeb->pnum);
 
 		if (e) {

@@ -730,7 +730,13 @@ static int spi_nor_wait_till_ready_with_timeout(struct spi_nor *nor,
 		if (ret)
 			return 0;
 
-		cond_resched();
+		/*
+		 * Use a cond_resched_stall() to avoid spinning in
+		 * a tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should timeout or event wait?
+		 */
+		cond_resched_stall();
 	}
 
 	dev_dbg(nor->dev, "flash operation timed out\n");

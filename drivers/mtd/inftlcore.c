@@ -732,11 +732,6 @@ static void INFTL_trydeletechain(struct INFTLrecord *inftl, unsigned thisVUC)
 
 		/* Now sort out whatever was pointing to it... */
 		*prevEUN = BLOCK_NIL;
-
-		/* Ideally we'd actually be responsive to new
-		   requests while we're doing this -- if there's
-		   free space why should others be made to wait? */
-		cond_resched();
 	}
 
 	inftl->VUtable[thisVUC] = BLOCK_NIL;

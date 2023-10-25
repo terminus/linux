@@ -28,7 +28,7 @@ void cfi_udelay(int us)
 		msleep(DIV_ROUND_UP(us, 1000));
 	} else {
 		udelay(us);
-		cond_resched();
+		cond_resched_stall();
 	}
 }
 EXPORT_SYMBOL(cfi_udelay);

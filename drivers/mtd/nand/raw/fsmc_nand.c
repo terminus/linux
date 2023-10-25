@@ -398,8 +398,7 @@ static int fsmc_read_hwecc_ecc4(struct nand_chip *chip, const u8 *data,
 	do {
 		if (readl_relaxed(host->regs_va + STS) & FSMC_CODE_RDY)
 			break;
-
-		cond_resched();
+		cond_resched_stall();
 	} while (!time_after_eq(jiffies, deadline));
 
 	if (time_after_eq(jiffies, deadline)) {

@@ -43,7 +43,6 @@ static int write_eraseblock(int ebnum)
 	loff_t addr = (loff_t)ebnum * mtd->erasesize;
 
 	prandom_bytes_state(&rnd_state, writebuf, mtd->erasesize);
-	cond_resched();
 	return mtdtest_write(mtd, addr, mtd->erasesize, writebuf);
 }
 

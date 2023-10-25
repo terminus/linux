@@ -1257,8 +1257,6 @@ static int __init ubi_init(void)
 		struct mtd_dev_param *p = &mtd_dev_param[i];
 		struct mtd_info *mtd;
 
-		cond_resched();
-
 		mtd = open_mtd_device(p->name);
 		if (IS_ERR(mtd)) {
 			err = PTR_ERR(mtd);

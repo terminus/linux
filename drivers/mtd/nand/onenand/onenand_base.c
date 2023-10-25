@@ -567,7 +567,7 @@ static int onenand_wait(struct mtd_info *mtd, int state)
 			break;
 
 		if (state != FL_READING && state != FL_PREPARING_ERASE)
-			cond_resched();
+			cond_resched_stall();
 	}
 	/* To get correct interrupt status in timeout case */
 	interrupt = this->read_word(this->base + ONENAND_REG_INTERRUPT);
@@ -1143,8 +1143,6 @@ static int onenand_mlc_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 	stats = mtd->ecc_stats;
 
 	while (read < len) {
-		cond_resched();
-
 		thislen = min_t(int, writesize, len - read);
 
 		column = from & (writesize - 1);
@@ -1307,7 +1305,6 @@ static int onenand_read_ops_nolock(struct mtd_info *mtd, loff_t from,
 		buf += thislen;
 		thislen = min_t(int, writesize, len - read);
 		column = 0;
-		cond_resched();
 		/* Now wait for load */
 		ret = this->wait(mtd, FL_READING);
 		onenand_update_bufferram(mtd, from, !ret);
@@ -1378,8 +1375,6 @@ static int onenand_read_oob_nolock(struct mtd_info *mtd, loff_t from,
 	readcmd = ONENAND_IS_4KB_PAGE(this) ? ONENAND_CMD_READ : ONENAND_CMD_READOOB;
 
 	while (read < len) {
-		cond_resched();
-
 		thislen = oobsize - column;
 		thislen = min_t(int, thislen, len);
 
@@ -1565,8 +1560,6 @@ int onenand_bbt_read_oob(struct mtd_info *mtd, loff_t from,
 	readcmd = ONENAND_IS_4KB_PAGE(this) ? ONENAND_CMD_READ : ONENAND_CMD_READOOB;
 
 	while (read < len) {
-		cond_resched();
-
 		thislen = mtd->oobsize - column;
 		thislen = min_t(int, thislen, len);
 
@@ -1838,8 +1831,6 @@ static int onenand_write_ops_nolock(struct mtd_info *mtd, loff_t to,
 			thislen = min_t(int, mtd->writesize - column, len - written);
 			thisooblen = min_t(int, oobsize - oobcolumn, ooblen - oobwritten);
 
-			cond_resched();
-
 			this->command(mtd, ONENAND_CMD_BUFFERRAM, to, thislen);
 
 			/* Partial page write */
@@ -2021,8 +2012,6 @@ static int onenand_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 	/* Loop until all data write */
 	while (written < len) {
 		int thislen = min_t(int, oobsize, len - written);
-
-		cond_resched();
 
 		this->command(mtd, ONENAND_CMD_BUFFERRAM, to, mtd->oobsize);
 
@@ -2232,7 +2221,6 @@ static int onenand_multiblock_erase(struct mtd_info *mtd,
 		}
 
 		/* last block of 64-eb series */
-		cond_resched();
 		this->command(mtd, ONENAND_CMD_ERASE, addr, block_size);
 		onenand_invalidate_bufferram(mtd, addr, block_size);
 
@@ -2288,8 +2276,6 @@ static int onenand_block_by_block_erase(struct mtd_info *mtd,
 
 	/* Loop through the blocks */
 	while (len) {
-		cond_resched();
-
 		/* Check if we have a bad block, we do not erase bad blocks */
 		if (onenand_block_isbad_nolock(mtd, addr, 0)) {
 			printk(KERN_WARNING "%s: attempt to erase a bad block "
@@ -2798,8 +2784,6 @@ static int onenand_otp_write_oob_nolock(struct mtd_info *mtd, loff_t to,
 	/* Loop until all data write */
 	while (written < len) {
 		int thislen = min_t(int, oobsize, len - written);
-
-		cond_resched();
 
 		block = (int) (to >> this->erase_shift);
 		/*

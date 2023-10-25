@@ -248,7 +248,7 @@ static int _DoC_WaitReady(struct doc_priv *doc)
 				return -EIO;
 			}
 			udelay(1);
-			cond_resched();
+			cond_resched_stall();
 		}
 	} else {
 		while (!(ReadDOC(docptr, CDSNControl) & CDSN_CTRL_FR_B)) {
@@ -257,7 +257,7 @@ static int _DoC_WaitReady(struct doc_priv *doc)
 				return -EIO;
 			}
 			udelay(1);
-			cond_resched();
+			cond_resched_stall();
 		}
 	}
 

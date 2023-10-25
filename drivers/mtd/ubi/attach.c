@@ -1390,8 +1390,6 @@ static int scan_all(struct ubi_device *ubi, struct ubi_attach_info *ai,
 		goto out_ech;
 
 	for (pnum = start; pnum < ubi->peb_count; pnum++) {
-		cond_resched();
-
 		dbg_gen("process PEB %d", pnum);
 		err = scan_peb(ubi, ai, pnum, false);
 		if (err < 0)
@@ -1504,8 +1502,6 @@ static int scan_fast(struct ubi_device *ubi, struct ubi_attach_info **ai)
 		goto out_ech;
 
 	for (pnum = 0; pnum < UBI_FM_MAX_START; pnum++) {
-		cond_resched();
-
 		dbg_gen("process PEB %d", pnum);
 		err = scan_peb(ubi, scan_ai, pnum, true);
 		if (err < 0)
@@ -1674,8 +1670,6 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 	ubi_rb_for_each_entry(rb1, av, &ai->volumes, rb) {
 		int leb_count = 0;
 
-		cond_resched();
-
 		vols_found += 1;
 
 		if (ai->is_empty) {
@@ -1715,8 +1709,6 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 
 		last_aeb = NULL;
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb) {
-			cond_resched();
-
 			last_aeb = aeb;
 			leb_count += 1;
 
@@ -1789,8 +1781,6 @@ static int self_check_ai(struct ubi_device *ubi, struct ubi_attach_info *ai)
 		last_aeb = NULL;
 		ubi_rb_for_each_entry(rb2, aeb, &av->root, u.rb) {
 			int vol_type;
-
-			cond_resched();
 
 			last_aeb = aeb;
 

@@ -338,8 +338,14 @@ static int s3c_onenand_wait(struct mtd_info *mtd, int state)
 		if (stat & flags)
 			break;
 
+		/*
+		 * Use a cond_resched_stall() to avoid spinning in
+		 * a tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should timeout or event wait?
+		 */
 		if (state != FL_READING)
-			cond_resched();
+			cond_resched_stall();
 	}
 	/* To get correct interrupt status in timeout case */
 	stat = s3c_read_reg(INT_ERR_STAT_OFFSET);

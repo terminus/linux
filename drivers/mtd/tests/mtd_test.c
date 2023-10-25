@@ -51,7 +51,6 @@ int mtdtest_scan_for_bad_eraseblocks(struct mtd_info *mtd, unsigned char *bbt,
 		bbt[i] = is_block_bad(mtd, eb + i) ? 1 : 0;
 		if (bbt[i])
 			bad += 1;
-		cond_resched();
 	}
 	pr_info("scanned %d eraseblocks, %d are bad\n", i, bad);
 
@@ -70,7 +69,6 @@ int mtdtest_erase_good_eraseblocks(struct mtd_info *mtd, unsigned char *bbt,
 		err = mtdtest_erase_eraseblock(mtd, eb + i);
 		if (err)
 			return err;
-		cond_resched();
 	}
 
 	return 0;

@@ -161,7 +161,7 @@ static int wait_for_ready(struct map_info *map, struct flchip *chip,
 			sleep_time = 1000000/HZ;
 		} else {
 			udelay(1);
-			cond_resched();
+			cond_resched_stall();
 			timeo--;
 		}
 		mutex_lock(&chip->mutex);
@@ -676,10 +676,6 @@ static int lpddr_writev(struct mtd_info *mtd, const struct kvec *vecs,
 		ofs += size;
 		(*retlen) += size;
 		len -= size;
-
-		/* Be nice and reschedule with the chip in a usable
-		 * state for other processes */
-		cond_resched();
 
 	} while (len);
 
