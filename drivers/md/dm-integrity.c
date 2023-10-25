@@ -2717,12 +2717,10 @@ next_chunk:
 				       ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
 			logical_sector += ic->sectors_per_block;
 			n_sectors -= ic->sectors_per_block;
-			cond_resched();
 		}
 		while (block_bitmap_op(ic, ic->recalc_bitmap, logical_sector + n_sectors - ic->sectors_per_block,
 				       ic->sectors_per_block, BITMAP_OP_TEST_ALL_CLEAR)) {
 			n_sectors -= ic->sectors_per_block;
-			cond_resched();
 		}
 		get_area_and_offset(ic, logical_sector, &area, &offset);
 	}
@@ -2782,7 +2780,6 @@ next_chunk:
 	}
 
 advance_and_next:
-	cond_resched();
 
 	spin_lock_irq(&ic->endio_wait.lock);
 	remove_range_unlocked(ic, &range);

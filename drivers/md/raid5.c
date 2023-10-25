@@ -6727,8 +6727,6 @@ static int handle_active_stripes(struct r5conf *conf, int group,
 		handle_stripe(batch[i]);
 	log_write_stripe_run(conf);
 
-	cond_resched();
-
 	spin_lock_irq(&conf->device_lock);
 	for (i = 0; i < batch_size; i++) {
 		hash = batch[i]->hash_lock_index;

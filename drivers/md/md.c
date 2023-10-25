@@ -9048,7 +9048,6 @@ void md_do_sync(struct md_thread *thread)
 		 * about not overloading the IO subsystem. (things like an
 		 * e2fsck being done on the RAID array should execute fast)
 		 */
-		cond_resched();
 
 		recovery_done = io_sectors - atomic_read(&mddev->recovery_active);
 		currspeed = ((unsigned long)(recovery_done - mddev->resync_mark_cnt))/2

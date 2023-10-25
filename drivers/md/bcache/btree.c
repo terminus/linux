@@ -1826,7 +1826,6 @@ static void bch_btree_gc(struct cache_set *c)
 	do {
 		ret = bcache_btree_root(gc_root, c, &op, &writes, &stats);
 		closure_sync(&writes);
-		cond_resched();
 
 		if (ret == -EAGAIN)
 			schedule_timeout_interruptible(msecs_to_jiffies
@@ -1981,7 +1980,6 @@ static int bch_btree_check_thread(void *arg)
 				goto out;
 			}
 			skip_nr--;
-			cond_resched();
 		}
 
 		if (p) {
@@ -2005,7 +2003,6 @@ static int bch_btree_check_thread(void *arg)
 		}
 		p = NULL;
 		prev_idx = cur_idx;
-		cond_resched();
 	}
 
 out:
@@ -2669,8 +2666,6 @@ void bch_refill_keybuf(struct cache_set *c, struct keybuf *buf,
 {
 	struct bkey start = buf->last_scanned;
 	struct refill refill;
-
-	cond_resched();
 
 	bch_btree_op_init(&refill.op, -1);
 	refill.nr_found	= 0;

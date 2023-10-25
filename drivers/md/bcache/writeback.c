@@ -863,8 +863,6 @@ static int sectors_dirty_init_fn(struct btree_op *_op, struct btree *b,
 					     KEY_START(k), KEY_SIZE(k));
 
 	op->count++;
-	if (!(op->count % INIT_KEYS_EACH_TIME))
-		cond_resched();
 
 	return MAP_CONTINUE;
 }

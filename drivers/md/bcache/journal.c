@@ -384,8 +384,6 @@ int bch_journal_replay(struct cache_set *s, struct list_head *list)
 
 			BUG_ON(!bch_keylist_empty(&keylist));
 			keys++;
-
-			cond_resched();
 		}
 
 		if (i->pin)

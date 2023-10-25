@@ -294,8 +294,6 @@ static struct lru_entry *lru_evict(struct lru *lru, le_predicate pred, void *con
 		}
 
 		h = h->next;
-
-		cond_resched();
 	}
 
 	return NULL;
@@ -762,7 +760,6 @@ static void __cache_iterate(struct dm_buffer_cache *bc, int list_mode,
 		case IT_COMPLETE:
 			return;
 		}
-		cond_resched();
 
 		le = to_le(le->list.next);
 	} while (le != first);
@@ -890,8 +887,6 @@ static void __remove_range(struct dm_buffer_cache *bc,
 	struct dm_buffer *b;
 
 	while (true) {
-		cond_resched();
-
 		b = __find_next(root, begin);
 		if (!b || (b->block >= end))
 			break;
@@ -1435,7 +1430,6 @@ static void __flush_write_list(struct list_head *write_list)
 			list_entry(write_list->next, struct dm_buffer, write_list);
 		list_del(&b->write_list);
 		submit_io(b, REQ_OP_WRITE, write_endio);
-		cond_resched();
 	}
 	blk_finish_plug(&plug);
 }
@@ -1953,8 +1947,6 @@ void dm_bufio_prefetch(struct dm_bufio_client *c,
 				submit_io(b, REQ_OP_READ, read_endio);
 			dm_bufio_release(b);
 
-			cond_resched();
-
 			if (!n_blocks)
 				goto flush_plug;
 			dm_bufio_lock(c);
@@ -2093,8 +2085,6 @@ int dm_bufio_write_dirty_buffers(struct dm_bufio_client *c)
 			cache_mark(&c->cache, b, LIST_CLEAN);
 
 		cache_put_and_wake(c, b);
-
-		cond_resched();
 	}
 	lru_iter_end(&it);
 
@@ -2350,7 +2340,6 @@ static void __scan(struct dm_bufio_client *c)
 
 			atomic_long_dec(&c->need_shrink);
 			freed++;
-			cond_resched();
 		}
 	}
 }
@@ -2659,8 +2648,6 @@ static unsigned long __evict_many(struct dm_bufio_client *c,
 
 		__make_buffer_clean(b);
 		__free_buffer_wake(b);
-
-		cond_resched();
 	}
 
 	return count;
@@ -2802,7 +2789,6 @@ static void evict_old(void)
 	while (dm_bufio_current_allocated > threshold) {
 		if (!__evict_a_few(64))
 			break;
-		cond_resched();
 	}
 	mutex_unlock(&dm_bufio_clients_lock);
 }

@@ -321,8 +321,6 @@ static int persistent_memory_claim(struct dm_writecache *wc)
 			while (daa-- && i < p) {
 				pages[i++] = pfn_t_to_page(pfn);
 				pfn.val++;
-				if (!(i & 15))
-					cond_resched();
 			}
 		} while (i < p);
 		wc->memory_map = vmap(pages, p, VM_MAP, PAGE_KERNEL);
@@ -819,7 +817,6 @@ static void writecache_flush(struct dm_writecache *wc)
 		if (writecache_entry_is_committed(wc, e2))
 			break;
 		e = e2;
-		cond_resched();
 	}
 	writecache_commit_flushed(wc, true);
 
@@ -848,7 +845,6 @@ static void writecache_flush(struct dm_writecache *wc)
 		if (unlikely(e->lru.prev == &wc->lru))
 			break;
 		e = container_of(e->lru.prev, struct wc_entry, lru);
-		cond_resched();
 	}
 
 	if (need_flush_after_free)
@@ -970,7 +966,6 @@ static int writecache_alloc_entries(struct dm_writecache *wc)
 
 		e->index = b;
 		e->write_in_progress = false;
-		cond_resched();
 	}
 
 	return 0;
@@ -1058,7 +1053,6 @@ static void writecache_resume(struct dm_target *ti)
 			e->original_sector = le64_to_cpu(wme.original_sector);
 			e->seq_count = le64_to_cpu(wme.seq_count);
 		}
-		cond_resched();
 	}
 #endif
 	for (b = 0; b < wc->n_blocks; b++) {
@@ -1093,7 +1087,6 @@ erase_this:
 				}
 			}
 		}
-		cond_resched();
 	}
 
 	if (need_flush) {
@@ -1824,7 +1817,6 @@ static void __writeback_throttle(struct dm_writecache *wc, struct writeback_list
 			wc_unlock(wc);
 		}
 	}
-	cond_resched();
 }
 
 static void __writecache_writeback_pmem(struct dm_writecache *wc, struct writeback_list *wbl)
@@ -2024,7 +2016,6 @@ restart:
 				     read_original_sector(wc, e))) {
 				BUG_ON(!f->write_in_progress);
 				list_move(&e->lru, &skipped);
-				cond_resched();
 				continue;
 			}
 		}
@@ -2079,7 +2070,6 @@ restart:
 				break;
 			}
 		}
-		cond_resched();
 	}
 
 	if (!list_empty(&skipped)) {
@@ -2168,7 +2158,6 @@ static int init_memory(struct dm_writecache *wc)
 
 	for (b = 0; b < wc->n_blocks; b++) {
 		write_original_sector_seq_count(wc, &wc->entries[b], -1, -1);
-		cond_resched();
 	}
 
 	writecache_flush_all_metadata(wc);

@@ -996,7 +996,6 @@ static void dm_wq_requeue_work(struct work_struct *work)
 		io->next = NULL;
 		__dm_io_complete(io, false);
 		io = next;
-		cond_resched();
 	}
 }
 
@@ -1379,12 +1378,10 @@ static noinline void __set_swap_bios_limit(struct mapped_device *md, int latch)
 {
 	mutex_lock(&md->swap_bios_lock);
 	while (latch < md->swap_bios) {
-		cond_resched();
 		down(&md->swap_bios_semaphore);
 		md->swap_bios--;
 	}
 	while (latch > md->swap_bios) {
-		cond_resched();
 		up(&md->swap_bios_semaphore);
 		md->swap_bios++;
 	}
@@ -2583,7 +2580,6 @@ static void dm_wq_work(struct work_struct *work)
 			break;
 
 		submit_bio_noacct(bio);
-		cond_resched();
 	}
 }
 

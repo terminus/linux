@@ -1762,7 +1762,6 @@ static void copy_callback(int read_err, unsigned long write_err, void *context)
 			s->exception_complete_sequence++;
 			rb_erase(&pe->out_of_order_node, &s->out_of_order_tree);
 			complete_exception(pe);
-			cond_resched();
 		}
 	} else {
 		struct rb_node *parent = NULL;

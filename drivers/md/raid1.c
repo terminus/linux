@@ -807,7 +807,6 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 
 		raid1_submit_write(bio);
 		bio = next;
-		cond_resched();
 	}
 }
 
@@ -2613,7 +2612,6 @@ static void raid1d(struct md_thread *thread)
 		else
 			WARN_ON_ONCE(1);
 
-		cond_resched();
 		if (mddev->sb_flags & ~(1<<MD_SB_CHANGE_PENDING))
 			md_check_recovery(mddev);
 	}
