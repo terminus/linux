@@ -8595,12 +8595,8 @@ EXPORT_SYMBOL(_cond_resched);
 #endif
 
 /*
- * __cond_resched_lock() - if a reschedule is pending, drop the given lock,
- * call schedule, and on return reacquire the lock.
- *
- * This works OK both with and without CONFIG_PREEMPTION. We do strange low-level
- * operations here to prevent schedule() from being called twice (once via
- * spin_unlock(), once by hand).
+ * __cond_resched_lock() - if a reschedule is pending, drop the given lock
+ * (implicitly calling schedule), and reacquire the lock.
  */
 int __cond_resched_lock(spinlock_t *lock)
 {
@@ -8611,7 +8607,7 @@ int __cond_resched_lock(spinlock_t *lock)
 
 	if (spin_needbreak(lock) || resched) {
 		spin_unlock(lock);
-		if (!_cond_resched())
+		if (!resched)
 			cpu_relax();
 		ret = 1;
 		spin_lock(lock);
@@ -8629,7 +8625,7 @@ int __cond_resched_rwlock_read(rwlock_t *lock)
 
 	if (rwlock_needbreak(lock) || resched) {
 		read_unlock(lock);
-		if (!_cond_resched())
+		if (!resched)
 			cpu_relax();
 		ret = 1;
 		read_lock(lock);
@@ -8647,7 +8643,7 @@ int __cond_resched_rwlock_write(rwlock_t *lock)
 
 	if (rwlock_needbreak(lock) || resched) {
 		write_unlock(lock);
-		if (!_cond_resched())
+		if (!resched)
 			cpu_relax();
 		ret = 1;
 		write_lock(lock);
