@@ -1455,7 +1455,6 @@ static int mlxsw_pci_sys_ready_wait(struct mlxsw_pci *mlxsw_pci,
 		val = mlxsw_pci_read32(mlxsw_pci, FW_READY);
 		if ((val & MLXSW_PCI_FW_READY_MASK) == MLXSW_PCI_FW_READY_MAGIC)
 			return 0;
-		cond_resched();
 	} while (time_before(jiffies, end));
 
 	*p_sys_status = val & MLXSW_PCI_FW_READY_MASK;
@@ -1824,7 +1823,6 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 				*p_status = ctrl >> MLXSW_PCI_CIR_CTRL_STATUS_SHIFT;
 				break;
 			}
-			cond_resched();
 		} while (time_before(jiffies, end));
 	} else {
 		wait_event_timeout(mlxsw_pci->cmd.wait, *p_wait_done, timeout);

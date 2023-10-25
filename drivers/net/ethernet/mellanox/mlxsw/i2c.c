@@ -180,7 +180,6 @@ static int mlxsw_i2c_wait_go_bit(struct i2c_client *client,
 				break;
 			}
 		}
-		cond_resched();
 	} while ((time_before(jiffies, end)) || (i++ < MLXSW_I2C_RETRY));
 
 	if (wait_done) {
@@ -361,8 +360,6 @@ mlxsw_i2c_write(struct device *dev, size_t in_mbox_size, u8 *in_mbox, int num,
 			err = i2c_transfer(client->adapter, &write_tran, 1);
 			if (err == 1)
 				break;
-
-			cond_resched();
 		} while ((time_before(jiffies, end)) ||
 			 (j++ < MLXSW_I2C_RETRY));
 
@@ -473,8 +470,6 @@ mlxsw_i2c_cmd(struct device *dev, u16 opcode, u32 in_mod, size_t in_mbox_size,
 					   ARRAY_SIZE(read_tran));
 			if (err == ARRAY_SIZE(read_tran))
 				break;
-
-			cond_resched();
 		} while ((time_before(jiffies, end)) ||
 			 (j++ < MLXSW_I2C_RETRY));
 

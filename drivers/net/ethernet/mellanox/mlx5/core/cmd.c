@@ -285,7 +285,7 @@ static void poll_timeout(struct mlx5_cmd_work_ent *ent)
 			ent->ret = 0;
 			return;
 		}
-		cond_resched();
+		cond_resched_stall();
 	} while (time_before(jiffies, poll_end));
 
 	ent->ret = -ETIMEDOUT;
@@ -1773,13 +1773,11 @@ void mlx5_cmd_flush(struct mlx5_core_dev *dev)
 	for (i = 0; i < cmd->vars.max_reg_cmds; i++) {
 		while (down_trylock(&cmd->vars.sem)) {
 			mlx5_cmd_trigger_completions(dev);
-			cond_resched();
 		}
 	}
 
 	while (down_trylock(&cmd->vars.pages_sem)) {
 		mlx5_cmd_trigger_completions(dev);
-		cond_resched();
 	}
 
 	/* Unlock cmdif */

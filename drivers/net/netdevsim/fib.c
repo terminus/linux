@@ -1492,7 +1492,6 @@ static void nsim_fib_event_work(struct work_struct *work)
 		nsim_fib_event(fib_event);
 		list_del(&fib_event->list);
 		kfree(fib_event);
-		cond_resched();
 	}
 	mutex_unlock(&data->fib_lock);
 }

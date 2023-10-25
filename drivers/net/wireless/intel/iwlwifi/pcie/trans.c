@@ -2309,8 +2309,6 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 			}
 			iwl_trans_release_nic_access(trans);
 
-			if (resched)
-				cond_resched();
 		} else {
 			return -EBUSY;
 		}

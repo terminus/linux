@@ -112,10 +112,10 @@ static u16 lo_measure_feedthrough(struct b43_wldev *dev,
 	udelay(21);
 	feedthrough = b43_phy_read(dev, B43_PHY_LO_LEAKAGE);
 
-	/* This is a good place to check if we need to relax a bit,
+	/* This is a good place to check if we need to relax a bit
 	 * as this is the main function called regularly
-	 * in the LO calibration. */
-	cond_resched();
+	 * in the L0 calibration. */
+	cond_resched_stall();
 
 	return feedthrough;
 }

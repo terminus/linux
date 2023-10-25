@@ -213,7 +213,6 @@ void wg_packet_handshake_receive_worker(struct work_struct *work)
 		wg_receive_handshake_packet(wg, skb);
 		dev_kfree_skb(skb);
 		atomic_dec(&wg->handshake_queue_len);
-		cond_resched();
 	}
 }
 
@@ -501,8 +500,6 @@ void wg_packet_decrypt_worker(struct work_struct *work)
 			likely(decrypt_packet(skb, PACKET_CB(skb)->keypair)) ?
 				PACKET_STATE_CRYPTED : PACKET_STATE_DEAD;
 		wg_queue_enqueue_per_peer_rx(skb, state);
-		if (need_resched())
-			cond_resched();
 	}
 }
 

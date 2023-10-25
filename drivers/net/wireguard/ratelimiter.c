@@ -74,8 +74,6 @@ static void wg_ratelimiter_gc_entries(struct work_struct *work)
 		}
 #endif
 		spin_unlock(&table_lock);
-		if (likely(work))
-			cond_resched();
 	}
 	if (likely(work))
 		queue_delayed_work(system_power_efficient_wq, &gc_work, HZ);

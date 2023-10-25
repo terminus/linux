@@ -1225,7 +1225,6 @@ static void pasemi_mac_pause_txchan(struct pasemi_mac *mac)
 		sta = read_dma_reg(PAS_DMA_TXCHAN_TCMDSTA(txch));
 		if (!(sta & PAS_DMA_TXCHAN_TCMDSTA_ACT))
 			break;
-		cond_resched();
 	}
 
 	if (sta & PAS_DMA_TXCHAN_TCMDSTA_ACT)
@@ -1246,7 +1245,6 @@ static void pasemi_mac_pause_rxchan(struct pasemi_mac *mac)
 		sta = read_dma_reg(PAS_DMA_RXCHAN_CCMDSTA(rxch));
 		if (!(sta & PAS_DMA_RXCHAN_CCMDSTA_ACT))
 			break;
-		cond_resched();
 	}
 
 	if (sta & PAS_DMA_RXCHAN_CCMDSTA_ACT)
@@ -1265,7 +1263,6 @@ static void pasemi_mac_pause_rxint(struct pasemi_mac *mac)
 		sta = read_dma_reg(PAS_DMA_RXINT_RCMDSTA(mac->dma_if));
 		if (!(sta & PAS_DMA_RXINT_RCMDSTA_ACT))
 			break;
-		cond_resched();
 	}
 
 	if (sta & PAS_DMA_RXINT_RCMDSTA_ACT)

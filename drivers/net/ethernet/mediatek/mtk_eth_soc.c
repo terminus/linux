@@ -309,7 +309,7 @@ static int mtk_mdio_busy_wait(struct mtk_eth *eth)
 			return 0;
 		if (time_after(jiffies, t_start + PHY_IAC_TIMEOUT))
 			break;
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	dev_err(eth->dev, "mdio: MDIO timeout\n");

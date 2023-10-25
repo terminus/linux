@@ -632,7 +632,6 @@ mwl8k_send_fw_load_cmd(struct mwl8k_priv *priv, void *data, int length)
 				break;
 			}
 		}
-		cond_resched();
 		udelay(1);
 	} while (--loops);
 
@@ -795,7 +794,6 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 			break;
 		}
 
-		cond_resched();
 		udelay(1);
 	} while (--loops);
 

@@ -12040,7 +12040,7 @@ static int tg3_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 				ret = -EINTR;
 				goto eeprom_done;
 			}
-			cond_resched();
+			cond_resched_stall();
 		}
 	}
 	eeprom->len += i;

@@ -434,7 +434,6 @@ static int __init ifb_init_module(void)
 
 	for (i = 0; i < numifbs && !err; i++) {
 		err = ifb_init_one(i);
-		cond_resched();
 	}
 	if (err)
 		__rtnl_link_unregister(&ifb_link_ops);

@@ -630,8 +630,6 @@ falcon_spi_read(struct ef4_nic *efx, const struct falcon_spi_device *spi,
 			break;
 		pos += block_len;
 
-		/* Avoid locking up the system */
-		cond_resched();
 		if (signal_pending(current)) {
 			rc = -EINTR;
 			break;
@@ -723,8 +721,6 @@ falcon_spi_write(struct ef4_nic *efx, const struct falcon_spi_device *spi,
 
 		pos += block_len;
 
-		/* Avoid locking up the system */
-		cond_resched();
 		if (signal_pending(current)) {
 			rc = -EINTR;
 			break;
@@ -839,8 +835,6 @@ falcon_spi_erase(struct falcon_mtd_partition *part, loff_t start, size_t len)
 		if (memcmp(empty, buffer, block_len))
 			return -EIO;
 
-		/* Avoid locking up the system */
-		cond_resched();
 		if (signal_pending(current))
 			return -EINTR;
 	}

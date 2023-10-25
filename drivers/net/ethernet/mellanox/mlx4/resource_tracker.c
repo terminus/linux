@@ -4649,7 +4649,14 @@ static int move_all_busy(struct mlx4_dev *dev, int slave,
 		if (time_after(jiffies, begin + 5 * HZ))
 			break;
 		if (busy)
-			cond_resched();
+			/*
+			 * Giving up the spinlock in _move_all_busy() will
+			 * reschedule if needed.
+			 * Add a cpu_relax() here to ensure that we give
+			 * others a chance to acquire the lock.
+			 */
+			cpu_relax();
+
 	} while (busy);
 
 	if (busy)

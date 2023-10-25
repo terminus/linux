@@ -4015,7 +4015,6 @@ static void free_unused_bufs(struct virtnet_info *vi)
 		struct virtqueue *vq = vi->sq[i].vq;
 		while ((buf = virtqueue_detach_unused_buf(vq)) != NULL)
 			virtnet_sq_free_unused_buf(vq, buf);
-		cond_resched();
 	}
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
@@ -4023,7 +4022,6 @@ static void free_unused_bufs(struct virtnet_info *vi)
 
 		while ((buf = virtnet_rq_detach_unused_buf(rq)) != NULL)
 			virtnet_rq_free_unused_buf(rq->vq, buf);
-		cond_resched();
 	}
 }
 

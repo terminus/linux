@@ -292,7 +292,6 @@ void ipvlan_process_multicast(struct work_struct *work)
 				kfree_skb(skb);
 		}
 		dev_put(dev);
-		cond_resched();
 	}
 }
 

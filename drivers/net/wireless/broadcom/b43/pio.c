@@ -768,7 +768,6 @@ void b43_pio_rx(struct b43_pio_rxqueue *q)
 		stop = !pio_rx_frame(q);
 		if (stop)
 			break;
-		cond_resched();
 		if (WARN_ON_ONCE(++count > 10000))
 			break;
 	}

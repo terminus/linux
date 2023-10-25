@@ -1571,7 +1571,6 @@ int xenvif_dealloc_kthread(void *data)
 			break;
 
 		xenvif_tx_dealloc_action(queue);
-		cond_resched();
 	}
 
 	/* Unmap anything remaining*/

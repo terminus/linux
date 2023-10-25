@@ -669,8 +669,6 @@ int xenvif_kthread_guest_rx(void *data)
 		 * slots.
 		 */
 		xenvif_rx_queue_drop_expired(queue);
-
-		cond_resched();
 	}
 
 	/* Bin any remaining skbs */

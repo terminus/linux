@@ -312,7 +312,8 @@ static int mlx4_comm_cmd_poll(struct mlx4_dev *dev, u8 cmd, u16 param,
 
 	end = msecs_to_jiffies(timeout) + jiffies;
 	while (comm_pending(dev) && time_before(jiffies, end))
-		cond_resched();
+		cond_resched_stall();
+
 	ret_from_pending = comm_pending(dev);
 	if (ret_from_pending) {
 		/* check if the slave is trying to boot in the middle of
@@ -387,7 +388,7 @@ static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 vhcr_cmd,
 	if (!(dev->persist->state & MLX4_DEVICE_STATE_INTERNAL_ERROR)) {
 		end = msecs_to_jiffies(timeout) + jiffies;
 		while (comm_pending(dev) && time_before(jiffies, end))
-			cond_resched();
+			cond_resched_stall();
 	}
 	goto out;
 
@@ -470,7 +471,7 @@ static int mlx4_cmd_post(struct mlx4_dev *dev, u64 in_param, u64 out_param,
 			mlx4_err(dev, "%s:cmd_pending failed\n", __func__);
 			goto out;
 		}
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	/*
@@ -621,8 +622,7 @@ static int mlx4_cmd_poll(struct mlx4_dev *dev, u64 in_param, u64 *out_param,
 			err = mlx4_internal_err_ret_value(dev, op, op_modifier);
 			goto out;
 		}
-
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	if (cmd_pending(dev)) {
@@ -2324,8 +2324,7 @@ static int sync_toggles(struct mlx4_dev *dev)
 			priv->cmd.comm_toggle = rd_toggle >> 31;
 			return 0;
 		}
-
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	/*

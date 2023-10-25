@@ -291,9 +291,9 @@ static void mhi_net_rx_refill_work(struct work_struct *work)
 		}
 
 		/* Do not hog the CPU if rx buffers are consumed faster than
-		 * queued (unlikely).
+		 * queued (uhlikely).
 		 */
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	/* If we're still starved of rx buffers, reschedule later */

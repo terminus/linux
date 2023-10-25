@@ -130,7 +130,6 @@ int __mt76_worker_fn(void *ptr)
 		set_bit(MT76_WORKER_RUNNING, &w->state);
 		set_current_state(TASK_RUNNING);
 		w->fn(w);
-		cond_resched();
 		clear_bit(MT76_WORKER_RUNNING, &w->state);
 	}
 

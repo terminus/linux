@@ -3988,8 +3988,6 @@ static u16 issuecommand(struct airo_info *ai, Cmd *pCmd, Resp *pRsp,
 		if ((IN4500(ai, COMMAND)) == pCmd->cmd)
 			// PC4500 didn't notice command, try again
 			OUT4500(ai, COMMAND, pCmd->cmd);
-		if (may_sleep && (max_tries & 255) == 0)
-			cond_resched();
 	}
 
 	if (max_tries == -1) {

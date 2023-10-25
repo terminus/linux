@@ -148,7 +148,7 @@ static int mlx4_reset_slave(struct mlx4_dev *dev)
 			mlx4_warn(dev, "VF Reset succeed\n");
 			return 0;
 		}
-		cond_resched();
+		cond_resched_stall();
 	}
 	mlx4_err(dev, "Fail to send reset over the communication channel\n");
 	return -ETIMEDOUT;

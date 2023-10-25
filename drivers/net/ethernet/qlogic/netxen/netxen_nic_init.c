@@ -326,8 +326,6 @@ static int netxen_wait_rom_done(struct netxen_adapter *adapter)
 	long timeout = 0;
 	long done = 0;
 
-	cond_resched();
-
 	while (done == 0) {
 		done = NXRD32(adapter, NETXEN_ROMUSB_GLB_STATUS);
 		done &= 2;
