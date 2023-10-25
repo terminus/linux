@@ -8665,6 +8665,23 @@ int __cond_resched_stall(void)
 EXPORT_SYMBOL(__cond_resched_stall);
 
 /**
+ * xas_cond_resched_lock_irq - safely drop the xarray lock, enable IRQs
+ * (which might cause a reschedule), and reacquire the lock.
+ */
+void cond_resched_xas_lock_irq(struct xa_state *xas)
+{
+	lockdep_assert_irqs_disabled();
+
+	xas_pause(xas);
+	xas_unlock_irq(xas);
+
+	__might_resched(__FILE__, __LINE__, 0);
+
+	xas_lock_irq(xas);
+}
+EXPORT_SYMBOL(cond_resched_xas_lock_irq);
+
+/**
  * yield - yield the current processor to other threads.
  *
  * Do not ever use this function, there's a 99% chance you're doing it wrong.

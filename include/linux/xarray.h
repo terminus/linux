@@ -1883,4 +1883,18 @@ static inline void *xas_next(struct xa_state *xas)
 	return xa_entry(xas->xa, node, xas->xa_offset);
 }
 
+/**
+ * xas_cond_resched_rcu - if a reschedule is needed, allow RCU to
+ * end this read-side critical section, potentially rescheduling,
+ * and begin another.
+ */
+static inline void cond_resched_xas_rcu(struct xa_state *xas)
+{
+	if (need_resched()) {
+		xas_pause(xas);
+		cond_resched_rcu();
+	}
+}
+extern void cond_resched_xas_lock_irq(struct xa_state *xas);
+
 #endif /* _LINUX_XARRAY_H */
