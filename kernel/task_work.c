@@ -179,7 +179,6 @@ void task_work_run(void)
 			next = work->next;
 			work->func(work);
 			work = next;
-			cond_resched();
 		} while (work);
 	}
 }
