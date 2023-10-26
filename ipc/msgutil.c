@@ -62,8 +62,6 @@ static struct msg_msg *alloc_msg(size_t len)
 	while (len > 0) {
 		struct msg_msgseg *seg;
 
-		cond_resched();
-
 		alen = min(len, DATALEN_SEG);
 		seg = kmalloc(sizeof(*seg) + alen, GFP_KERNEL_ACCOUNT);
 		if (seg == NULL)
@@ -177,7 +175,6 @@ void free_msg(struct msg_msg *msg)
 	while (seg != NULL) {
 		struct msg_msgseg *tmp = seg->next;
 
-		cond_resched();
 		kfree(seg);
 		seg = tmp;
 	}

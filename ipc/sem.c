@@ -2350,8 +2350,6 @@ void exit_sem(struct task_struct *tsk)
 		int semid, i;
 		DEFINE_WAKE_Q(wake_q);
 
-		cond_resched();
-
 		rcu_read_lock();
 		un = list_entry_rcu(ulp->list_proc.next,
 				    struct sem_undo, list_proc);
