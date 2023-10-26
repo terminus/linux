@@ -375,9 +375,6 @@ static int preferred_console = -1;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
-/* Flag: console code may call schedule() */
-static int console_may_schedule;
-
 enum con_msg_format_flags {
 	MSG_FORMAT_DEFAULT	= 0,
 	MSG_FORMAT_SYSLOG	= (1 << 0),
@@ -2651,7 +2648,6 @@ void console_lock(void)
 
 	down_console_sem();
 	console_locked = 1;
-	console_may_schedule = 1;
 }
 EXPORT_SYMBOL(console_lock);
 
@@ -2671,7 +2667,6 @@ int console_trylock(void)
 	if (down_trylock_console_sem())
 		return 0;
 	console_locked = 1;
-	console_may_schedule = 0;
 	return 1;
 }
 EXPORT_SYMBOL(console_trylock);
@@ -2922,9 +2917,6 @@ skip:
 /*
  * Print out all remaining records to all consoles.
  *
- * @do_cond_resched is set by the caller. It can be true only in schedulable
- * context.
- *
  * @next_seq is set to the sequence number after the last available record.
  * The value is valid only when this function returns true. It means that all
  * usable consoles are completely flushed.
@@ -2942,7 +2934,7 @@ skip:
  *
  * Requires the console_lock.
  */
-static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handover)
+static bool console_flush_all(u64 *next_seq, bool *handover)
 {
 	bool any_usable = false;
 	struct console *con;
@@ -2983,9 +2975,6 @@ static bool console_flush_all(bool do_cond_resched, u64 *next_seq, bool *handove
 			/* Allow panic_cpu to take over the consoles safely. */
 			if (other_cpu_in_panic())
 				goto abandon;
-
-			if (do_cond_resched)
-				cond_resched();
 		}
 		console_srcu_read_unlock(cookie);
 	} while (any_progress);
@@ -3011,28 +3000,26 @@ abandon:
  */
 void console_unlock(void)
 {
-	bool do_cond_resched;
 	bool handover;
 	bool flushed;
 	u64 next_seq;
 
 	/*
-	 * Console drivers are called with interrupts disabled, so
-	 * @console_may_schedule should be cleared before; however, we may
+	 * Console drivers are called with interrupts disabled, so in
+	 * general we cannot schedule. There are also cases where we will
 	 * end up dumping a lot of lines, for example, if called from
-	 * console registration path, and should invoke cond_resched()
-	 * between lines if allowable.  Not doing so can cause a very long
-	 * scheduling stall on a slow console leading to RCU stall and
-	 * softlockup warnings which exacerbate the issue with more
-	 * messages practically incapacitating the system. Therefore, create
-	 * a local to use for the printing loop.
+	 * console registration path.
+	 *
+	 * Not scheduling while working on a slow console could lead to
+	 * RCU stalls and softlockup warnings which exacerbate the issue
+	 * with more messages practically incapacitating the system.
+	 *
+	 * However, most of the console code is preemptible, so the scheduler
+	 * should be able to preempt us and make forward progress.
 	 */
-	do_cond_resched = console_may_schedule;
 
 	do {
-		console_may_schedule = 0;
-
-		flushed = console_flush_all(do_cond_resched, &next_seq, &handover);
+		flushed = console_flush_all(&next_seq, &handover);
 		if (!handover)
 			__console_unlock();
 
@@ -3054,22 +3041,6 @@ void console_unlock(void)
 	} while (prb_read_valid(prb, next_seq, NULL) && console_trylock());
 }
 EXPORT_SYMBOL(console_unlock);
-
-/**
- * console_conditional_schedule - yield the CPU if required
- *
- * If the console code is currently allowed to sleep, and
- * if this CPU should yield the CPU to another task, do
- * so here.
- *
- * Must be called within console_lock();.
- */
-void __sched console_conditional_schedule(void)
-{
-	if (console_may_schedule)
-		cond_resched();
-}
-EXPORT_SYMBOL(console_conditional_schedule);
 
 void console_unblank(void)
 {
@@ -3118,7 +3089,6 @@ void console_unblank(void)
 		console_lock();
 
 	console_locked = 1;
-	console_may_schedule = 0;
 
 	cookie = console_srcu_read_lock();
 	for_each_console_srcu(c) {
@@ -3154,13 +3124,6 @@ void console_flush_on_panic(enum con_flush_mode mode)
 	 *   - semaphores are not NMI-safe
 	 */
 
-	/*
-	 * If another context is holding the console lock,
-	 * @console_may_schedule might be set. Clear it so that
-	 * this context does not call cond_resched() while flushing.
-	 */
-	console_may_schedule = 0;
-
 	if (mode == CONSOLE_REPLAY_ALL) {
 		struct console *c;
 		int cookie;
@@ -3179,7 +3142,7 @@ void console_flush_on_panic(enum con_flush_mode mode)
 		console_srcu_read_unlock(cookie);
 	}
 
-	console_flush_all(false, &next_seq, &handover);
+	console_flush_all(&next_seq, &handover);
 }
 
 /*
@@ -3364,7 +3327,7 @@ static void console_init_seq(struct console *newcon, bool bootcon_registered)
 			 * Flush all consoles and set the console to start at
 			 * the next unprinted sequence number.
 			 */
-			if (!console_flush_all(true, &newcon->seq, &handover)) {
+			if (!console_flush_all(&newcon->seq, &handover)) {
 				/*
 				 * Flushing failed. Just choose the lowest
 				 * sequence of the enabled boot consoles.
