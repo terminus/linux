@@ -208,9 +208,6 @@ static int blkdev_zone_reset_all_emulated(struct block_device *bdev,
 				   gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
-
-		/* This may take a while, so be nice to others */
-		cond_resched();
 	}
 
 	if (bio) {
@@ -293,9 +290,6 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
-
-		/* This may take a while, so be nice to others */
-		cond_resched();
 	}
 
 	ret = submit_bio_wait(bio);

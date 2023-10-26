@@ -69,14 +69,6 @@ int __blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		bio->bi_iter.bi_size = req_sects << 9;
 		sector += req_sects;
 		nr_sects -= req_sects;
-
-		/*
-		 * We can loop for a long time in here, if someone does
-		 * full device discards (like mkfs). Be nice and allow
-		 * us to schedule out to avoid softlocking if preempt
-		 * is disabled.
-		 */
-		cond_resched();
 	}
 
 	*biop = bio;
@@ -145,7 +137,6 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 			bio->bi_iter.bi_size = nr_sects << 9;
 			nr_sects = 0;
 		}
-		cond_resched();
 	}
 
 	*biop = bio;
@@ -189,7 +180,6 @@ static int __blkdev_issue_zero_pages(struct block_device *bdev,
 			if (bi_size < sz)
 				break;
 		}
-		cond_resched();
 	}
 
 	*biop = bio;
@@ -336,7 +326,6 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 			bio_put(bio);
 			break;
 		}
-		cond_resched();
 	}
 	blk_finish_plug(&plug);
 

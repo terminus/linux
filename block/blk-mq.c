@@ -1372,7 +1372,6 @@ static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
 {
 	do {
 		blk_hctx_poll(rq->q, rq->mq_hctx, NULL, 0);
-		cond_resched();
 	} while (!completion_done(wait));
 }
 
@@ -4310,7 +4309,6 @@ static int __blk_mq_alloc_rq_maps(struct blk_mq_tag_set *set)
 	for (i = 0; i < set->nr_hw_queues; i++) {
 		if (!__blk_mq_alloc_map_and_rqs(set, i))
 			goto out_unwind;
-		cond_resched();
 	}
 
 	return 0;
@@ -4425,7 +4423,6 @@ static int blk_mq_realloc_tag_set_tags(struct blk_mq_tag_set *set,
 				__blk_mq_free_map_and_rqs(set, i);
 			return -ENOMEM;
 		}
-		cond_resched();
 	}
 
 done:

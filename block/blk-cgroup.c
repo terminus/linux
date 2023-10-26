@@ -597,7 +597,6 @@ restart:
 		if (!(--count)) {
 			count = BLKG_DESTROY_BATCH_SIZE;
 			spin_unlock_irq(&q->queue_lock);
-			cond_resched();
 			goto restart;
 		}
 	}
@@ -1234,7 +1233,6 @@ static void blkcg_destroy_blkgs(struct blkcg *blkcg)
 			 * need to rescheduling to avoid softlockup.
 			 */
 			spin_unlock_irq(&blkcg->lock);
-			cond_resched();
 			spin_lock_irq(&blkcg->lock);
 			continue;
 		}
