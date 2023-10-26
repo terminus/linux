@@ -1676,7 +1676,6 @@ static int test_hash_vec(const struct hash_testvec *vec, unsigned int vec_num,
 						req, desc, tsgl, hashstate);
 			if (err)
 				return err;
-			cond_resched();
 		}
 	}
 #endif
@@ -1837,7 +1836,6 @@ static int test_hash_vs_generic_impl(const char *generic_driver,
 					req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
-		cond_resched();
 	}
 	err = 0;
 out:
@@ -1966,7 +1964,6 @@ static int __alg_test_hash(const struct hash_testvec *vecs,
 		err = test_hash_vec(&vecs[i], i, req, desc, tsgl, hashstate);
 		if (err)
 			goto out;
-		cond_resched();
 	}
 	err = test_hash_vs_generic_impl(generic_driver, maxkeysize, req,
 					desc, tsgl, hashstate);
@@ -2246,7 +2243,6 @@ static int test_aead_vec(int enc, const struct aead_testvec *vec,
 						&cfg, req, tsgls);
 			if (err)
 				return err;
-			cond_resched();
 		}
 	}
 #endif
@@ -2476,7 +2472,6 @@ static int test_aead_inauthentic_inputs(struct aead_extra_tests_ctx *ctx)
 			if (err)
 				return err;
 		}
-		cond_resched();
 	}
 	return 0;
 }
@@ -2580,7 +2575,6 @@ static int test_aead_vs_generic_impl(struct aead_extra_tests_ctx *ctx)
 			if (err)
 				goto out;
 		}
-		cond_resched();
 	}
 	err = 0;
 out:
@@ -2659,7 +2653,6 @@ static int test_aead(int enc, const struct aead_test_suite *suite,
 		err = test_aead_vec(enc, &suite->vecs[i], i, req, tsgls);
 		if (err)
 			return err;
-		cond_resched();
 	}
 	return 0;
 }
@@ -3006,7 +2999,6 @@ static int test_skcipher_vec(int enc, const struct cipher_testvec *vec,
 						    &cfg, req, tsgls);
 			if (err)
 				return err;
-			cond_resched();
 		}
 	}
 #endif
@@ -3203,7 +3195,6 @@ static int test_skcipher_vs_generic_impl(const char *generic_driver,
 					    cfg, req, tsgls);
 		if (err)
 			goto out;
-		cond_resched();
 	}
 	err = 0;
 out:
@@ -3236,7 +3227,6 @@ static int test_skcipher(int enc, const struct cipher_test_suite *suite,
 		err = test_skcipher_vec(enc, &suite->vecs[i], i, req, tsgls);
 		if (err)
 			return err;
-		cond_resched();
 	}
 	return 0;
 }

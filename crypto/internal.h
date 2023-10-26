@@ -203,7 +203,7 @@ static inline void crypto_notify(unsigned long val, void *v)
 static inline void crypto_yield(u32 flags)
 {
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
-		cond_resched();
+		cond_resched_stall();
 }
 
 static inline int crypto_is_test_larval(struct crypto_larval *larval)

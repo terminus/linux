@@ -414,7 +414,6 @@ static void test_mb_aead_speed(const char *algo, int enc, int secs,
 			if (secs) {
 				ret = test_mb_aead_jiffies(data, enc, bs,
 							   secs, num_mb);
-				cond_resched();
 			} else {
 				ret = test_mb_aead_cycles(data, enc, bs,
 							  num_mb);
@@ -667,7 +666,6 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 			if (secs) {
 				ret = test_aead_jiffies(req, enc, bs,
 							secs);
-				cond_resched();
 			} else {
 				ret = test_aead_cycles(req, enc, bs);
 			}
@@ -923,7 +921,6 @@ static void test_ahash_speed_common(const char *algo, unsigned int secs,
 		if (secs) {
 			ret = test_ahash_jiffies(req, speed[i].blen,
 						 speed[i].plen, output, secs);
-			cond_resched();
 		} else {
 			ret = test_ahash_cycles(req, speed[i].blen,
 						speed[i].plen, output);
@@ -1182,7 +1179,6 @@ static void test_mb_skcipher_speed(const char *algo, int enc, int secs,
 				ret = test_mb_acipher_jiffies(data, enc,
 							      bs, secs,
 							      num_mb);
-				cond_resched();
 			} else {
 				ret = test_mb_acipher_cycles(data, enc,
 							     bs, num_mb);
@@ -1397,7 +1393,6 @@ static void test_skcipher_speed(const char *algo, int enc, unsigned int secs,
 			if (secs) {
 				ret = test_acipher_jiffies(req, enc,
 							   bs, secs);
-				cond_resched();
 			} else {
 				ret = test_acipher_cycles(req, enc,
 							  bs);
