@@ -920,7 +920,6 @@ static void run_ksoftirqd(unsigned int cpu)
 		 */
 		__do_softirq();
 		ksoftirqd_run_end();
-		cond_resched();
 		return;
 	}
 	ksoftirqd_run_end();

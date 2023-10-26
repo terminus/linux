@@ -148,7 +148,7 @@ int stop_one_cpu(unsigned int cpu, cpu_stop_fn_t fn, void *arg)
 	 * In case @cpu == smp_proccessor_id() we can avoid a sleep+wakeup
 	 * cycle by doing a preemption:
 	 */
-	cond_resched();
+	cond_resched_stall();
 	wait_for_completion(&done.completion);
 	return done.ret;
 }
