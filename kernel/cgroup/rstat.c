@@ -210,8 +210,7 @@ static void cgroup_rstat_flush_locked(struct cgroup *cgrp)
 		/* play nice and yield if necessary */
 		if (need_resched() || spin_needbreak(&cgroup_rstat_lock)) {
 			spin_unlock_irq(&cgroup_rstat_lock);
-			if (!cond_resched())
-				cpu_relax();
+			cond_resched_stall();
 			spin_lock_irq(&cgroup_rstat_lock);
 		}
 	}

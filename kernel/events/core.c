@@ -125,7 +125,7 @@ task_function_call(struct task_struct *p, remote_function_f func, void *info)
 		if (ret != -EAGAIN)
 			break;
 
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	return ret;

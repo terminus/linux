@@ -1908,7 +1908,6 @@ static int copy_chunked_from_user(void *dst, const void __user *usrc, unsigned l
 
 		if (copy_from_user(dst, usrc, n) != 0)
 			return -EFAULT;
-		cond_resched();
 		dst += n;
 		usrc += n;
 		len -= n;

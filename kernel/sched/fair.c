@@ -33,7 +33,6 @@
 #include <linux/refcount_api.h>
 #include <linux/topology.h>
 #include <linux/sched/clock.h>
-#include <linux/sched/cond_resched.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/isolation.h>
 #include <linux/sched/nohz.h>
@@ -50,8 +49,6 @@
 #include <linux/rbtree_augmented.h>
 
 #include <asm/switch_to.h>
-
-#include <linux/sched/cond_resched.h>
 
 #include "sched.h"
 #include "stats.h"
@@ -3374,7 +3371,6 @@ static void task_numa_work(struct callback_head *work)
 			if (pages <= 0 || virtpages <= 0)
 				goto out;
 
-			cond_resched();
 		} while (end != vma->vm_end);
 	} for_each_vma(vmi, vma);
 

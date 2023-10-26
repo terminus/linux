@@ -25,7 +25,6 @@
 #include <linux/refcount_api.h>
 #include <linux/topology.h>
 #include <linux/sched/clock.h>
-#include <linux/sched/cond_resched.h>
 #include <linux/sched/cputime.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/hotplug.h>

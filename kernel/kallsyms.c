@@ -19,7 +19,7 @@
 #include <linux/kdb.h>
 #include <linux/err.h>
 #include <linux/proc_fs.h>
-#include <linux/sched.h>	/* for cond_resched */
+#include <linux/sched.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
 #include <linux/filter.h>
@@ -295,7 +295,6 @@ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, unsigned long),
 		ret = fn(data, namebuf, kallsyms_sym_address(i));
 		if (ret != 0)
 			return ret;
-		cond_resched();
 	}
 	return 0;
 }
@@ -312,7 +311,6 @@ int kallsyms_on_each_match_symbol(int (*fn)(void *, unsigned long),
 
 	for (i = start; !ret && i <= end; i++) {
 		ret = fn(data, kallsyms_sym_address(get_symbol_seq(i)));
-		cond_resched();
 	}
 
 	return ret;
