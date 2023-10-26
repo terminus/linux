@@ -376,8 +376,6 @@ static int vx2_load_xilinx_binary(struct vx_core *chip, const struct firmware *x
 	for (i = 0; i < xilinx->size; i++, image++) {
 		if (put_xilinx_data(chip, port, 8, *image) < 0)
 			return -EINVAL;
-		/* don't take too much time in this loop... */
-		cond_resched();
 	}
 	put_xilinx_data(chip, port, 4, 0xff); /* end signature */
 

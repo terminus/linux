@@ -218,11 +218,6 @@ snd_emu8000_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		offset++;
 		write_word(emu, &dram_offset, s);
 
-		/* we may take too long time in this loop.
-		 * so give controls back to kernel if needed.
-		 */
-		cond_resched();
-
 		if (i == sp->v.loopend &&
 		    (sp->v.mode_flags & (SNDRV_SFNT_SAMPLE_BIDIR_LOOP|SNDRV_SFNT_SAMPLE_REVERSE_LOOP)))
 		{

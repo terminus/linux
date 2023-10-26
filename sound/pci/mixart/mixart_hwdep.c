@@ -41,7 +41,7 @@ static int mixart_wait_nice_for_register_value(struct mixart_mgr *mgr,
 	do {	/* we may take too long time in this loop.
 		 * so give controls back to kernel if needed.
 		 */
-		cond_resched();
+		cond_resched_stall();
 
 		read = readl_be( MIXART_MEM( mgr, offset ));
 		if(is_egal) {

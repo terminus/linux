@@ -166,7 +166,6 @@ static int rirb_get_response(struct lola *chip, unsigned int *val,
 		if (time_after(jiffies, timeout))
 			break;
 		udelay(20);
-		cond_resched();
 	}
 	dev_warn(chip->card->dev, "RIRB response error\n");
 	if (!chip->polling_mode) {

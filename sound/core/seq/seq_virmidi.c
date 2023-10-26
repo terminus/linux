@@ -154,8 +154,6 @@ static void snd_vmidi_output_work(struct work_struct *work)
 			if (ret < 0)
 				break;
 		}
-		/* rawmidi input might be huge, allow to have a break */
-		cond_resched();
 	}
 }
 

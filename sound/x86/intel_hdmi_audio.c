@@ -1020,7 +1020,6 @@ static void wait_clear_underrun_bit(struct snd_intelhad *intelhaddata)
 		if (!(val & AUD_HDMI_STATUS_MASK_UNDERRUN))
 			return;
 		udelay(100);
-		cond_resched();
 		had_write_register(intelhaddata, AUD_HDMI_STATUS, val);
 	}
 	dev_err(intelhaddata->dev, "Unable to clear UNDERRUN bits\n");

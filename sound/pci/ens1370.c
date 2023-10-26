@@ -501,7 +501,6 @@ static unsigned int snd_es1371_wait_src_ready(struct ensoniq * ensoniq)
 		r = inl(ES_REG(ensoniq, 1371_SMPRATE));
 		if ((r & ES_1371_SRC_RAM_BUSY) == 0)
 			return r;
-		cond_resched();
 	}
 	dev_err(ensoniq->card->dev, "wait src ready timeout 0x%lx [0x%x]\n",
 		   ES_REG(ensoniq, 1371_SMPRATE), r);

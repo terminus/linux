@@ -612,7 +612,7 @@ static int snd_es1968_ac97_wait(struct es1968 *chip)
 	while (timeout-- > 0) {
 		if (!(inb(chip->io_port + ESM_AC97_INDEX) & 1))
 			return 0;
-		cond_resched();
+		cond_resched_stall();
 	}
 	dev_dbg(chip->card->dev, "ac97 timeout\n");
 	return 1; /* timeout */

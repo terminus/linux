@@ -145,7 +145,7 @@ static unsigned short aaci_ac97_read(struct snd_ac97 *ac97, unsigned short reg)
 	timeout = FRAME_PERIOD_US * 8;
 	do {
 		udelay(1);
-		cond_resched();
+		cond_resched_stall();
 		v = readl(aaci->base + AACI_SLFR) & (SLFR_1RXV|SLFR_2RXV);
 	} while ((v != (SLFR_1RXV|SLFR_2RXV)) && --timeout);
 

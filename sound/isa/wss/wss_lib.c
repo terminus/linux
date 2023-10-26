@@ -1159,7 +1159,6 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	while (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT) {
 		if (time_after(jiffies, timeout))
 			return -ENODEV;
-		cond_resched();
 	}
 	spin_lock_irqsave(&chip->reg_lock, flags);
 

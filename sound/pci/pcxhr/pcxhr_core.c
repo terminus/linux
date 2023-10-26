@@ -304,8 +304,6 @@ int pcxhr_load_xilinx_binary(struct pcxhr_mgr *mgr,
 			PCXHR_OUTPL(mgr, PCXHR_PLX_CHIPSC, chipsc);
 			mask >>= 1;
 		}
-		/* don't take too much time in this loop... */
-		cond_resched();
 	}
 	chipsc &= ~(PCXHR_CHIPSC_DATA_CLK | PCXHR_CHIPSC_DATA_IN);
 	PCXHR_OUTPL(mgr, PCXHR_PLX_CHIPSC, chipsc);
@@ -356,9 +354,6 @@ static int pcxhr_download_dsp(struct pcxhr_mgr *mgr, const struct firmware *dsp)
 		PCXHR_OUTPB(mgr, PCXHR_DSP_TXH, data[0]);
 		PCXHR_OUTPB(mgr, PCXHR_DSP_TXM, data[1]);
 		PCXHR_OUTPB(mgr, PCXHR_DSP_TXL, data[2]);
-
-		/* don't take too much time in this loop... */
-		cond_resched();
 	}
 	/* give some time to boot the DSP */
 	msleep(PCXHR_WAIT_DEFAULT);

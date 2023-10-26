@@ -404,7 +404,7 @@ static int emu8k_pcm_trigger(struct snd_pcm_substream *subs, int cmd)
  */
 #define CHECK_SCHEDULER() \
 do { \
-	cond_resched();\
+	cond_resched_stall();\
 	if (signal_pending(current))\
 		return -EAGAIN;\
 } while (0)

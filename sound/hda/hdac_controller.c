@@ -284,7 +284,6 @@ int snd_hdac_bus_get_response(struct hdac_bus *bus, unsigned int addr,
 			msleep(2); /* temporary workaround */
 		} else {
 			udelay(10);
-			cond_resched();
 		}
 	}
 

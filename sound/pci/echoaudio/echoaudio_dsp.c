@@ -100,7 +100,6 @@ static int write_dsp(struct echoaudio *chip, u32 data)
 			return 0;
 		}
 		udelay(1);
-		cond_resched();
 	}
 
 	chip->bad_board = true;		/* Set true until DSP re-loaded */
@@ -123,7 +122,6 @@ static int read_dsp(struct echoaudio *chip, u32 *data)
 			return 0;
 		}
 		udelay(1);
-		cond_resched();
 	}
 
 	chip->bad_board = true;		/* Set true until DSP re-loaded */
