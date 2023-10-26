@@ -265,7 +265,6 @@ contended:
 
 maybe_resched:
 	if (cursor) {
-		cond_resched();
 		spin_lock(&key_serial_lock);
 		goto continue_scanning;
 	}

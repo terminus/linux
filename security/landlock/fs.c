@@ -1013,7 +1013,6 @@ static void hook_sb_delete(struct super_block *const sb)
 			 * previous loop walk, which is not needed anymore.
 			 */
 			iput(prev_inode);
-			cond_resched();
 			spin_lock(&sb->s_inode_list_lock);
 		}
 		prev_inode = inode;

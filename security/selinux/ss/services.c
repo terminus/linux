@@ -2790,7 +2790,6 @@ out_unlock:
 					  &dummy_avd);
 		if (!rc)
 			mysids2[j++] = mysids[i];
-		cond_resched();
 	}
 	kfree(mysids);
 	*sids = mysids2;

@@ -415,7 +415,6 @@ static int sidtab_convert_tree(union sidtab_entry_inner *edst,
 			(*pos)++;
 			i++;
 		}
-		cond_resched();
 	}
 	return 0;
 }

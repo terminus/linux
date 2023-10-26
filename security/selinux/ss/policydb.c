@@ -336,7 +336,6 @@ static int filenametr_destroy(void *key, void *datum, void *p)
 		kfree(d);
 		d = next;
 	} while (unlikely(d));
-	cond_resched();
 	return 0;
 }
 
@@ -348,7 +347,6 @@ static int range_tr_destroy(void *key, void *datum, void *p)
 	ebitmap_destroy(&rt->level[0].cat);
 	ebitmap_destroy(&rt->level[1].cat);
 	kfree(datum);
-	cond_resched();
 	return 0;
 }
 
@@ -786,7 +784,6 @@ void policydb_destroy(struct policydb *p)
 	struct role_allow *ra, *lra = NULL;
 
 	for (i = 0; i < SYM_NUM; i++) {
-		cond_resched();
 		hashtab_map(&p->symtab[i].table, destroy_f[i], NULL);
 		hashtab_destroy(&p->symtab[i].table);
 	}
@@ -802,7 +799,6 @@ void policydb_destroy(struct policydb *p)
 	avtab_destroy(&p->te_avtab);
 
 	for (i = 0; i < OCON_NUM; i++) {
-		cond_resched();
 		c = p->ocontexts[i];
 		while (c) {
 			ctmp = c;
@@ -814,7 +810,6 @@ void policydb_destroy(struct policydb *p)
 
 	g = p->genfs;
 	while (g) {
-		cond_resched();
 		kfree(g->fstype);
 		c = g->head;
 		while (c) {
@@ -834,7 +829,6 @@ void policydb_destroy(struct policydb *p)
 	hashtab_destroy(&p->role_tr);
 
 	for (ra = p->role_allow; ra; ra = ra->next) {
-		cond_resched();
 		kfree(lra);
 		lra = ra;
 	}
