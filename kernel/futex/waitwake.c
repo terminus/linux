@@ -277,7 +277,7 @@ retry_private:
 				return ret;
 		}
 
-		cond_resched();
+		cond_resched_stall();
 		if (!(flags & FLAGS_SHARED))
 			goto retry_private;
 		goto retry;

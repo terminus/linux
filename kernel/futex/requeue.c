@@ -560,7 +560,6 @@ retry_private:
 			 * this task might loop forever, aka. live lock.
 			 */
 			wait_for_owner_exiting(ret, exiting);
-			cond_resched();
 			goto retry;
 		default:
 			goto out_unlock;

@@ -724,7 +724,7 @@ retry:
 			goto retry;
 
 		case -EAGAIN:
-			cond_resched();
+			cond_resched_stall();
 			goto retry;
 
 		default:
@@ -822,8 +822,6 @@ static void exit_robust_list(struct task_struct *curr)
 		 */
 		if (!--limit)
 			break;
-
-		cond_resched();
 	}
 
 	if (pending) {
@@ -922,8 +920,6 @@ static void compat_exit_robust_list(struct task_struct *curr)
 		 */
 		if (!--limit)
 			break;
-
-		cond_resched();
 	}
 	if (pending) {
 		void __user *uaddr = futex_uaddr(pending, futex_offset);

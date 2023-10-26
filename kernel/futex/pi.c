@@ -809,7 +809,7 @@ handle_err:
 		break;
 
 	case -EAGAIN:
-		cond_resched();
+		cpu_relax();
 		err = 0;
 		break;
 
@@ -981,7 +981,7 @@ retry_private:
 			 * this task might loop forever, aka. live lock.
 			 */
 			wait_for_owner_exiting(ret, exiting);
-			cond_resched();
+			cond_resched_stall();
 			goto retry;
 		default:
 			goto out_unlock_put_key;
@@ -1219,7 +1219,7 @@ out_unlock:
 	return ret;
 
 pi_retry:
-	cond_resched();
+	cond_resched_stall();
 	goto retry;
 
 pi_faulted:
