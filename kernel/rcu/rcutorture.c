@@ -81,7 +81,7 @@ torture_param(int, fqs_stutter, 3, "Wait time between fqs bursts (s)");
 torture_param(int, fwd_progress, 1, "Number of grace-period forward progress tasks (0 to disable)");
 torture_param(int, fwd_progress_div, 4, "Fraction of CPU stall to wait");
 torture_param(int, fwd_progress_holdoff, 60, "Time between forward-progress tests (s)");
-torture_param(bool, fwd_progress_need_resched, 1, "Hide cond_resched() behind need_resched()");
+torture_param(bool, fwd_progress_need_resched, 1, "Hide cond_resched_stall() behind need_resched()");
 torture_param(bool, gp_cond, false, "Use conditional/async GP wait primitives");
 torture_param(bool, gp_cond_exp, false, "Use conditional/async expedited GP wait primitives");
 torture_param(bool, gp_cond_full, false, "Use conditional/async full-state GP wait primitives");
@@ -2611,7 +2611,7 @@ static void rcu_torture_fwd_prog_cond_resched(unsigned long iter)
 		return;
 	}
 	// No userspace emulation: CB invocation throttles call_rcu()
-	cond_resched();
+	cond_resched_stall();
 }
 
 /*
@@ -2691,7 +2691,7 @@ static void rcu_torture_fwd_prog_nr(struct rcu_fwd *rfp,
 		udelay(10);
 		cur_ops->readunlock(idx);
 		if (!fwd_progress_need_resched || need_resched())
-			cond_resched();
+			cond_resched_stall();
 	}
 	(*tested_tries)++;
 	if (!time_before(jiffies, stopat) &&
@@ -3232,7 +3232,7 @@ static int rcu_torture_read_exit(void *unused)
 				errexit = true;
 				break;
 			}
-			cond_resched();
+			cond_resched_stall();
 			kthread_stop(tsp);
 			n_read_exits++;
 		}

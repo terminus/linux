@@ -672,8 +672,6 @@ kfree_scale_thread(void *arg)
 			else
 				kfree_rcu(alloc_ptr, rh);
 		}
-
-		cond_resched();
 	} while (!torture_must_stop() && ++loop < kfree_loops);
 
 	if (atomic_inc_return(&n_kfree_scale_thread_ended) >= kfree_nrealthreads) {

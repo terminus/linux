@@ -747,7 +747,6 @@ bool stutter_wait(const char *title)
 			while (READ_ONCE(stutter_pause_test)) {
 				if (!(i++ & 0xffff))
 					torture_hrtimeout_us(10, 0, NULL);
-				cond_resched();
 			}
 		} else {
 			torture_hrtimeout_jiffies(round_jiffies_relative(HZ), NULL);

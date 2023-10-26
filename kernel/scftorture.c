@@ -487,7 +487,6 @@ static int scftorture_invoker(void *arg)
 			set_cpus_allowed_ptr(current, cpumask_of(cpu));
 			was_offline = false;
 		}
-		cond_resched();
 		stutter_wait("scftorture_invoker");
 	} while (!torture_must_stop());
 
