@@ -93,7 +93,6 @@ __subtests(const char *caller, const struct subtest *st, int count, void *data)
 	int err;
 
 	for (; count--; st++) {
-		cond_resched();
 		if (signal_pending(current))
 			return -EINTR;
 

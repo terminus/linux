@@ -478,8 +478,6 @@ static ssize_t lp_read(struct file *file, char __user *buf,
 			retval = -ERESTARTSYS;
 			break;
 		}
-
-		cond_resched();
 	}
 	parport_negotiate(lp_table[minor].dev->port, IEEE1284_MODE_COMPAT);
  out:

@@ -1516,7 +1516,6 @@ void irq_polling_work(struct work_struct *work)
 			return;
 		}
 
-		cond_resched();
 		usleep_range(datapath_poll_interval_us, 2 * datapath_poll_interval_us);
 	}
 }
@@ -1547,7 +1546,6 @@ read_fifo:
 
 	if (!event_count) {
 		event_count = NUM_EVENTS;
-		cond_resched();
 	}
 
 	/*

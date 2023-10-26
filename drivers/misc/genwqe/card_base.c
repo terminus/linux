@@ -1004,7 +1004,6 @@ static int genwqe_health_thread(void *data)
 		}
 
 		cd->last_gfir = gfir;
-		cond_resched();
 	}
 
 	return 0;
@@ -1041,7 +1040,7 @@ static int genwqe_health_thread(void *data)
 
 	/* genwqe_bus_reset failed(). Now wait for genwqe_remove(). */
 	while (!kthread_should_stop())
-		cond_resched();
+		cond_resched_stall();
 
 	return -EIO;
 }

@@ -187,8 +187,13 @@ static void highlander_i2c_poll(struct highlander_i2c_dev *dev)
 		if (time_after(jiffies, timeout))
 			break;
 
-		cpu_relax();
-		cond_resched();
+		/*
+		 * Use cond_resched_stall() to avoid spinning in a
+		 * tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should be a timed or event wait?
+		 */
+		cond_resched_stall();
 	}
 
 	dev_err(dev->dev, "polling timed out\n");

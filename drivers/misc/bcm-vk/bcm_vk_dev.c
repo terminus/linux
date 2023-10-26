@@ -364,8 +364,7 @@ static inline int bcm_vk_wait(struct bcm_vk *vk, enum pci_barno bar,
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
 
-		cpu_relax();
-		cond_resched();
+		cond_resched_stall();
 	} while ((rd_val & mask) != value);
 
 	return 0;

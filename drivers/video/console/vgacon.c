@@ -870,12 +870,10 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 		if (set)
 			for (i = 0; i < cmapsz; i++) {
 				vga_writeb(arg[i], charmap + i);
-				cond_resched();
 			}
 		else
 			for (i = 0; i < cmapsz; i++) {
 				arg[i] = vga_readb(charmap + i);
-				cond_resched();
 			}
 
 		/*
@@ -889,12 +887,10 @@ static int vgacon_do_font_op(struct vgastate *state, char *arg, int set,
 			if (set)
 				for (i = 0; i < cmapsz; i++) {
 					vga_writeb(arg[i], charmap + i);
-					cond_resched();
 				}
 			else
 				for (i = 0; i < cmapsz; i++) {
 					arg[i] = vga_readb(charmap + i);
-					cond_resched();
 				}
 		}
 	}

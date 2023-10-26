@@ -100,7 +100,7 @@ static int meson_spifc_wait_ready(struct meson_spifc *spifc)
 		regmap_read(spifc->regmap, REG_SLAVE, &data);
 		if (data & SLAVE_TRST_DONE)
 			return 0;
-		cond_resched();
+		cond_resched_stall();
 	} while (!time_after(jiffies, deadline));
 
 	return -ETIMEDOUT;

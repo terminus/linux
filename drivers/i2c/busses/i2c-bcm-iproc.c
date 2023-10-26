@@ -788,8 +788,13 @@ static int bcm_iproc_i2c_xfer_wait(struct bcm_iproc_i2c_dev *iproc_i2c,
 				break;
 			}
 
-			cpu_relax();
-			cond_resched();
+			/*
+			 * Use cond_resched_stall() to avoid spinning in a
+			 * tight loop.
+			 * Though, given that the timeout is in milliseconds,
+			 * maybe this should be a timed or event wait?
+			 */
+			cond_resched_stall();
 		} while (!iproc_i2c->xfer_is_done);
 	}
 

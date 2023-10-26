@@ -176,8 +176,6 @@ static ssize_t pp_read(struct file *file, char __user *buf, size_t count,
 			bytes_read = -ERESTARTSYS;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	parport_set_timeout(pp->pdev, pp->default_inactivity);
@@ -256,8 +254,6 @@ static ssize_t pp_write(struct file *file, const char __user *buf,
 
 		if (signal_pending(current))
 			break;
-
-		cond_resched();
 	}
 
 	parport_set_timeout(pp->pdev, pp->default_inactivity);

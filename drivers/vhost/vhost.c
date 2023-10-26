@@ -410,7 +410,6 @@ static bool vhost_worker(void *data)
 			kcov_remote_start_common(worker->kcov_handle);
 			work->fn(work);
 			kcov_remote_stop();
-			cond_resched();
 		}
 	}
 

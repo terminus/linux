@@ -1032,7 +1032,6 @@ static ssize_t iterate_tty_write(struct tty_ldisc *ld, struct tty_struct *tty,
 		ret = -ERESTARTSYS;
 		if (signal_pending(current))
 			break;
-		cond_resched();
 	}
 	if (written) {
 		tty_update_time(tty, true);

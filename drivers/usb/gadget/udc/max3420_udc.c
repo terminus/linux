@@ -451,7 +451,6 @@ static void __max3420_start(struct max3420_udc *udc)
 		val = spi_rd8(udc, MAX3420_REG_USBIRQ);
 		if (val & OSCOKIRQ)
 			break;
-		cond_resched();
 	}
 
 	/* Enable PULL-UP only when Vbus detected */

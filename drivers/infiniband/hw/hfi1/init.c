@@ -1958,7 +1958,6 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd)
 	for (idx = 0; idx < rcd->egrbufs.alloced; idx++) {
 		hfi1_put_tid(dd, rcd->eager_base + idx, PT_EAGER,
 			     rcd->egrbufs.rcvtids[idx].dma, order);
-		cond_resched();
 	}
 
 	return 0;

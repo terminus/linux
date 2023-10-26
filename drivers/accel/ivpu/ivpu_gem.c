@@ -156,7 +156,6 @@ static int __must_check internal_alloc_pages_locked(struct ivpu_bo *bo)
 			ret = -ENOMEM;
 			goto err_free_pages;
 		}
-		cond_resched();
 	}
 
 	bo->pages = pages;

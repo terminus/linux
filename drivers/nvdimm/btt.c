@@ -435,7 +435,6 @@ static int btt_map_init(struct arena_info *arena)
 
 		offset += size;
 		mapsize -= size;
-		cond_resched();
 	}
 
  free:
@@ -479,7 +478,6 @@ static int btt_log_init(struct arena_info *arena)
 
 		offset += size;
 		logsize -= size;
-		cond_resched();
 	}
 
 	for (i = 0; i < arena->nfree; i++) {

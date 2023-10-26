@@ -51,7 +51,7 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/bitops.h>
-#include <linux/sched.h>	/* cond_resched() */
+#include <linux/sched.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
@@ -64,9 +64,7 @@ static DEFINE_SPINLOCK(dsp_lock);
 
 static void PaceMsaAccess(unsigned short usDspBaseIO)
 {
-	cond_resched();
 	udelay(100);
-	cond_resched();
 }
 
 unsigned short dsp3780I_ReadMsaCfg(unsigned short usDspBaseIO,

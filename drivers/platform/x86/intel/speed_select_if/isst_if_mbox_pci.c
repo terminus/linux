@@ -56,7 +56,7 @@ static int isst_if_mbox_cmd(struct pci_dev *pdev,
 			ret = -EBUSY;
 			tm_delta = ktime_us_delta(ktime_get(), tm);
 			if (tm_delta > OS_MAILBOX_TIMEOUT_AVG_US)
-				cond_resched();
+				cond_resched_stall();
 			continue;
 		}
 		ret = 0;
@@ -95,7 +95,7 @@ static int isst_if_mbox_cmd(struct pci_dev *pdev,
 			ret = -EBUSY;
 			tm_delta = ktime_us_delta(ktime_get(), tm);
 			if (tm_delta > OS_MAILBOX_TIMEOUT_AVG_US)
-				cond_resched();
+				cond_resched_stall();
 			continue;
 		}
 

@@ -1322,7 +1322,6 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 			     genwqe_open_files(cd); i++) {
 			dev_info(&pci_dev->dev, "  %d sec ...", i);
 
-			cond_resched();
 			msleep(1000);
 		}
 
@@ -1340,7 +1339,6 @@ static int genwqe_inform_and_stop_processes(struct genwqe_dev *cd)
 				     genwqe_open_files(cd); i++) {
 				dev_warn(&pci_dev->dev, "  %d sec ...", i);
 
-				cond_resched();
 				msleep(1000);
 			}
 		}

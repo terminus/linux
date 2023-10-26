@@ -498,9 +498,6 @@ static void flush_to_ldisc(struct work_struct *work)
 			lookahead_bufs(port, head);
 		if (!rcvd)
 			break;
-
-		if (need_resched())
-			cond_resched();
 	}
 
 	mutex_unlock(&buf->lock);

@@ -563,7 +563,6 @@ static unsigned long bm_count_bits(struct drbd_bitmap *b)
 		p_addr = __bm_map_pidx(b, idx);
 		bits += bitmap_weight(p_addr, BITS_PER_PAGE);
 		__bm_unmap(p_addr);
-		cond_resched();
 	}
 	/* last (or only) page */
 	last_word = ((b->bm_bits - 1) & BITS_PER_PAGE_MASK) >> LN2_BPL;
@@ -1118,7 +1117,6 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 			atomic_inc(&ctx->in_flight);
 			bm_page_io_async(ctx, i);
 			++count;
-			cond_resched();
 		}
 	} else if (flags & BM_AIO_WRITE_HINTED) {
 		/* ASSERT: BM_AIO_WRITE_ALL_PAGES is not set. */
@@ -1158,7 +1156,6 @@ static int bm_rw(struct drbd_device *device, const unsigned int flags, unsigned 
 			atomic_inc(&ctx->in_flight);
 			bm_page_io_async(ctx, i);
 			++count;
-			cond_resched();
 		}
 	}
 
@@ -1545,7 +1542,6 @@ void _drbd_bm_set_bits(struct drbd_device *device, const unsigned long s, const 
 	for (page_nr = first_page; page_nr < last_page; page_nr++) {
 		bm_set_full_words_within_one_page(device->bitmap, page_nr, first_word, last_word);
 		spin_unlock_irq(&b->bm_lock);
-		cond_resched();
 		first_word = 0;
 		spin_lock_irq(&b->bm_lock);
 	}

@@ -215,7 +215,6 @@ struct ib_umem *ib_umem_get(struct ib_device *device, unsigned long addr,
 		gup_flags |= FOLL_WRITE;
 
 	while (npages) {
-		cond_resched();
 		pinned = pin_user_pages_fast(cur_base,
 					  min_t(unsigned long, npages,
 						PAGE_SIZE /

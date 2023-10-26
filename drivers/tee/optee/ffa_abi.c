@@ -581,7 +581,6 @@ static int optee_ffa_yielding_call(struct tee_context *ctx,
 		 * filled in by ffa_mem_ops->sync_send_receive() returning
 		 * above.
 		 */
-		cond_resched();
 		optee_handle_ffa_rpc(ctx, optee, data->data1, rpc_arg);
 		cmd = OPTEE_FFA_YIELDING_CALL_RESUME;
 		data->data0 = cmd;

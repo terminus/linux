@@ -271,7 +271,6 @@ static int lo_write_simple(struct loop_device *lo, struct request *rq,
 		ret = lo_write_bvec(lo->lo_backing_file, &bvec, &pos);
 		if (ret < 0)
 			break;
-		cond_resched();
 	}
 
 	return ret;
@@ -300,7 +299,6 @@ static int lo_read_simple(struct loop_device *lo, struct request *rq,
 				zero_fill_bio(bio);
 			break;
 		}
-		cond_resched();
 	}
 
 	return 0;
@@ -1948,7 +1946,6 @@ static void loop_process_work(struct loop_worker *worker,
 		spin_unlock_irq(&lo->lo_work_lock);
 
 		loop_handle_cmd(cmd);
-		cond_resched();
 
 		spin_lock_irq(&lo->lo_work_lock);
 	}

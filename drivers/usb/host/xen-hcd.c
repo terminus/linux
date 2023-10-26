@@ -1086,7 +1086,7 @@ static irqreturn_t xenhcd_int(int irq, void *dev_id)
 	while (xenhcd_urb_request_done(info, &eoiflag) |
 	       xenhcd_conn_notify(info, &eoiflag))
 		/* Yield point for this unbounded loop. */
-		cond_resched();
+		cond_resched_stall();
 
 	xen_irq_lateeoi(irq, eoiflag);
 	return IRQ_HANDLED;

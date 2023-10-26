@@ -227,7 +227,7 @@ void rxe_cleanup_task(struct rxe_task *task)
 	 * for the previously scheduled tasks to finish.
 	 */
 	while (!is_done(task))
-		cond_resched();
+		cond_resched_stall();
 
 	spin_lock_irqsave(&task->lock, flags);
 	task->state = TASK_STATE_INVALID;
@@ -289,7 +289,7 @@ void rxe_disable_task(struct rxe_task *task)
 	spin_unlock_irqrestore(&task->lock, flags);
 
 	while (!is_done(task))
-		cond_resched();
+		cond_resched_stall();
 
 	spin_lock_irqsave(&task->lock, flags);
 	task->state = TASK_STATE_DRAINED;

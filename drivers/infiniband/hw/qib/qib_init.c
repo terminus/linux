@@ -1674,7 +1674,6 @@ int qib_setup_eagerbufs(struct qib_ctxtdata *rcd)
 					  RCVHQ_RCV_TYPE_EAGER, pa);
 			pa += egrsize;
 		}
-		cond_resched(); /* don't hog the cpu */
 	}
 
 	return 0;

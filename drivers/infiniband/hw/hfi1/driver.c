@@ -668,7 +668,6 @@ static noinline int max_packet_exceeded(struct hfi1_packet *packet, int thread)
 		if ((packet->numpkt & (MAX_PKT_RECV_THREAD - 1)) == 0)
 			/* allow defered processing */
 			process_rcv_qp_work(packet);
-		cond_resched();
 		return RCV_PKT_OK;
 	} else {
 		this_cpu_inc(*packet->rcd->dd->rcv_limit);

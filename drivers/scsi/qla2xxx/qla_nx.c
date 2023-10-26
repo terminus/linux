@@ -972,7 +972,6 @@ qla82xx_flash_wait_write_finish(struct qla_hw_data *ha)
 		if (ret < 0 || (val & 1) == 0)
 			return ret;
 		udelay(10);
-		cond_resched();
 	}
 	ql_log(ql_log_warn, vha, 0xb00d,
 	       "Timeout reached waiting for write finish.\n");
@@ -1037,7 +1036,6 @@ ql82xx_rom_lock_d(struct qla_hw_data *ha)
 
 	while ((qla82xx_rom_lock(ha) != 0) && (loops < 50000)) {
 		udelay(100);
-		cond_resched();
 		loops++;
 	}
 	if (loops >= 50000) {

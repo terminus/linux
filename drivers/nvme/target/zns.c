@@ -432,8 +432,6 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 				zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC,
 				GFP_KERNEL);
 			bio->bi_iter.bi_sector = sector;
-			/* This may take a while, so be nice to others */
-			cond_resched();
 		}
 		sector += bdev_zone_sectors(bdev);
 	}

@@ -1207,12 +1207,6 @@ static int genwqe_card_thread(void *data)
 		}
 		if (should_stop)
 			break;
-
-		/*
-		 * Avoid soft lockups on heavy loads; we do not want
-		 * to disable our interrupts.
-		 */
-		cond_resched();
 	}
 	return 0;
 }

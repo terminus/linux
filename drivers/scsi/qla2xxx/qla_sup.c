@@ -463,7 +463,6 @@ qla24xx_read_flash_dword(struct qla_hw_data *ha, uint32_t addr, uint32_t *data)
 			return QLA_SUCCESS;
 		}
 		udelay(10);
-		cond_resched();
 	}
 
 	ql_log(ql_log_warn, pci_get_drvdata(ha->pdev), 0x7090,
@@ -505,7 +504,6 @@ qla24xx_write_flash_dword(struct qla_hw_data *ha, uint32_t addr, uint32_t data)
 		if (!(rd_reg_dword(&reg->flash_addr) & FARX_DATA_FLAG))
 			return QLA_SUCCESS;
 		udelay(10);
-		cond_resched();
 	}
 
 	ql_log(ql_log_warn, pci_get_drvdata(ha->pdev), 0x7090,
@@ -2151,7 +2149,6 @@ qla2x00_poll_flash(struct qla_hw_data *ha, uint32_t addr, uint8_t poll_data,
 		}
 		udelay(10);
 		barrier();
-		cond_resched();
 	}
 	return status;
 }
@@ -2301,7 +2298,6 @@ qla2x00_read_flash_data(struct qla_hw_data *ha, uint8_t *tmp_buf,
 		if (saddr % 100)
 			udelay(10);
 		*tmp_buf = data;
-		cond_resched();
 	}
 }
 
@@ -2589,7 +2585,6 @@ update_flash:
 				rval = QLA_FUNCTION_FAILED;
 				break;
 			}
-			cond_resched();
 		}
 	} while (0);
 	qla2x00_flash_disable(ha);

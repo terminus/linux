@@ -529,7 +529,6 @@ static ssize_t evdev_write(struct file *file, const char __user *buffer,
 
 		input_inject_event(&evdev->handle,
 				   event.type, event.code, event.value);
-		cond_resched();
 	}
 
  out:

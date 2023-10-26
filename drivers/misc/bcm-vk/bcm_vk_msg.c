@@ -1295,8 +1295,7 @@ int bcm_vk_release(struct inode *inode, struct file *p_file)
 			break;
 		}
 		dma_cnt = atomic_read(&ctx->dma_cnt);
-		cpu_relax();
-		cond_resched();
+		cond_resched_stall();
 	} while (dma_cnt);
 	dev_dbg(dev, "Draining for [fd-%d] pid %d - delay %d ms\n",
 		ctx->idx, pid, jiffies_to_msecs(jiffies - start_time));

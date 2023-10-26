@@ -1158,8 +1158,6 @@ static void vmballoon_inflate(struct vmballoon *b)
 			vmballoon_split_refused_pages(&ctl);
 			ctl.page_size--;
 		}
-
-		cond_resched();
 	}
 
 	/*
@@ -1282,8 +1280,6 @@ static unsigned long vmballoon_deflate(struct vmballoon *b, uint64_t n_frames,
 				break;
 			ctl.page_size++;
 		}
-
-		cond_resched();
 	}
 
 	return deflated_frames;

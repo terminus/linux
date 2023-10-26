@@ -232,8 +232,13 @@ static void scx200_acb_poll(struct scx200_acb_iface *iface)
 		}
 		if (time_after(jiffies, timeout))
 			break;
-		cpu_relax();
-		cond_resched();
+		/*
+		 * Use cond_resched_stall() to avoid spinning in a
+		 * tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should timeout or event wait?
+		 */
+		cond_resched_stall();
 	}
 
 	dev_err(&iface->adapter.dev, "timeout in state %s\n",

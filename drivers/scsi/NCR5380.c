@@ -738,8 +738,6 @@ static void NCR5380_main(struct work_struct *work)
 			maybe_release_dma_irq(instance);
 		}
 		spin_unlock_irq(&hostdata->lock);
-		if (!done)
-			cond_resched();
 	} while (!done);
 }
 

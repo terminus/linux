@@ -634,7 +634,6 @@ static irqreturn_t cxl_event_thread(int irq, void *id)
 		if (!status)
 			break;
 		cxl_mem_get_event_records(mds, status);
-		cond_resched();
 	} while (status);
 
 	return IRQ_HANDLED;

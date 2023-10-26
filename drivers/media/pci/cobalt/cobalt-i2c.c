@@ -140,7 +140,7 @@ static int cobalt_tx_bytes(struct cobalt_i2c_regs __iomem *regs,
 		while (status & M00018_SR_BITMAP_TIP_MSK) {
 			if (time_after(jiffies, start_time + adap->timeout))
 				return -ETIMEDOUT;
-			cond_resched();
+			cond_resched_stall();
 			status = ioread8(&regs->cr_sr);
 		}
 
@@ -199,7 +199,7 @@ static int cobalt_rx_bytes(struct cobalt_i2c_regs __iomem *regs,
 		while (status & M00018_SR_BITMAP_TIP_MSK) {
 			if (time_after(jiffies, start_time + adap->timeout))
 				return -ETIMEDOUT;
-			cond_resched();
+			cond_resched_stall();
 			status = ioread8(&regs->cr_sr);
 		}
 

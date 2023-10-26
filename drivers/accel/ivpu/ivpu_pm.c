@@ -105,7 +105,7 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 retry:
 	ret = pci_try_reset_function(to_pci_dev(vdev->drm.dev));
 	if (ret == -EAGAIN && !drm_dev_is_unplugged(&vdev->drm)) {
-		cond_resched();
+		cond_resched_stall();
 		goto retry;
 	}
 
@@ -146,7 +146,11 @@ int ivpu_pm_suspend_cb(struct device *dev)
 
 	timeout = jiffies + msecs_to_jiffies(vdev->timeout.tdr);
 	while (!ivpu_hw_is_idle(vdev)) {
-		cond_resched();
+
+		/* The timeout is in thousands of msecs. Maybe this should be a
+		 * timed wait instead?
+		 */
+		cond_resched_stall();
 		if (time_after_eq(jiffies, timeout)) {
 			ivpu_err(vdev, "Failed to enter idle on system suspend\n");
 			return -EBUSY;

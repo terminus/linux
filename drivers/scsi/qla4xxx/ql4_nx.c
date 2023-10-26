@@ -3643,7 +3643,6 @@ qla4_82xx_read_flash_data(struct scsi_qla_host *ha, uint32_t *dwptr,
 	int loops = 0;
 	while ((qla4_82xx_rom_lock(ha) != 0) && (loops < 50000)) {
 		udelay(100);
-		cond_resched();
 		loops++;
 	}
 	if (loops >= 50000) {

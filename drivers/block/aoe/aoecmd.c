@@ -1235,8 +1235,7 @@ kthread(void *vp)
 		if (!more) {
 			schedule();
 			remove_wait_queue(k->waitq, &wait);
-		} else
-			cond_resched();
+		}
 	} while (!kthread_should_stop());
 	complete(&k->rendez);	/* tell spawner we're stopping */
 	return 0;

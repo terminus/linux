@@ -81,9 +81,6 @@ static int vpx3220_fp_status(struct v4l2_subdev *sd)
 			return 0;
 
 		udelay(10);
-
-		if (need_resched())
-			cond_resched();
 	}
 
 	return -1;

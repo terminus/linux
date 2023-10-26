@@ -1294,7 +1294,7 @@ max3421_reset_hcd(struct usb_hcd *hcd)
 				"timed out waiting for oscillator OK signal");
 			return 1;
 		}
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	/*

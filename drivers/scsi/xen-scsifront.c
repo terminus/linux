@@ -442,7 +442,7 @@ static irqreturn_t scsifront_irq_fn(int irq, void *dev_id)
 
 	while (scsifront_cmd_done(info, &eoiflag))
 		/* Yield point for this unbounded loop. */
-		cond_resched();
+		cond_resched_stall();
 
 	xen_irq_lateeoi(irq, eoiflag);
 

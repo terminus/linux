@@ -778,12 +778,11 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	rxe_av_to_attr(&qp->alt_av, &attr->alt_ah_attr);
 
 	/* Applications that get this state typically spin on it.
-	 * Yield the processor
+	 * Giving up the spinlock will reschedule if needed.
 	 */
 	spin_lock_irqsave(&qp->state_lock, flags);
 	if (qp->attr.sq_draining) {
 		spin_unlock_irqrestore(&qp->state_lock, flags);
-		cond_resched();
 	} else {
 		spin_unlock_irqrestore(&qp->state_lock, flags);
 	}

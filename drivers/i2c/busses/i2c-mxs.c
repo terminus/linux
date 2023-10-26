@@ -310,7 +310,14 @@ static int mxs_i2c_pio_wait_xfer_end(struct mxs_i2c_dev *i2c)
 			return -ENXIO;
 		if (time_after(jiffies, timeout))
 			return -ETIMEDOUT;
-		cond_resched();
+
+		/*
+		 * Use cond_resched_stall() to avoid spinning in a
+		 * tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should be a timed or event wait?
+		 */
+		cond_resched_stall();
 	}
 
 	return 0;

@@ -459,7 +459,6 @@ bool hfi1_schedule_send_yield(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 			return true;
 		}
 
-		cond_resched();
 		this_cpu_inc(*ps->ppd->dd->send_schedule);
 		ps->timeout = jiffies + ps->timeout_int;
 	}

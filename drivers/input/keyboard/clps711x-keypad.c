@@ -52,7 +52,7 @@ static void clps711x_keypad_poll(struct input_dev *input)
 			/* Read twice for protection against fluctuations */
 			do {
 				state = gpiod_get_value_cansleep(data->desc);
-				cond_resched();
+				cond_resched_stall();
 				state1 = gpiod_get_value_cansleep(data->desc);
 			} while (state != state1);
 

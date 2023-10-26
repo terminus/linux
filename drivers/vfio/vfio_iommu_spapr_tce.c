@@ -457,8 +457,6 @@ static int tce_iommu_clear(struct tce_container *container,
 			}
 		}
 
-		cond_resched();
-
 		direction = DMA_NONE;
 		oldhpa = 0;
 		ret = iommu_tce_xchg_no_kill(container->mm, tbl, entry, &oldhpa,

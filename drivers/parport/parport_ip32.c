@@ -1238,7 +1238,6 @@ static size_t parport_ip32_epp_write_addr(struct parport *p, const void *buf,
 static unsigned int parport_ip32_fifo_wait_break(struct parport *p,
 						 unsigned long expire)
 {
-	cond_resched();
 	if (time_after(jiffies, expire)) {
 		pr_debug1(PPIP32 "%s: FIFO write timed out\n", p->name);
 		return 1;

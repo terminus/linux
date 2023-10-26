@@ -1696,7 +1696,6 @@ __mega_busywait_mbox (adapter_t *adapter)
 		if (!mbox->m_in.busy)
 			return 0;
 		udelay(100);
-		cond_resched();
 	}
 	return -1;		/* give up after 1 second */
 }

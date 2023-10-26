@@ -775,8 +775,7 @@ static void lantiq_ssc_bussy_work(struct work_struct *work)
 			spi_finalize_current_transfer(spi->host);
 			return;
 		}
-
-		cond_resched();
+		cond_resched_stall();
 	} while (!time_after_eq(jiffies, end));
 
 	if (spi->host->cur_msg)

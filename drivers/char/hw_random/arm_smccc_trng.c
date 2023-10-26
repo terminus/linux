@@ -84,7 +84,6 @@ static int smccc_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 			tries++;
 			if (tries >= SMCCC_TRNG_MAX_TRIES)
 				return copied;
-			cond_resched();
 			break;
 		default:
 			return -EIO;

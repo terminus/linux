@@ -1819,8 +1819,6 @@ next:
 			ret = err;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	__free_page(page);

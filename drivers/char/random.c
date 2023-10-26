@@ -457,7 +457,6 @@ static ssize_t get_random_bytes_user(struct iov_iter *iter)
 		if (ret % PAGE_SIZE == 0) {
 			if (signal_pending(current))
 				break;
-			cond_resched();
 		}
 	}
 
@@ -1417,7 +1416,6 @@ static ssize_t write_pool_user(struct iov_iter *iter)
 		if (ret % PAGE_SIZE == 0) {
 			if (signal_pending(current))
 				break;
-			cond_resched();
 		}
 	}
 

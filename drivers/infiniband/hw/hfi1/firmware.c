@@ -560,7 +560,7 @@ retry:
 		 * something that holds for 30 seconds.  If we do that twice
 		 * in a row it triggers task blocked warning.
 		 */
-		cond_resched();
+		cond_resched_stall();
 		if (fw_8051_load)
 			dispose_one_firmware(&fw_8051);
 		if (fw_fabric_serdes_load)

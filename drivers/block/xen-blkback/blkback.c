@@ -1259,9 +1259,6 @@ __do_block_io_op(struct xen_blkif_ring *ring, unsigned int *eoi_flags)
 				goto done;
 			break;
 		}
-
-		/* Yield point for this unbounded loop. */
-		cond_resched();
 	}
 done:
 	return more_to_do;

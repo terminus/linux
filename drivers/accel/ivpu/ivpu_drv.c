@@ -314,8 +314,6 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 		ret = ivpu_ipc_receive(vdev, &cons, &ipc_hdr, NULL, 0);
 		if (ret != -ETIMEDOUT || time_after_eq(jiffies, timeout))
 			break;
-
-		cond_resched();
 	}
 
 	ivpu_ipc_consumer_del(vdev, &cons);

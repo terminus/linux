@@ -1808,7 +1808,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 
 	/* Prod the scheduler in case transfer_one() was busy waiting */
 	if (!ret)
-		cond_resched();
+		cond_resched_stall();
 	return;
 
 out_unlock:

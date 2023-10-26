@@ -576,8 +576,6 @@ void LPS_Leave_check(struct adapter *padapter)
 	bReady = false;
 	start_time = jiffies;
 
-	cond_resched();
-
 	while (1) {
 		mutex_lock(&pwrpriv->lock);
 

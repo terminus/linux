@@ -962,8 +962,6 @@ static long vfio_sync_unpin(struct vfio_dma *dma, struct vfio_domain *domain,
 		kfree(entry);
 	}
 
-	cond_resched();
-
 	return unlocked;
 }
 
@@ -1029,7 +1027,6 @@ static size_t unmap_unpin_slow(struct vfio_domain *domain,
 						     unmapped >> PAGE_SHIFT,
 						     false);
 		*iova += unmapped;
-		cond_resched();
 	}
 	return unmapped;
 }
@@ -1062,7 +1059,6 @@ static long vfio_unmap_unpin(struct vfio_iommu *iommu, struct vfio_dma *dma,
 
 	list_for_each_entry_continue(d, &iommu->domain_list, next) {
 		iommu_unmap(d->domain, dma->iova, dma->size);
-		cond_resched();
 	}
 
 	iommu_iotlb_gather_init(&iotlb_gather);
@@ -1439,8 +1435,6 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
 				GFP_KERNEL);
 		if (ret)
 			goto unwind;
-
-		cond_resched();
 	}
 
 	return 0;
@@ -1448,7 +1442,6 @@ static int vfio_iommu_map(struct vfio_iommu *iommu, dma_addr_t iova,
 unwind:
 	list_for_each_entry_continue_reverse(d, &iommu->domain_list, next) {
 		iommu_unmap(d->domain, iova, npage << PAGE_SHIFT);
-		cond_resched();
 	}
 
 	return ret;

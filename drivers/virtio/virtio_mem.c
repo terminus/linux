@@ -1754,7 +1754,6 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 			rc = virtio_mem_sbm_plug_any_sb(vm, mb_id, &nb_sb);
 			if (rc || !nb_sb)
 				goto out_unlock;
-			cond_resched();
 		}
 	}
 
@@ -1772,7 +1771,6 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 		rc = virtio_mem_sbm_plug_and_add_mb(vm, mb_id, &nb_sb);
 		if (rc || !nb_sb)
 			return rc;
-		cond_resched();
 	}
 
 	/* Try to prepare, plug and add new blocks */
@@ -1786,7 +1784,6 @@ static int virtio_mem_sbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 		rc = virtio_mem_sbm_plug_and_add_mb(vm, mb_id, &nb_sb);
 		if (rc)
 			return rc;
-		cond_resched();
 	}
 
 	return 0;
@@ -1869,7 +1866,6 @@ static int virtio_mem_bbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 			nb_bb--;
 		if (rc || !nb_bb)
 			return rc;
-		cond_resched();
 	}
 
 	/* Try to prepare, plug and add new big blocks */
@@ -1885,7 +1881,6 @@ static int virtio_mem_bbm_plug_request(struct virtio_mem *vm, uint64_t diff)
 			nb_bb--;
 		if (rc)
 			return rc;
-		cond_resched();
 	}
 
 	return 0;
@@ -2107,7 +2102,6 @@ static int virtio_mem_sbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 			if (rc || !nb_sb)
 				goto out_unlock;
 			mutex_unlock(&vm->hotplug_mutex);
-			cond_resched();
 			mutex_lock(&vm->hotplug_mutex);
 		}
 		if (!unplug_online && i == 1) {
@@ -2250,8 +2244,6 @@ static int virtio_mem_bbm_unplug_request(struct virtio_mem *vm, uint64_t diff)
 	 */
 	for (i = 0; i < 3; i++) {
 		virtio_mem_bbm_for_each_bb_rev(vm, bb_id, VIRTIO_MEM_BBM_BB_ADDED) {
-			cond_resched();
-
 			/*
 			 * As we're holding no locks, these checks are racy,
 			 * but we don't care.

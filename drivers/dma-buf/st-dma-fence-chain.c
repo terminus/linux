@@ -431,7 +431,6 @@ static int __find_race(void *arg)
 signal:
 		seqno = get_random_u32_below(data->fc.chain_length - 1);
 		dma_fence_signal(data->fc.fences[seqno]);
-		cond_resched();
 	}
 
 	if (atomic_dec_and_test(&data->children))

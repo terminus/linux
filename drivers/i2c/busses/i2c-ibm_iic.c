@@ -207,9 +207,6 @@ static void iic_dev_reset(struct ibm_iic_private* dev)
 			udelay(10);
 			dc ^= DIRCNTL_SCC;
 			out_8(&iic->directcntl, dc);
-
-			/* be nice */
-			cond_resched();
 		}
 	}
 
@@ -231,7 +228,13 @@ static int iic_dc_wait(volatile struct iic_regs __iomem *iic, u8 mask)
 	while ((in_8(&iic->directcntl) & mask) != mask){
 		if (unlikely(time_after(jiffies, x)))
 			return -1;
-		cond_resched();
+		/*
+		 * Use cond_resched_stall() to avoid spinning in a
+		 * tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should be a timed or event wait?
+		 */
+		cond_resched_stall();
 	}
 	return 0;
 }

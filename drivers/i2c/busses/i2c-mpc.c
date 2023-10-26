@@ -712,7 +712,7 @@ static int mpc_i2c_execute_msg(struct mpc_i2c *i2c)
 			}
 			return -EIO;
 		}
-		cond_resched();
+		cond_resched_stall();
 	}
 
 	return i2c->rc;

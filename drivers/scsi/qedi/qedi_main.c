@@ -1943,7 +1943,6 @@ static int qedi_percpu_io_thread(void *arg)
 				if (!work->is_solicited)
 					kfree(work);
 			}
-			cond_resched();
 			spin_lock_irqsave(&p->p_work_lock, flags);
 		}
 		set_current_state(TASK_INTERRUPTIBLE);

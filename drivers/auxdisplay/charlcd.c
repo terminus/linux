@@ -470,14 +470,6 @@ static ssize_t charlcd_write(struct file *file, const char __user *buf,
 	char c;
 
 	for (; count-- > 0; (*ppos)++, tmp++) {
-		if (((count + 1) & 0x1f) == 0) {
-			/*
-			 * charlcd_write() is invoked as a VFS->write() callback
-			 * and as such it is always invoked from preemptible
-			 * context and may sleep.
-			 */
-			cond_resched();
-		}
 
 		if (get_user(c, tmp))
 			return -EFAULT;
@@ -539,9 +531,6 @@ static void charlcd_puts(struct charlcd *lcd, const char *s)
 	int count = strlen(s);
 
 	for (; count-- > 0; tmp++) {
-		if (((count + 1) & 0x1f) == 0)
-			cond_resched();
-
 		charlcd_write_char(lcd, *tmp);
 	}
 }

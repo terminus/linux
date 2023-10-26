@@ -2696,7 +2696,6 @@ static void genpd_dev_pm_detach(struct device *dev, bool power_off)
 			break;
 
 		mdelay(i);
-		cond_resched();
 	}
 
 	if (ret < 0) {

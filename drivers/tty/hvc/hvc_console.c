@@ -538,7 +538,6 @@ static ssize_t hvc_write(struct tty_struct *tty, const u8 *buf, size_t count)
 		if (count) {
 			if (hp->n_outbuf > 0)
 				hvc_flush(hp);
-			cond_resched();
 		}
 	}
 
@@ -653,7 +652,7 @@ static int __hvc_poll(struct hvc_struct *hp, bool may_sleep)
 
 	if (may_sleep) {
 		spin_unlock_irqrestore(&hp->lock, flags);
-		cond_resched();
+
 		spin_lock_irqsave(&hp->lock, flags);
 	}
 
@@ -725,7 +724,7 @@ static int __hvc_poll(struct hvc_struct *hp, bool may_sleep)
 	if (may_sleep) {
 		/* Keep going until the flip is full */
 		spin_unlock_irqrestore(&hp->lock, flags);
-		cond_resched();
+
 		spin_lock_irqsave(&hp->lock, flags);
 		goto read_again;
 	} else if (read_total < HVC_ATOMIC_READ_MAX) {
@@ -802,7 +801,6 @@ static int khvcd(void *unused)
 			mutex_lock(&hvc_structs_mutex);
 			list_for_each_entry(hp, &hvc_structs, next) {
 				poll_mask |= __hvc_poll(hp, true);
-				cond_resched();
 			}
 			mutex_unlock(&hvc_structs_mutex);
 		} else

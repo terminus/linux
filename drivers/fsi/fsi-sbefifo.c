@@ -372,7 +372,13 @@ static int sbefifo_request_reset(struct sbefifo *sbefifo)
 			return 0;
 		}
 
-		cond_resched();
+		/*
+		 * Use cond_resched_stall() to avoid spinning in a
+		 * tight loop.
+		 * Though, given that the timeout is in milliseconds,
+		 * maybe this should be a timed or event wait?
+		 */
+		cond_resched_stall();
 	}
 	dev_err(dev, "FIFO reset timed out\n");
 
@@ -462,7 +468,11 @@ static int sbefifo_wait(struct sbefifo *sbefifo, bool up,
 
 	end_time = jiffies + timeout;
 	while (!time_after(jiffies, end_time)) {
-		cond_resched();
+		/*
+		 * As above, maybe this should be a timed or event wait?
+		 */
+		cond_resched_stall();
+
 		rc = sbefifo_regr(sbefifo, addr, &sts);
 		if (rc < 0) {
 			dev_err(dev, "FSI error %d reading status register\n", rc);

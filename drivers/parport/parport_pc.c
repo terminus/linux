@@ -663,8 +663,6 @@ false_alarm:
 		}
 		/* Is serviceIntr set? */
 		if (!(inb(ECONTROL(port)) & (1<<2))) {
-			cond_resched();
-
 			goto false_alarm;
 		}
 
@@ -673,8 +671,6 @@ false_alarm:
 		clear_dma_ff(port->dma);
 		count = get_dma_residue(port->dma);
 		release_dma_lock(dmaflag);
-
-		cond_resched(); /* Can't yield the port. */
 
 		/* Anyone else waiting for the port? */
 		if (port->waithead) {

@@ -2985,7 +2985,10 @@ static int v2_wait_mbox_complete(struct hns_roce_dev *hr_dev, u32 timeout,
 			return -ETIMEDOUT;
 		}
 
-		cond_resched();
+		/* The timeout is in hundreds of msecs. Maybe this should be a
+		 * timed wait instead?
+		 */
+		cond_resched_stall();
 		ret = -EBUSY;
 	}
 

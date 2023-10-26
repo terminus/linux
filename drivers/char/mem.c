@@ -92,8 +92,6 @@ static inline int range_is_allowed(unsigned long pfn, unsigned long size)
 
 static inline bool should_stop_iteration(void)
 {
-	if (need_resched())
-		cond_resched();
 	return signal_pending(current);
 }
 
@@ -497,7 +495,6 @@ static ssize_t read_iter_zero(struct kiocb *iocb, struct iov_iter *iter)
 			continue;
 		if (iocb->ki_flags & IOCB_NOWAIT)
 			return written ? written : -EAGAIN;
-		cond_resched();
 	}
 	return written;
 }
@@ -523,7 +520,6 @@ static ssize_t read_zero(struct file *file, char __user *buf,
 
 		if (signal_pending(current))
 			break;
-		cond_resched();
 	}
 
 	return cleared;

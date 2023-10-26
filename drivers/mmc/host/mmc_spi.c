@@ -192,9 +192,6 @@ static int mmc_spi_skip(struct mmc_spi_host *host, unsigned long timeout,
 			if (cp[i] != byte)
 				return cp[i];
 		}
-
-		/* If we need long timeouts, we may release the CPU */
-		cond_resched();
 	} while (time_is_after_jiffies(start + timeout));
 	return -ETIMEDOUT;
 }
