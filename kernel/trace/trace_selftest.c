@@ -848,11 +848,6 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	}
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
-	/*
-	 * These tests can take some time to run. Make sure on non PREEMPT
-	 * kernels, we do not trigger the softlockup detector.
-	 */
-	cond_resched();
 
 	tracing_reset_online_cpus(&tr->array_buffer);
 	set_graph_array(tr);
@@ -875,8 +870,6 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 	if (ret)
 		goto out;
 
-	cond_resched();
-
 	ret = register_ftrace_graph(&fgraph_ops);
 	if (ret) {
 		warn_failed_init_tracer(trace, ret);
@@ -898,8 +891,6 @@ trace_selftest_startup_function_graph(struct tracer *trace,
 				       true);
 	if (ret)
 		goto out;
-
-	cond_resched();
 
 	tracing_start();
 

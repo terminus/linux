@@ -2723,7 +2723,6 @@ void __weak ftrace_replace_code(int mod_flags)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 	bool enable = mod_flags & FTRACE_MODIFY_ENABLE_FL;
-	int schedulable = mod_flags & FTRACE_MODIFY_MAY_SLEEP_FL;
 	int failed;
 
 	if (unlikely(ftrace_disabled))
@@ -2740,8 +2739,6 @@ void __weak ftrace_replace_code(int mod_flags)
 			/* Stop processing */
 			return;
 		}
-		if (schedulable)
-			cond_resched();
 	} while_for_each_ftrace_rec();
 }
 
@@ -4363,7 +4360,6 @@ match_records(struct ftrace_hash *hash, char *func, int len, char *mod)
 			}
 			found = 1;
 		}
-		cond_resched();
 	} while_for_each_ftrace_rec();
  out_unlock:
 	mutex_unlock(&ftrace_lock);
