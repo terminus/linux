@@ -84,7 +84,6 @@ next:
 
 		if (sent++ > 16) {
 			spin_unlock_bh(&cnet->ecache.dying_lock);
-			cond_resched();
 			goto next;
 		}
 	}
@@ -96,8 +95,6 @@ next:
 
 		hlist_nulls_del_rcu(&ct->tuplehash[IP_CT_DIR_REPLY].hnnode);
 		nf_ct_put(ct);
-
-		cond_resched();
 	}
 
 	return ret;

@@ -1433,8 +1433,7 @@ xt_replace_table(struct xt_table *table,
 
 		if (seq & 1) {
 			do {
-				cond_resched();
-				cpu_relax();
+				cond_resched_stall();
 			} while (seq == raw_read_seqcount(s));
 		}
 	}

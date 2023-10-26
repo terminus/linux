@@ -372,7 +372,6 @@ static void htable_selective_cleanup(struct xt_hashlimit_htable *ht, bool select
 				dsthash_free(ht, dh);
 		}
 		spin_unlock_bh(&ht->lock);
-		cond_resched();
 	}
 }
 

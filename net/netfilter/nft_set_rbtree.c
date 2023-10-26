@@ -495,8 +495,6 @@ static int nft_rbtree_insert(const struct net *net, const struct nft_set *set,
 		if (fatal_signal_pending(current))
 			return -EINTR;
 
-		cond_resched();
-
 		write_lock_bh(&priv->lock);
 		write_seqcount_begin(&priv->count);
 		err = __nft_rbtree_insert(net, set, rbe, ext);

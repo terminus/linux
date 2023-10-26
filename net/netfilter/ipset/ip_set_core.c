@@ -1703,7 +1703,6 @@ call_ad(struct net *net, struct sock *ctnl, struct sk_buff *skb,
 		if (retried) {
 			__ip_set_get_netlink(set);
 			nfnl_unlock(NFNL_SUBSYS_IPSET);
-			cond_resched();
 			nfnl_lock(NFNL_SUBSYS_IPSET);
 			__ip_set_put_netlink(set);
 		}

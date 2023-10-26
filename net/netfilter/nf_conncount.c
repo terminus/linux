@@ -473,8 +473,6 @@ static void tree_gc_worker(struct work_struct *work)
 	rcu_read_unlock();
 	local_bh_enable();
 
-	cond_resched();
-
 	spin_lock_bh(&nf_conncount_locks[tree]);
 	if (gc_count < ARRAY_SIZE(gc_nodes))
 		goto next; /* do not bother */

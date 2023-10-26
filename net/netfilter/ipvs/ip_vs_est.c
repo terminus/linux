@@ -622,7 +622,6 @@ static void ip_vs_est_drain_temp_list(struct netns_ipvs *ipvs)
 			goto unlock;
 		}
 		mutex_unlock(&__ip_vs_mutex);
-		cond_resched();
 	}
 
 unlock:
@@ -681,7 +680,6 @@ static int ip_vs_est_calc_limits(struct netns_ipvs *ipvs, int *chain_max)
 
 		if (!ipvs->enable || kthread_should_stop())
 			goto stop;
-		cond_resched();
 
 		diff = ktime_to_ns(ktime_sub(t2, t1));
 		if (diff <= 1 * NSEC_PER_USEC) {
@@ -815,7 +813,6 @@ walk_chain:
 		 * and deleted (releasing kthread contexts)
 		 */
 		mutex_unlock(&__ip_vs_mutex);
-		cond_resched();
 		mutex_lock(&__ip_vs_mutex);
 
 		/* Current kt released ? */

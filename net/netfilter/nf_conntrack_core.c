@@ -1563,7 +1563,6 @@ static void gc_worker(struct work_struct *work)
 		 * we will just continue with next hash slot.
 		 */
 		rcu_read_unlock();
-		cond_resched();
 		i++;
 
 		delta_time = nfct_time_stamp - end_time;
@@ -2393,7 +2392,6 @@ get_next_corpse(int (*iter)(struct nf_conn *i, void *data),
 		}
 		spin_unlock(lockp);
 		local_bh_enable();
-		cond_resched();
 	}
 
 	return NULL;
@@ -2418,7 +2416,6 @@ static void nf_ct_iterate_cleanup(int (*iter)(struct nf_conn *i, void *data),
 
 		nf_ct_delete(ct, iter_data->portid, iter_data->report);
 		nf_ct_put(ct);
-		cond_resched();
 	}
 	mutex_unlock(&nf_conntrack_mutex);
 }
