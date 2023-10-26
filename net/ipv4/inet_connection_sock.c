@@ -389,7 +389,6 @@ other_parity_scan:
 		goto success;
 next_port:
 		spin_unlock_bh(&head->lock);
-		cond_resched();
 	}
 
 	offset--;
@@ -1420,8 +1419,6 @@ skip_child_forget:
 		bh_unlock_sock(child);
 		local_bh_enable();
 		sock_put(child);
-
-		cond_resched();
 	}
 	if (queue->fastopenq.rskq_rst_head) {
 		/* Free all the reqs queued in rskq_rst_head. */

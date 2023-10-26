@@ -2982,8 +2982,6 @@ void __release_sock(struct sock *sk)
 			skb_mark_not_on_list(skb);
 			sk_backlog_rcv(sk, skb);
 
-			cond_resched();
-
 			skb = next;
 		} while (skb != NULL);
 

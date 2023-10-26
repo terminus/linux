@@ -772,7 +772,6 @@ static u32 qdisc_alloc_handle(struct net_device *dev)
 			autohandle = TC_H_MAKE(0x80000000U, 0);
 		if (!qdisc_lookup(dev, autohandle))
 			return autohandle;
-		cond_resched();
 	} while	(--i > 0);
 
 	return 0;
@@ -923,7 +922,6 @@ static int tc_fill_qdisc(struct sk_buff *skb, struct Qdisc *q, u32 clid,
 	u32 block_index;
 	__u32 qlen;
 
-	cond_resched();
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
 		goto out_nlmsg_trim;
@@ -1888,7 +1886,6 @@ static int tc_fill_tclass(struct sk_buff *skb, struct Qdisc *q,
 	struct gnet_dump d;
 	const struct Qdisc_class_ops *cl_ops = q->ops->cl_ops;
 
-	cond_resched();
 	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
 	if (!nlh)
 		goto out_nlmsg_trim;

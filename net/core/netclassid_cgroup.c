@@ -92,7 +92,6 @@ static void update_classid_task(struct task_struct *p, u32 classid)
 		task_lock(p);
 		fd = iterate_fd(p->files, fd, update_classid_sock, &ctx);
 		task_unlock(p);
-		cond_resched();
 	} while (fd);
 }
 

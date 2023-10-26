@@ -6304,7 +6304,6 @@ count:
 			if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 				preempt_enable();
 			rcu_read_unlock();
-			cond_resched();
 			if (loop_end(loop_end_arg, start_time))
 				return;
 			goto restart;
@@ -6709,8 +6708,6 @@ static int napi_threaded_poll(void *data)
 
 			if (!repoll)
 				break;
-
-			cond_resched();
 		}
 	}
 	return 0;
@@ -11478,7 +11475,6 @@ static void __net_exit default_device_exit_batch(struct list_head *net_list)
 	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list) {
 		default_device_exit_net(net);
-		cond_resched();
 	}
 
 	list_for_each_entry(net, net_list, exit_list) {

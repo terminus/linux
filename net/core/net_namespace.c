@@ -168,7 +168,6 @@ static void ops_exit_list(const struct pernet_operations *ops,
 	if (ops->exit) {
 		list_for_each_entry(net, net_exit_list, exit_list) {
 			ops->exit(net);
-			cond_resched();
 		}
 	}
 	if (ops->exit_batch)

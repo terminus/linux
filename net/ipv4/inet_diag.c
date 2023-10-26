@@ -1147,7 +1147,6 @@ next_normal:
 		}
 		if (res < 0)
 			break;
-		cond_resched();
 		if (accum == SKARR_SZ) {
 			s_num = num + 1;
 			goto next_chunk;

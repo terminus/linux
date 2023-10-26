@@ -843,7 +843,6 @@ static int netlink_autobind(struct socket *sock)
 	bool ok;
 
 retry:
-	cond_resched();
 	rcu_read_lock();
 	ok = !__netlink_lookup(table, portid, net);
 	rcu_read_unlock();

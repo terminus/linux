@@ -1080,7 +1080,6 @@ other_parity_scan:
 		goto ok;
 next_port:
 		spin_unlock_bh(&head->lock);
-		cond_resched();
 	}
 
 	offset++;

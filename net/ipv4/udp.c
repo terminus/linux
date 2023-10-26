@@ -281,7 +281,6 @@ int udp_lib_get_port(struct sock *sk, unsigned short snum,
 				snum += rand;
 			} while (snum != first);
 			spin_unlock_bh(&hslot->lock);
-			cond_resched();
 		} while (++first != last);
 		goto fail;
 	} else {
@@ -1890,7 +1889,6 @@ csum_copy_err:
 	kfree_skb(skb);
 
 	/* starting over for a new packet, but check if we need to yield */
-	cond_resched();
 	msg->msg_flags &= ~MSG_TRUNC;
 	goto try_again;
 }

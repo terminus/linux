@@ -300,7 +300,6 @@ void inetpeer_invalidate_tree(struct inet_peer_base *base)
 		p = rb_next(p);
 		rb_erase(&peer->rb_node, &base->rb_root);
 		inet_putpeer(peer);
-		cond_resched();
 	}
 
 	base->total = 0;

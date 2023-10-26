@@ -2424,7 +2424,6 @@ static void flush_all_nexthops(struct net *net)
 	while ((node = rb_first(root))) {
 		nh = rb_entry(node, struct nexthop, rb_node);
 		remove_nexthop(net, nh, NULL);
-		cond_resched();
 	}
 }
 

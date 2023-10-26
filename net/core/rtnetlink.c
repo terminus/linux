@@ -140,7 +140,6 @@ void __rtnl_unlock(void)
 		struct sk_buff *next = head->next;
 
 		kfree_skb(head);
-		cond_resched();
 		head = next;
 	}
 }

@@ -1008,7 +1008,6 @@ next_elt:
 		 * grows while we are preempted.
 		 */
 		write_unlock_bh(&tbl->lock);
-		cond_resched();
 		write_lock_bh(&tbl->lock);
 		nht = rcu_dereference_protected(tbl->nht,
 						lockdep_is_held(&tbl->lock));

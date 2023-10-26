@@ -622,7 +622,6 @@ static void get_counters(const struct xt_table_info *t,
 
 			ADD_COUNTER(counters[i], bcnt, pcnt);
 			++i;
-			cond_resched();
 		}
 	}
 }
@@ -642,7 +641,6 @@ static void get_old_counters(const struct xt_table_info *t,
 			ADD_COUNTER(counters[i], tmp->bcnt, tmp->pcnt);
 			++i;
 		}
-		cond_resched();
 	}
 }
 
