@@ -343,7 +343,6 @@ static unsigned int x25_new_lci(struct x25_neigh *nb)
 			lci = 0;
 			break;
 		}
-		cond_resched();
 	}
 
 	return lci;

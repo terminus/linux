@@ -8364,7 +8364,6 @@ static int sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 			break;
 		next:
 			spin_unlock_bh(&head->lock);
-			cond_resched();
 		} while (--remaining > 0);
 
 		/* Exhausted local port range during search? */

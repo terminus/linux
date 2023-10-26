@@ -3383,7 +3383,6 @@ static void mptcp_release_cb(struct sock *sk)
 		if (flags & BIT(MPTCP_RETRANSMIT))
 			__mptcp_retrans(sk);
 
-		cond_resched();
 		spin_lock_bh(&sk->sk_lock.slock);
 	}
 

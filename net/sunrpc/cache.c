@@ -521,10 +521,17 @@ static void do_cache_clean(struct work_struct *work)
  */
 void cache_flush(void)
 {
+	/*
+	 * We call cache_clean() in what is seemingly a tight loop. But,
+	 * the scheduler can always preempt us when we give up the spinlock
+	 * in cache_clean().
+	 */
+
 	while (cache_clean() != -1)
-		cond_resched();
+		;
+
 	while (cache_clean() != -1)
-		cond_resched();
+		;
 }
 EXPORT_SYMBOL_GPL(cache_flush);
 

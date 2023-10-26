@@ -776,7 +776,6 @@ static void xs_stream_data_receive(struct sock_xprt *transport)
 		if (ret < 0)
 			break;
 		read += ret;
-		cond_resched();
 	}
 	if (ret == -ESHUTDOWN)
 		kernel_sock_shutdown(transport->sock, SHUT_RDWR);
@@ -1412,7 +1411,6 @@ static void xs_udp_data_receive(struct sock_xprt *transport)
 			break;
 		xs_udp_data_read_skb(&transport->xprt, sk, skb);
 		consume_skb(skb);
-		cond_resched();
 	}
 	xs_poll_check_readable(transport);
 out:

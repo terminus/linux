@@ -851,7 +851,6 @@ void svc_recv(struct svc_rqst *rqstp)
 		goto out;
 
 	try_to_freeze();
-	cond_resched();
 	if (kthread_should_stop())
 		goto out;
 

@@ -277,7 +277,6 @@ static void tipc_conn_send_to_sock(struct tipc_conn *con)
 			ret = kernel_sendmsg(con->sock, &msg, &iov,
 					     1, sizeof(*evt));
 			if (ret == -EWOULDBLOCK || ret == 0) {
-				cond_resched();
 				return;
 			} else if (ret < 0) {
 				return tipc_conn_close(con);
@@ -288,7 +287,6 @@ static void tipc_conn_send_to_sock(struct tipc_conn *con)
 
 		/* Don't starve users filling buffers */
 		if (++count >= MAX_SEND_MSG_COUNT) {
-			cond_resched();
 			count = 0;
 		}
 		spin_lock_bh(&con->outqueue_lock);
@@ -426,7 +424,6 @@ static void tipc_conn_recv_work(struct work_struct *work)
 
 		/* Don't flood Rx machine */
 		if (++count >= MAX_RECV_MSG_COUNT) {
-			cond_resched();
 			count = 0;
 		}
 	}

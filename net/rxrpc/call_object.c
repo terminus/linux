@@ -755,7 +755,7 @@ void rxrpc_destroy_all_calls(struct rxrpc_net *rxnet)
 			       call->flags, call->events);
 
 			spin_unlock(&rxnet->call_lock);
-			cond_resched();
+			cpu_relax();
 			spin_lock(&rxnet->call_lock);
 		}
 

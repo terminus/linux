@@ -500,7 +500,6 @@ static void __net_exit fib6_rules_net_exit_batch(struct list_head *net_list)
 	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list) {
 		fib_rules_unregister(net->ipv6.fib6_rules_ops);
-		cond_resched();
 	}
 	rtnl_unlock();
 }

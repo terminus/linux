@@ -530,7 +530,7 @@ static void rds_tcp_accept_worker(struct work_struct *work)
 					       rds_tcp_accept_w);
 
 	while (rds_tcp_accept_one(rtn->rds_tcp_listen_sock) == 0)
-		cond_resched();
+		cond_resched_stall();
 }
 
 void rds_tcp_accept_work(struct sock *sk)

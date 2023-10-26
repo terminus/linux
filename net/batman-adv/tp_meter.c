@@ -877,8 +877,6 @@ static int batadv_tp_send(void *arg)
 		/* right-shift the TWND */
 		if (!err)
 			tp_vars->last_sent += payload_len;
-
-		cond_resched();
 	}
 
 out:

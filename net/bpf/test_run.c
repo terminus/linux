@@ -81,7 +81,6 @@ static bool bpf_test_timer_continue(struct bpf_test_timer *t, int iterations,
 		/* During iteration: we need to reschedule between runs. */
 		t->time_spent += ktime_get_ns() - t->time_start;
 		bpf_test_timer_leave(t);
-		cond_resched();
 		bpf_test_timer_enter(t);
 	}
 

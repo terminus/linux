@@ -1297,7 +1297,6 @@ static int mptcp_nl_add_subflow_or_signal_addr(struct net *net)
 
 next:
 		sock_put(sk);
-		cond_resched();
 	}
 
 	return 0;
@@ -1443,7 +1442,6 @@ static int mptcp_nl_remove_subflow_and_signal_addr(struct net *net,
 
 next:
 		sock_put(sk);
-		cond_resched();
 	}
 
 	return 0;
@@ -1478,7 +1476,6 @@ static int mptcp_nl_remove_id_zero_address(struct net *net,
 
 next:
 		sock_put(sk);
-		cond_resched();
 	}
 
 	return 0;
@@ -1594,7 +1591,6 @@ static void mptcp_nl_remove_addrs_list(struct net *net,
 		}
 
 		sock_put(sk);
-		cond_resched();
 	}
 }
 
@@ -1878,7 +1874,6 @@ static int mptcp_nl_set_flags(struct net *net,
 
 next:
 		sock_put(sk);
-		cond_resched();
 	}
 
 	return ret;

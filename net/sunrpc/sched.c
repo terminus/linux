@@ -950,7 +950,7 @@ static void __rpc_execute(struct rpc_task *task)
 		 * Lockless check for whether task is sleeping or not.
 		 */
 		if (!RPC_IS_QUEUED(task)) {
-			cond_resched();
+			cond_resched_stall();
 			continue;
 		}
 

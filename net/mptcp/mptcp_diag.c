@@ -141,7 +141,6 @@ next_listen:
 		spin_unlock(&ilb->lock);
 		rcu_read_unlock();
 
-		cond_resched();
 		diag_ctx->l_num = 0;
 	}
 
@@ -190,7 +189,6 @@ next:
 			diag_ctx->s_num--;
 			break;
 		}
-		cond_resched();
 	}
 
 	if ((r->idiag_states & TCPF_LISTEN) && r->id.idiag_dport == 0)

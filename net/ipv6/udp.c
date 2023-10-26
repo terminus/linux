@@ -443,8 +443,6 @@ csum_copy_err:
 	}
 	kfree_skb(skb);
 
-	/* starting over for a new packet, but check if we need to yield */
-	cond_resched();
 	msg->msg_flags &= ~MSG_TRUNC;
 	goto try_again;
 }

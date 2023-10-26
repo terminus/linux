@@ -1184,10 +1184,9 @@ retry:
 		unix_table_double_unlock(net, old_hash, new_hash);
 
 		/* __unix_find_socket_byname() may take long time if many names
-		 * are already in use.
+		 * are already in use. The unlock above would have allowed the
+		 * scheduler to preempt if preemption was needed.
 		 */
-		cond_resched();
-
 		if (ordernum == lastnum) {
 			/* Give up if all names seems to be in use. */
 			err = -ENOSPC;
