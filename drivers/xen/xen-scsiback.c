@@ -814,9 +814,6 @@ static int scsiback_do_cmd_fn(struct vscsibk_info *info,
 			transport_generic_free_cmd(&pending_req->se_cmd, 0);
 			break;
 		}
-
-		/* Yield point for this unbounded loop. */
-		cond_resched();
 	}
 
 	gnttab_page_cache_shrink(&info->free_pages, scsiback_max_buffer_pages);
@@ -831,8 +828,12 @@ static irqreturn_t scsiback_irq_fn(int irq, void *dev_id)
 	int rc;
 	unsigned int eoi_flags = XEN_EOI_FLAG_SPURIOUS;
 
+	/*
+	 * Process cmds in a tight loop.  The scheduler can preempt when
+	 * it needs to.
+	 */
 	while ((rc = scsiback_do_cmd_fn(info, &eoi_flags)) > 0)
-		cond_resched();
+		;
 
 	/* In case of a ring error we keep the event channel masked. */
 	if (!rc)

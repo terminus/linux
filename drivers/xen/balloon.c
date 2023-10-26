@@ -550,8 +550,6 @@ static int balloon_thread(void *unused)
 		update_schedule();
 
 		mutex_unlock(&balloon_mutex);
-
-		cond_resched();
 	}
 }
 

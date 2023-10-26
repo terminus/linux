@@ -178,8 +178,6 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 				gpc_unmap_khva(new_pfn, new_khva);
 
 			kvm_release_pfn_clean(new_pfn);
-
-			cond_resched();
 		}
 
 		/* We always request a writeable mapping */

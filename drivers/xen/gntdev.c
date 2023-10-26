@@ -974,8 +974,6 @@ static long gntdev_ioctl_grant_copy(struct gntdev_priv *priv, void __user *u)
 		ret = gntdev_grant_copy_seg(&batch, &seg, &copy.segments[i].status);
 		if (ret < 0)
 			goto out;
-
-		cond_resched();
 	}
 	if (batch.nr_ops)
 		ret = gntdev_copy(&batch);
