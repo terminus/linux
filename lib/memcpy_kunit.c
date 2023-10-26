@@ -361,8 +361,6 @@ static void copy_large_test(struct kunit *test, bool use_memmove)
 			/* Zero out what we copied for the next cycle. */
 			memset(large_dst + offset, 0, bytes);
 		}
-		/* Avoid stall warnings if this loop gets slow. */
-		cond_resched();
 	}
 }
 
@@ -489,9 +487,6 @@ static void memmove_overlap_test(struct kunit *test)
 			for (int s_off = s_start; s_off < s_end;
 			     s_off = next_step(s_off, s_start, s_end, window_step))
 				inner_loop(test, bytes, d_off, s_off);
-
-			/* Avoid stall warnings. */
-			cond_resched();
 		}
 	}
 }

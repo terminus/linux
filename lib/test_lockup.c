@@ -381,7 +381,7 @@ static void test_lockup(bool master)
 			touch_nmi_watchdog();
 
 		if (call_cond_resched)
-			cond_resched();
+			cond_resched_stall();
 
 		test_wait(cooldown_secs, cooldown_nsecs);
 

@@ -119,7 +119,6 @@ static int insert_retry(struct rhashtable *ht, struct test_obj *obj,
 
 	do {
 		retries++;
-		cond_resched();
 		err = rhashtable_insert_fast(ht, &obj->node, params);
 		if (err == -ENOMEM && enomem_retry) {
 			enomem_retries++;
@@ -253,8 +252,6 @@ static s64 __init test_rhashtable(struct rhashtable *ht, struct test_obj *array,
 
 			rhashtable_remove_fast(ht, &obj->node, test_rht_params);
 		}
-
-		cond_resched();
 	}
 
 	end = ktime_get_ns();
@@ -371,8 +368,6 @@ static int __init test_rhltable(unsigned int entries)
 		u32 i = get_random_u32_below(entries);
 		u32 prand = get_random_u32_below(4);
 
-		cond_resched();
-
 		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
 		if (test_bit(i, obj_in_table)) {
 			clear_bit(i, obj_in_table);
@@ -412,7 +407,6 @@ static int __init test_rhltable(unsigned int entries)
 	}
 
 	for (i = 0; i < entries; i++) {
-		cond_resched();
 		err = rhltable_remove(&rhlt, &rhl_test_objects[i].list_node, test_rht_params);
 		if (test_bit(i, obj_in_table)) {
 			if (WARN(err, "cannot remove element at slot %d", i))
@@ -607,8 +601,6 @@ static int thread_lookup_test(struct thread_data *tdata)
 			       obj->value.tid, obj->value.id, key.tid, key.id);
 			err++;
 		}
-
-		cond_resched();
 	}
 	return err;
 }
@@ -660,8 +652,6 @@ static int threadfunc(void *data)
 				goto out;
 			}
 			tdata->objs[i].value.id = TEST_INSERT_FAIL;
-
-			cond_resched();
 		}
 		err = thread_lookup_test(tdata);
 		if (err) {

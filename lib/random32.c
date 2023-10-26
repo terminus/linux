@@ -287,7 +287,6 @@ static int __init prandom_state_selftest(void)
 			errors++;
 
 		runs++;
-		cond_resched();
 	}
 
 	if (errors)

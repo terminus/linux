@@ -729,7 +729,6 @@ static int __init crc32c_combine_test(void)
 			      crc_full == test[i].crc32c_le))
 				errors++;
 			runs++;
-			cond_resched();
 		}
 	}
 
@@ -817,7 +816,6 @@ static int __init crc32_combine_test(void)
 			      crc_full == test[i].crc_le))
 				errors++;
 			runs++;
-			cond_resched();
 		}
 	}
 

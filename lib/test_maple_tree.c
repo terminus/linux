@@ -2672,7 +2672,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		rcu_barrier();
 	}
 
-	cond_resched();
 	mt_cache_shrink();
 	/* Check with a value at zero, no gap */
 	for (i = 1000; i < 2000; i++) {
@@ -2682,7 +2681,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		rcu_barrier();
 	}
 
-	cond_resched();
 	mt_cache_shrink();
 	/* Check with a value at zero and unreasonably large */
 	for (i = big_start; i < big_start + 10; i++) {
@@ -2692,7 +2690,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		rcu_barrier();
 	}
 
-	cond_resched();
 	mt_cache_shrink();
 	/* Small to medium size not starting at zero*/
 	for (i = 200; i < 1000; i++) {
@@ -2702,7 +2699,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		rcu_barrier();
 	}
 
-	cond_resched();
 	mt_cache_shrink();
 	/* Unreasonably large not starting at zero*/
 	for (i = big_start; i < big_start + 10; i++) {
@@ -2710,7 +2706,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		check_dup_gaps(mt, i, false, 5);
 		mtree_destroy(mt);
 		rcu_barrier();
-		cond_resched();
 		mt_cache_shrink();
 	}
 
@@ -2720,7 +2715,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		check_dup_gaps(mt, i, false, 5);
 		mtree_destroy(mt);
 		rcu_barrier();
-		cond_resched();
 		if (i % 2 == 0)
 			mt_cache_shrink();
 	}
@@ -2732,7 +2726,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		check_dup_gaps(mt, i, true, 5);
 		mtree_destroy(mt);
 		rcu_barrier();
-		cond_resched();
 	}
 
 	mt_cache_shrink();
@@ -2743,7 +2736,6 @@ static noinline void __init check_dup(struct maple_tree *mt)
 		mtree_destroy(mt);
 		rcu_barrier();
 		mt_cache_shrink();
-		cond_resched();
 	}
 }
 

@@ -14758,7 +14758,6 @@ static __init int test_skb_segment(void)
 	for (i = 0; i < ARRAY_SIZE(skb_segment_tests); i++) {
 		const struct skb_segment_test *test = &skb_segment_tests[i];
 
-		cond_resched();
 		if (exclude_test(i))
 			continue;
 
@@ -14787,7 +14786,6 @@ static __init int test_bpf(void)
 		struct bpf_prog *fp;
 		int err;
 
-		cond_resched();
 		if (exclude_test(i))
 			continue;
 
@@ -15171,7 +15169,6 @@ static __init int test_tail_calls(struct bpf_array *progs)
 		u64 duration;
 		int ret;
 
-		cond_resched();
 		if (exclude_test(i))
 			continue;
 

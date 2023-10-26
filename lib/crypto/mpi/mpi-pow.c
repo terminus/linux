@@ -242,7 +242,6 @@ int mpi_powm(MPI res, MPI base, MPI exp, MPI mod)
 				}
 				e <<= 1;
 				c--;
-				cond_resched();
 			}
 
 			i--;
