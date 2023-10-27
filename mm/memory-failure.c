@@ -804,7 +804,6 @@ static int hwpoison_pte_range(pmd_t *pmdp, unsigned long addr,
 	}
 	pte_unmap_unlock(mapped_pte, ptl);
 out:
-	cond_resched();
 	return ret;
 }
 

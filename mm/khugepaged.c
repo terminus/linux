@@ -2361,7 +2361,6 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 	for_each_vma(vmi, vma) {
 		unsigned long hstart, hend;
 
-		cond_resched();
 		if (unlikely(hpage_collapse_test_exit(mm))) {
 			progress++;
 			break;
@@ -2382,7 +2381,6 @@ skip:
 		while (khugepaged_scan.address < hend) {
 			bool mmap_locked = true;
 
-			cond_resched();
 			if (unlikely(hpage_collapse_test_exit(mm)))
 				goto breakouterloop;
 
@@ -2488,8 +2486,6 @@ static void khugepaged_do_scan(struct collapse_control *cc)
 	lru_add_drain_all();
 
 	while (true) {
-		cond_resched();
-
 		if (unlikely(kthread_should_stop() || try_to_freeze()))
 			break;
 
@@ -2721,7 +2717,6 @@ int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
 		int result = SCAN_FAIL;
 
 		if (!mmap_locked) {
-			cond_resched();
 			mmap_read_lock(mm);
 			mmap_locked = true;
 			result = hugepage_vma_revalidate(mm, addr, false, &vma,

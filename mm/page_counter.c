@@ -196,7 +196,6 @@ int page_counter_set_max(struct page_counter *counter, unsigned long nr_pages)
 			return 0;
 
 		counter->max = old;
-		cond_resched();
 	}
 }
 

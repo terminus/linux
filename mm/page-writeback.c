@@ -2510,7 +2510,6 @@ continue_unlock:
 			}
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	/*

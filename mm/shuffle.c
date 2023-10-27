@@ -136,10 +136,12 @@ void __meminit __shuffle_zone(struct zone *z)
 
 		pr_debug("%s: swap: %#lx -> %#lx\n", __func__, i, j);
 
-		/* take it easy on the zone lock */
+		/*
+		 * Drop the zone lock occasionally to allow the scheduler to
+		 * preempt us if needed.
+		 */
 		if ((i % (100 * order_pages)) == 0) {
 			spin_unlock_irqrestore(&z->lock, flags);
-			cond_resched();
 			spin_lock_irqsave(&z->lock, flags);
 		}
 	}

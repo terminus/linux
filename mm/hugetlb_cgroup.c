@@ -235,7 +235,6 @@ static void hugetlb_cgroup_css_offline(struct cgroup_subsys_state *css)
 
 			spin_unlock_irq(&hugetlb_lock);
 		}
-		cond_resched();
 	} while (hugetlb_cgroup_have_usage(h_cg));
 }
 

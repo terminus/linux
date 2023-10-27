@@ -492,7 +492,6 @@ static int break_ksm(struct vm_area_struct *vma, unsigned long addr, bool lock_v
 	do {
 		int ksm_page;
 
-		cond_resched();
 		ksm_page = walk_page_range_vma(vma, addr, addr + 1, ops, NULL);
 		if (WARN_ON_ONCE(ksm_page < 0))
 			return ksm_page;
@@ -686,7 +685,6 @@ static void remove_node_from_stable_tree(struct ksm_stable_node *stable_node)
 		stable_node->rmap_hlist_len--;
 		put_anon_vma(rmap_item->anon_vma);
 		rmap_item->address &= PAGE_MASK;
-		cond_resched();
 	}
 
 	/*
@@ -813,6 +811,10 @@ stale:
  */
 static void remove_rmap_item_from_tree(struct ksm_rmap_item *rmap_item)
 {
+	/*
+	 * We are called from many long loops, and for the most part don't
+	 * disable preemption. So expect to be preempted occasionally.
+	 */
 	if (rmap_item->address & STABLE_FLAG) {
 		struct ksm_stable_node *stable_node;
 		struct page *page;
@@ -858,7 +860,6 @@ static void remove_rmap_item_from_tree(struct ksm_rmap_item *rmap_item)
 		rmap_item->address &= PAGE_MASK;
 	}
 out:
-	cond_resched();		/* we're called from many long loops */
 }
 
 static void remove_trailing_rmap_items(struct ksm_rmap_item **rmap_list)
@@ -1000,13 +1001,11 @@ static int remove_all_stable_nodes(void)
 				err = -EBUSY;
 				break;	/* proceed to next nid */
 			}
-			cond_resched();
 		}
 	}
 	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
 		if (remove_stable_node(stable_node))
 			err = -EBUSY;
-		cond_resched();
 	}
 	return err;
 }
@@ -1452,7 +1451,6 @@ static struct page *stable_node_dup(struct ksm_stable_node **_stable_node_dup,
 
 	hlist_for_each_entry_safe(dup, hlist_safe,
 				  &stable_node->hlist, hlist_dup) {
-		cond_resched();
 		/*
 		 * We must walk all stable_node_dup to prune the stale
 		 * stable nodes during lookup.
@@ -1654,7 +1652,6 @@ again:
 		struct page *tree_page;
 		int ret;
 
-		cond_resched();
 		stable_node = rb_entry(*new, struct ksm_stable_node, node);
 		stable_node_any = NULL;
 		tree_page = chain_prune(&stable_node_dup, &stable_node,	root);
@@ -1899,7 +1896,6 @@ again:
 		struct page *tree_page;
 		int ret;
 
-		cond_resched();
 		stable_node = rb_entry(*new, struct ksm_stable_node, node);
 		stable_node_any = NULL;
 		tree_page = chain(&stable_node_dup, stable_node, root);
@@ -2016,7 +2012,6 @@ struct ksm_rmap_item *unstable_tree_search_insert(struct ksm_rmap_item *rmap_ite
 		struct page *tree_page;
 		int ret;
 
-		cond_resched();
 		tree_rmap_item = rb_entry(*new, struct ksm_rmap_item, node);
 		tree_page = get_mergeable_page(tree_rmap_item);
 		if (!tree_page)
@@ -2350,7 +2345,6 @@ static struct ksm_rmap_item *scan_get_next_rmap_item(struct page **page)
 						    GET_KSM_PAGE_NOLOCK);
 				if (page)
 					put_page(page);
-				cond_resched();
 			}
 		}
 
@@ -2396,7 +2390,6 @@ next_mm:
 			*page = follow_page(vma, ksm_scan.address, FOLL_GET);
 			if (IS_ERR_OR_NULL(*page)) {
 				ksm_scan.address += PAGE_SIZE;
-				cond_resched();
 				continue;
 			}
 			if (is_zone_device_page(*page))
@@ -2418,7 +2411,6 @@ next_mm:
 next_page:
 			put_page(*page);
 			ksm_scan.address += PAGE_SIZE;
-			cond_resched();
 		}
 	}
 
@@ -2489,7 +2481,6 @@ static void ksm_do_scan(unsigned int scan_npages)
 	unsigned int npages = scan_npages;
 
 	while (npages-- && likely(!freezing(current))) {
-		cond_resched();
 		rmap_item = scan_get_next_rmap_item(&page);
 		if (!rmap_item)
 			return;
@@ -2858,7 +2849,6 @@ again:
 		struct anon_vma_chain *vmac;
 		struct vm_area_struct *vma;
 
-		cond_resched();
 		if (!anon_vma_trylock_read(anon_vma)) {
 			if (rwc->try_lock) {
 				rwc->contended = true;
@@ -2870,7 +2860,6 @@ again:
 					       0, ULONG_MAX) {
 			unsigned long addr;
 
-			cond_resched();
 			vma = vmac->vma;
 
 			/* Ignore the stable/unstable/sqnr flags */
@@ -3046,14 +3035,12 @@ static void ksm_check_stable_tree(unsigned long start_pfn,
 				node = rb_first(root_stable_tree + nid);
 			else
 				node = rb_next(node);
-			cond_resched();
 		}
 	}
 	list_for_each_entry_safe(stable_node, next, &migrate_nodes, list) {
 		if (stable_node->kpfn >= start_pfn &&
 		    stable_node->kpfn < end_pfn)
 			remove_node_from_stable_tree(stable_node);
-		cond_resched();
 	}
 }
 

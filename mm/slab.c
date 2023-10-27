@@ -2196,8 +2196,6 @@ static int drain_freelist(struct kmem_cache *cache,
 		raw_spin_unlock_irq(&n->list_lock);
 		slab_destroy(cache, slab);
 		nr_freed++;
-
-		cond_resched();
 	}
 out:
 	return nr_freed;
@@ -3853,7 +3851,6 @@ static void cache_reap(struct work_struct *w)
 			STATS_ADD_REAPED(searchp, freed);
 		}
 next:
-		cond_resched();
 	}
 	check_irq_on();
 	mutex_unlock(&slab_mutex);

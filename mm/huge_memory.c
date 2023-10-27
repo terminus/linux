@@ -2954,7 +2954,6 @@ static void split_huge_pages_all(void)
 			folio_unlock(folio);
 next:
 			folio_put(folio);
-			cond_resched();
 		}
 	}
 
@@ -3044,7 +3043,6 @@ static int split_huge_pages_pid(int pid, unsigned long vaddr_start,
 		folio_unlock(folio);
 next:
 		folio_put(folio);
-		cond_resched();
 	}
 	mmap_read_unlock(mm);
 	mmput(mm);
@@ -3101,7 +3099,6 @@ static int split_huge_pages_in_file(const char *file_path, pgoff_t off_start,
 		folio_unlock(folio);
 next:
 		folio_put(folio);
-		cond_resched();
 	}
 
 	filp_close(candidate, NULL);

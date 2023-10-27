@@ -374,9 +374,11 @@ void kasan_quarantine_remove_cache(struct kmem_cache *cache)
 		if (qlist_empty(&global_quarantine[i]))
 			continue;
 		qlist_move_cache(&global_quarantine[i], &to_free, cache);
-		/* Scanning whole quarantine can take a while. */
+		/*
+		 * Scanning whole quarantine can take a while so check if need
+		 * to reschedule after giving up the lock.
+		 */
 		raw_spin_unlock_irqrestore(&quarantine_lock, flags);
-		cond_resched();
 		raw_spin_lock_irqsave(&quarantine_lock, flags);
 	}
 	raw_spin_unlock_irqrestore(&quarantine_lock, flags);

@@ -50,8 +50,6 @@ static int swap_cgroup_prepare(int type)
 			goto not_enough_page;
 		ctrl->map[idx] = page;
 
-		if (!(idx % SWAP_CLUSTER_MAX))
-			cond_resched();
 	}
 	return 0;
 not_enough_page:
@@ -223,8 +221,6 @@ void swap_cgroup_swapoff(int type)
 			struct page *page = map[i];
 			if (page)
 				__free_page(page);
-			if (!(i % SWAP_CLUSTER_MAX))
-				cond_resched();
 		}
 		vfree(map);
 	}

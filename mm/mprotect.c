@@ -423,7 +423,6 @@ again:
 			goto again;
 		pages += ret;
 next:
-		cond_resched();
 	} while (pmd++, addr = next, addr != end);
 
 	if (range.start)

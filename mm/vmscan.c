@@ -905,8 +905,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
 		count_vm_events(SLABS_SCANNED, shrinkctl->nr_scanned);
 		total_scan -= shrinkctl->nr_scanned;
 		scanned += shrinkctl->nr_scanned;
-
-		cond_resched();
 	}
 
 	/*
@@ -1074,7 +1072,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
 
 	up_read(&shrinker_rwsem);
 out:
-	cond_resched();
 	return freed;
 }
 
@@ -1204,7 +1201,6 @@ void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason)
 	 */
 	if (!current_is_kswapd() &&
 	    current->flags & (PF_USER_WORKER|PF_KTHREAD)) {
-		cond_resched();
 		return;
 	}
 
@@ -1232,7 +1228,6 @@ void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason)
 		fallthrough;
 	case VMSCAN_THROTTLE_NOPROGRESS:
 		if (skip_throttle_noprogress(pgdat)) {
-			cond_resched();
 			return;
 		}
 
@@ -1715,7 +1710,6 @@ static unsigned int shrink_folio_list(struct list_head *folio_list,
 	struct swap_iocb *plug = NULL;
 
 	memset(stat, 0, sizeof(*stat));
-	cond_resched();
 	do_demote_pass = can_demote(pgdat->node_id, sc);
 
 retry:
@@ -1725,8 +1719,6 @@ retry:
 		enum folio_references references = FOLIOREF_RECLAIM;
 		bool dirty, writeback;
 		unsigned int nr_pages;
-
-		cond_resched();
 
 		folio = lru_to_folio(folio_list);
 		list_del(&folio->lru);
@@ -2719,7 +2711,6 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	while (!list_empty(&l_hold)) {
 		struct folio *folio;
 
-		cond_resched();
 		folio = lru_to_folio(&l_hold);
 		list_del(&folio->lru);
 
@@ -4319,8 +4310,6 @@ static void walk_mm(struct lruvec *lruvec, struct mm_struct *mm, struct lru_gen_
 			reset_batch_size(lruvec, walk);
 			spin_unlock_irq(&lruvec->lru_lock);
 		}
-
-		cond_resched();
 	} while (err == -EAGAIN);
 }
 
@@ -4455,7 +4444,6 @@ restart:
 			continue;
 
 		spin_unlock_irq(&lruvec->lru_lock);
-		cond_resched();
 		goto restart;
 	}
 
@@ -4616,8 +4604,6 @@ static void lru_gen_age_node(struct pglist_data *pgdat, struct scan_control *sc)
 			mem_cgroup_iter_break(NULL, memcg);
 			return;
 		}
-
-		cond_resched();
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 
 	/*
@@ -5378,8 +5364,6 @@ static bool try_to_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 
 		if (sc->nr_reclaimed >= nr_to_reclaim)
 			break;
-
-		cond_resched();
 	}
 
 	/* whether try_to_inc_max_seq() was successful */
@@ -5718,14 +5702,11 @@ static void lru_gen_change_state(bool enabled)
 
 			while (!(enabled ? fill_evictable(lruvec) : drain_evictable(lruvec))) {
 				spin_unlock_irq(&lruvec->lru_lock);
-				cond_resched();
 				spin_lock_irq(&lruvec->lru_lock);
 			}
 
 			spin_unlock_irq(&lruvec->lru_lock);
 		}
-
-		cond_resched();
 	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)));
 unlock:
 	mutex_unlock(&state_mutex);
@@ -6026,8 +6007,6 @@ static int run_eviction(struct lruvec *lruvec, unsigned long seq, struct scan_co
 
 		if (!evict_folios(lruvec, sc, swappiness))
 			return 0;
-
-		cond_resched();
 	}
 
 	return -EINTR;
@@ -6321,8 +6300,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 			}
 		}
 
-		cond_resched();
-
 		if (nr_reclaimed < nr_to_reclaim || proportional_reclaim)
 			continue;
 
@@ -6473,10 +6450,9 @@ static void shrink_node_memcgs(pg_data_t *pgdat, struct scan_control *sc)
 		 * This loop can become CPU-bound when target memcgs
 		 * aren't eligible for reclaim - either because they
 		 * don't have any reclaimable pages, or because their
-		 * memory is explicitly protected. Avoid soft lockups.
+		 * memory is explicitly protected. We don't disable
+		 * preemption, so expect to be preempted.
 		 */
-		cond_resched();
-
 		mem_cgroup_calculate_protection(target_memcg, memcg);
 
 		if (mem_cgroup_below_min(target_memcg, memcg)) {
@@ -8024,7 +8000,6 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
 	trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
 					   sc.gfp_mask);
 
-	cond_resched();
 	psi_memstall_enter(&pflags);
 	fs_reclaim_acquire(sc.gfp_mask);
 	/*

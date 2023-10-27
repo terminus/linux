@@ -2029,7 +2029,6 @@ static unsigned long __zs_compact(struct zs_pool *pool,
 			dst_zspage = NULL;
 
 			spin_unlock(&pool->lock);
-			cond_resched();
 			spin_lock(&pool->lock);
 		}
 	}

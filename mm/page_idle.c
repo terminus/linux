@@ -151,7 +151,6 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
 		}
 		if (bit == BITMAP_CHUNK_BITS - 1)
 			out++;
-		cond_resched();
 	}
 	return (char *)out - buf;
 }
@@ -188,7 +187,6 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
 		}
 		if (bit == BITMAP_CHUNK_BITS - 1)
 			in++;
-		cond_resched();
 	}
 	return (char *)in - buf;
 }

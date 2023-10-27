@@ -244,7 +244,7 @@ enum allocation_policy {
 static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocation_policy policy)
 {
 	void *alloc;
-	unsigned long timeout, resched_after;
+	unsigned long timeout;
 	const char *policy_name;
 
 	switch (policy) {
@@ -265,17 +265,6 @@ static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocat
 	kunit_info(test, "%s: size=%zu, gfp=%x, policy=%s, cache=%i\n", __func__, size, gfp,
 		   policy_name, !!test_cache);
 
-	/*
-	 * 100x the sample interval should be more than enough to ensure we get
-	 * a KFENCE allocation eventually.
-	 */
-	timeout = jiffies + msecs_to_jiffies(100 * kfence_sample_interval);
-	/*
-	 * Especially for non-preemption kernels, ensure the allocation-gate
-	 * timer can catch up: after @resched_after, every failed allocation
-	 * attempt yields, to ensure the allocation-gate timer is scheduled.
-	 */
-	resched_after = jiffies + msecs_to_jiffies(kfence_sample_interval);
 	do {
 		if (test_cache)
 			alloc = kmem_cache_alloc(test_cache, gfp);
@@ -307,8 +296,6 @@ static void *test_alloc(struct kunit *test, size_t size, gfp_t gfp, enum allocat
 
 		test_free(alloc);
 
-		if (time_after(jiffies, resched_after))
-			cond_resched();
 	} while (time_before(jiffies, timeout));
 
 	KUNIT_ASSERT_TRUE_MSG(test, false, "failed to allocate from KFENCE");
@@ -628,7 +615,6 @@ static void test_gfpzero(struct kunit *test)
 			kunit_warn(test, "giving up ... cannot get same object back\n");
 			return;
 		}
-		cond_resched();
 	}
 
 	for (i = 0; i < size; i++)
@@ -755,12 +741,6 @@ static void test_memcache_alloc_bulk(struct kunit *test)
 			}
 		}
 		kmem_cache_free_bulk(test_cache, num, objects);
-		/*
-		 * kmem_cache_alloc_bulk() disables interrupts, and calling it
-		 * in a tight loop may not give KFENCE a chance to switch the
-		 * static branch. Call cond_resched() to let KFENCE chime in.
-		 */
-		cond_resched();
 	} while (!pass && time_before(jiffies, timeout));
 
 	KUNIT_EXPECT_TRUE(test, pass);

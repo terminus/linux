@@ -175,7 +175,7 @@ enum z3fold_handle_flags {
 /*
  * Forward declarations
  */
-static struct z3fold_header *__z3fold_alloc(struct z3fold_pool *, size_t, bool);
+static struct z3fold_header *__z3fold_alloc(struct z3fold_pool *, size_t);
 static void compact_page_work(struct work_struct *w);
 
 /*****************
@@ -504,7 +504,6 @@ static void free_pages_work(struct work_struct *w)
 		spin_unlock(&pool->stale_lock);
 		cancel_work_sync(&zhdr->work);
 		free_z3fold_page(page, false);
-		cond_resched();
 		spin_lock(&pool->stale_lock);
 	}
 	spin_unlock(&pool->stale_lock);
@@ -629,7 +628,7 @@ static struct z3fold_header *compact_single_buddy(struct z3fold_header *zhdr)
 		short chunks = size_to_chunks(sz);
 		void *q;
 
-		new_zhdr = __z3fold_alloc(pool, sz, false);
+		new_zhdr = __z3fold_alloc(pool, sz);
 		if (!new_zhdr)
 			return NULL;
 
@@ -783,7 +782,7 @@ static void compact_page_work(struct work_struct *w)
 
 /* returns _locked_ z3fold page header or NULL */
 static inline struct z3fold_header *__z3fold_alloc(struct z3fold_pool *pool,
-						size_t size, bool can_sleep)
+						   size_t size)
 {
 	struct z3fold_header *zhdr = NULL;
 	struct page *page;
@@ -811,8 +810,6 @@ lookup:
 			spin_unlock(&pool->lock);
 			zhdr = NULL;
 			migrate_enable();
-			if (can_sleep)
-				cond_resched();
 			goto lookup;
 		}
 		list_del_init(&zhdr->buddy);
@@ -825,8 +822,6 @@ lookup:
 			z3fold_page_unlock(zhdr);
 			zhdr = NULL;
 			migrate_enable();
-			if (can_sleep)
-				cond_resched();
 			goto lookup;
 		}
 
@@ -869,8 +864,6 @@ lookup:
 			    test_bit(PAGE_CLAIMED, &page->private)) {
 				z3fold_page_unlock(zhdr);
 				zhdr = NULL;
-				if (can_sleep)
-					cond_resched();
 				continue;
 			}
 			kref_get(&zhdr->refcount);
@@ -1016,7 +1009,7 @@ static int z3fold_alloc(struct z3fold_pool *pool, size_t size, gfp_t gfp,
 		bud = HEADLESS;
 	else {
 retry:
-		zhdr = __z3fold_alloc(pool, size, can_sleep);
+		zhdr = __z3fold_alloc(pool, size);
 		if (zhdr) {
 			bud = get_free_buddy(zhdr, chunks);
 			if (bud == HEADLESS) {

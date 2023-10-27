@@ -554,7 +554,6 @@ static int queue_folios_pte_range(pmd_t *pmd, unsigned long addr,
 			break;
 	}
 	pte_unmap_unlock(mapped_pte, ptl);
-	cond_resched();
 
 	return addr != end ? -EIO : 0;
 }

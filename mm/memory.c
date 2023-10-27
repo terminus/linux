@@ -1104,7 +1104,6 @@ again:
 	pte_unmap_unlock(orig_src_pte, src_ptl);
 	add_mm_rss_vec(dst_mm, rss);
 	pte_unmap_unlock(orig_dst_pte, dst_ptl);
-	cond_resched();
 
 	if (ret == -EIO) {
 		VM_WARN_ON_ONCE(!entry.val);
@@ -1573,7 +1572,7 @@ static inline unsigned long zap_pmd_range(struct mmu_gather *tlb,
 		addr = zap_pte_range(tlb, vma, pmd, addr, next, details);
 		if (addr != next)
 			pmd--;
-	} while (pmd++, cond_resched(), addr != end);
+	} while (pmd++, addr != end);
 
 	return addr;
 }
@@ -1601,7 +1600,6 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
 			continue;
 		next = zap_pmd_range(tlb, vma, pud, addr, next, details);
 next:
-		cond_resched();
 	} while (pud++, addr = next, addr != end);
 
 	return addr;
@@ -5926,7 +5924,6 @@ static inline int process_huge_page(
 		l = n;
 		/* Process subpages at the end of huge page */
 		for (i = pages_per_huge_page - 1; i >= 2 * n; i--) {
-			cond_resched();
 			ret = process_subpage(addr + i * PAGE_SIZE, i, arg);
 			if (ret)
 				return ret;
@@ -5937,7 +5934,6 @@ static inline int process_huge_page(
 		l = pages_per_huge_page - n;
 		/* Process subpages at the begin of huge page */
 		for (i = 0; i < base; i++) {
-			cond_resched();
 			ret = process_subpage(addr + i * PAGE_SIZE, i, arg);
 			if (ret)
 				return ret;
@@ -5951,11 +5947,9 @@ static inline int process_huge_page(
 		int left_idx = base + i;
 		int right_idx = base + 2 * l - 1 - i;
 
-		cond_resched();
 		ret = process_subpage(addr + left_idx * PAGE_SIZE, left_idx, arg);
 		if (ret)
 			return ret;
-		cond_resched();
 		ret = process_subpage(addr + right_idx * PAGE_SIZE, right_idx, arg);
 		if (ret)
 			return ret;
@@ -5973,7 +5967,6 @@ static void clear_gigantic_page(struct page *page,
 	might_sleep();
 	for (i = 0; i < pages_per_huge_page; i++) {
 		p = nth_page(page, i);
-		cond_resched();
 		clear_user_highpage(p, addr + i * PAGE_SIZE);
 	}
 }
@@ -6013,7 +6006,6 @@ static int copy_user_gigantic_page(struct folio *dst, struct folio *src,
 		dst_page = folio_page(dst, i);
 		src_page = folio_page(src, i);
 
-		cond_resched();
 		if (copy_mc_user_highpage(dst_page, src_page,
 					  addr + i*PAGE_SIZE, vma)) {
 			memory_failure_queue(page_to_pfn(src_page), 0);
@@ -6085,8 +6077,6 @@ long copy_folio_from_user(struct folio *dst_folio,
 			break;
 
 		flush_dcache_page(subpage);
-
-		cond_resched();
 	}
 	return ret_val;
 }

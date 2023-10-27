@@ -816,8 +816,14 @@ static void cleanup_offline_cgwbs_workfn(struct work_struct *work)
 			continue;
 
 		spin_unlock_irq(&cgwb_lock);
+
+		/*
+		 * cleanup_offline_cgwb() can implicitly reschedule
+		 * on unlock when needed, so just loop here.
+		 */
 		while (cleanup_offline_cgwb(wb))
-			cond_resched();
+			;
+
 		spin_lock_irq(&cgwb_lock);
 
 		wb_put(wb);

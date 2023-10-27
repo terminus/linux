@@ -459,8 +459,6 @@ retry:
 		hugetlb_vma_unlock_read(dst_vma);
 		mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 
-		cond_resched();
-
 		if (unlikely(err == -ENOENT)) {
 			mmap_read_unlock(dst_mm);
 			BUG_ON(!folio);
@@ -677,7 +675,6 @@ retry:
 
 		err = mfill_atomic_pte(dst_pmd, dst_vma, dst_addr,
 				       src_addr, flags, &folio);
-		cond_resched();
 
 		if (unlikely(err == -ENOENT)) {
 			void *kaddr;

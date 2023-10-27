@@ -796,7 +796,6 @@ void folio_copy(struct folio *dst, struct folio *src)
 		copy_highpage(folio_page(dst, i), folio_page(src, i));
 		if (++i == nr)
 			break;
-		cond_resched();
 	}
 }
 

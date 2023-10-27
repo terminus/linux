@@ -680,7 +680,6 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 ext_put_continue:
 			page_ext_put(page_ext);
 		}
-		cond_resched();
 	}
 
 	pr_info("Node %d, zone %8s: page owner found early allocated %lu pages\n",

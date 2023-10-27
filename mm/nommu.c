@@ -1525,7 +1525,6 @@ void exit_mmap(struct mm_struct *mm)
 	for_each_vma(vmi, vma) {
 		cleanup_vma_from_mm(vma);
 		delete_vma(mm, vma);
-		cond_resched();
 	}
 	__mt_destroy(&mm->mm_mt);
 	mmap_write_unlock(mm);

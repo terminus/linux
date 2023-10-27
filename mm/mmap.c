@@ -3253,7 +3253,6 @@ void exit_mmap(struct mm_struct *mm)
 			nr_accounted += vma_pages(vma);
 		remove_vma(vma, true);
 		count++;
-		cond_resched();
 	} while ((vma = mas_find(&mas, ULONG_MAX)) != NULL);
 
 	BUG_ON(count != mm->map_count);

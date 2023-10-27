@@ -1830,8 +1830,6 @@ static void free_hpage_workfn(struct work_struct *work)
 		h = size_to_hstate(page_size(page));
 
 		__update_and_free_hugetlb_folio(h, page_folio(page));
-
-		cond_resched();
 	}
 }
 static DECLARE_WORK(free_hpage_work, free_hpage_workfn);
@@ -1869,7 +1867,6 @@ static void update_and_free_pages_bulk(struct hstate *h, struct list_head *list)
 	list_for_each_entry_safe(page, t_page, list, lru) {
 		folio = page_folio(page);
 		update_and_free_hugetlb_folio(h, folio, false);
-		cond_resched();
 	}
 }
 
@@ -2319,7 +2316,6 @@ retry:
 		 */
 		if (unlikely(!folio_test_hugetlb_freed(folio))) {
 			spin_unlock_irq(&hugetlb_lock);
-			cond_resched();
 
 			/*
 			 * Theoretically, we should return -EBUSY when we
@@ -2563,7 +2559,6 @@ retry:
 			break;
 		}
 		list_add(&folio->lru, &surplus_list);
-		cond_resched();
 	}
 	allocated += i;
 
@@ -2961,7 +2956,6 @@ retry:
 		 * we retry.
 		 */
 		spin_unlock_irq(&hugetlb_lock);
-		cond_resched();
 		goto retry;
 	} else {
 		/*
@@ -3233,7 +3227,6 @@ static void __init gather_bootmem_prealloc(void)
 		 * other side-effects, like CommitLimit going negative.
 		 */
 		adjust_managed_page_count(page, pages_per_huge_page(h));
-		cond_resched();
 	}
 }
 static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
@@ -3255,7 +3248,6 @@ static void __init hugetlb_hstate_alloc_pages_onenode(struct hstate *h, int nid)
 				break;
 			free_huge_folio(folio); /* free it into the hugepage allocator */
 		}
-		cond_resched();
 	}
 	if (i == h->max_huge_pages_node[nid])
 		return;
@@ -3317,7 +3309,6 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
 					 &node_states[N_MEMORY],
 					 node_alloc_noretry))
 			break;
-		cond_resched();
 	}
 	if (i < h->max_huge_pages) {
 		char buf[32];
@@ -3535,9 +3526,6 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
 		 * and reducing the surplus.
 		 */
 		spin_unlock_irq(&hugetlb_lock);
-
-		/* yield cpu to avoid soft lockup */
-		cond_resched();
 
 		ret = alloc_pool_huge_page(h, nodes_allowed,
 						node_alloc_noretry);

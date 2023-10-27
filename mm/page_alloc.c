@@ -3418,8 +3418,6 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
 	 */
 	count_vm_event(COMPACTFAIL);
 
-	cond_resched();
-
 	return NULL;
 }
 
@@ -3617,8 +3615,6 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
 	unsigned int noreclaim_flag;
 	unsigned long progress;
 
-	cond_resched();
-
 	/* We now go into synchronous reclaim */
 	cpuset_memory_pressure_bump();
 	fs_reclaim_acquire(gfp_mask);
@@ -3629,8 +3625,6 @@ __perform_reclaim(gfp_t gfp_mask, unsigned int order,
 
 	memalloc_noreclaim_restore(noreclaim_flag);
 	fs_reclaim_release(gfp_mask);
-
-	cond_resched();
 
 	return progress;
 }
@@ -3852,13 +3846,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 	 * Memory allocation/reclaim might be called from a WQ context and the
 	 * current implementation of the WQ concurrency control doesn't
 	 * recognize that a particular WQ is congested if the worker thread is
-	 * looping without ever sleeping. Therefore we have to do a short sleep
-	 * here rather than calling cond_resched().
+	 * looping without ever sleeping. Therefore do a short sleep here.
 	 */
 	if (current->flags & PF_WQ_WORKER)
 		schedule_timeout_uninterruptible(1);
-	else
-		cond_resched();
+
 	return ret;
 }
 
@@ -4162,7 +4154,6 @@ nopage:
 		if (page)
 			goto got_pg;
 
-		cond_resched();
 		goto retry;
 	}
 fail:

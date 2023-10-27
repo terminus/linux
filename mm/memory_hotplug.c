@@ -402,7 +402,6 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
 					 params->pgmap);
 		if (err)
 			break;
-		cond_resched();
 	}
 	vmemmap_populate_print_last();
 	return err;
@@ -532,8 +531,6 @@ void __ref remove_pfn_range_from_zone(struct zone *zone,
 
 	/* Poison struct pages because they are now uninitialized again. */
 	for (pfn = start_pfn; pfn < end_pfn; pfn += cur_nr_pages) {
-		cond_resched();
-
 		/* Select all remaining pages up to the next section boundary */
 		cur_nr_pages =
 			min(end_pfn - pfn, SECTION_ALIGN_UP(pfn + 1) - pfn);
@@ -580,7 +577,6 @@ void __remove_pages(unsigned long pfn, unsigned long nr_pages,
 	}
 
 	for (; pfn < end_pfn; pfn += cur_nr_pages) {
-		cond_resched();
 		/* Select all remaining pages up to the next section boundary */
 		cur_nr_pages = min(end_pfn - pfn,
 				   SECTION_ALIGN_UP(pfn + 1) - pfn);
@@ -1956,8 +1952,6 @@ int __ref offline_pages(unsigned long start_pfn, unsigned long nr_pages,
 				reason = "signal backoff";
 				goto failed_removal_isolated;
 			}
-
-			cond_resched();
 
 			ret = scan_movable_pages(pfn, end_pfn, &pfn);
 			if (!ret) {

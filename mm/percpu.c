@@ -2015,7 +2015,6 @@ static void pcpu_balance_free(bool empty_only)
 			spin_unlock_irq(&pcpu_lock);
 		}
 		pcpu_destroy_chunk(chunk);
-		cond_resched();
 	}
 	spin_lock_irq(&pcpu_lock);
 }
@@ -2083,7 +2082,6 @@ retry_pop:
 
 			spin_unlock_irq(&pcpu_lock);
 			ret = pcpu_populate_chunk(chunk, rs, rs + nr, gfp);
-			cond_resched();
 			spin_lock_irq(&pcpu_lock);
 			if (!ret) {
 				nr_to_pop -= nr;
@@ -2101,7 +2099,6 @@ retry_pop:
 		/* ran out of chunks to populate, create a new one and retry */
 		spin_unlock_irq(&pcpu_lock);
 		chunk = pcpu_create_chunk(gfp);
-		cond_resched();
 		spin_lock_irq(&pcpu_lock);
 		if (chunk) {
 			pcpu_chunk_relocate(chunk, -1);
@@ -2186,7 +2183,6 @@ static void pcpu_reclaim_populated(void)
 
 			spin_unlock_irq(&pcpu_lock);
 			pcpu_depopulate_chunk(chunk, i + 1, end + 1);
-			cond_resched();
 			spin_lock_irq(&pcpu_lock);
 
 			pcpu_chunk_depopulated(chunk, i + 1, end + 1);
@@ -2203,7 +2199,6 @@ static void pcpu_reclaim_populated(void)
 			pcpu_post_unmap_tlb_flush(chunk,
 						  freed_page_start,
 						  freed_page_end);
-			cond_resched();
 			spin_lock_irq(&pcpu_lock);
 		}
 

@@ -1528,8 +1528,6 @@ static int migrate_hugetlbs(struct list_head *from, new_folio_t get_new_folio,
 
 			nr_pages = folio_nr_pages(folio);
 
-			cond_resched();
-
 			/*
 			 * Migratability of hugepages depends on architectures and
 			 * their size.  This check is necessary because some callers
@@ -1632,8 +1630,6 @@ static int migrate_pages_batch(struct list_head *from,
 		list_for_each_entry_safe(folio, folio2, from, lru) {
 			is_thp = folio_test_large(folio) && folio_test_pmd_mappable(folio);
 			nr_pages = folio_nr_pages(folio);
-
-			cond_resched();
 
 			/*
 			 * Large folio migration might be unsupported or
@@ -1753,8 +1749,6 @@ move:
 		list_for_each_entry_safe(folio, folio2, &unmap_folios, lru) {
 			is_thp = folio_test_large(folio) && folio_test_pmd_mappable(folio);
 			nr_pages = folio_nr_pages(folio);
-
-			cond_resched();
 
 			rc = migrate_folio_move(put_new_folio, private,
 						folio, dst, mode,

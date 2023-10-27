@@ -190,7 +190,6 @@ static int discard_swap(struct swap_info_struct *si)
 				nr_blocks, GFP_KERNEL);
 		if (err)
 			return err;
-		cond_resched();
 	}
 
 	for (se = next_se(se); se; se = next_se(se)) {
@@ -201,8 +200,6 @@ static int discard_swap(struct swap_info_struct *si)
 				nr_blocks, GFP_KERNEL);
 		if (err)
 			break;
-
-		cond_resched();
 	}
 	return err;		/* That will often be -EOPNOTSUPP */
 }
@@ -864,7 +861,6 @@ static int scan_swap_map_slots(struct swap_info_struct *si,
 				goto checks;
 			}
 			if (unlikely(--latency_ration < 0)) {
-				cond_resched();
 				latency_ration = LATENCY_LIMIT;
 			}
 		}
@@ -931,7 +927,6 @@ checks:
 		if (n_ret)
 			goto done;
 		spin_unlock(&si->lock);
-		cond_resched();
 		spin_lock(&si->lock);
 		latency_ration = LATENCY_LIMIT;
 	}
@@ -974,7 +969,6 @@ scan:
 	spin_unlock(&si->lock);
 	while (++offset <= READ_ONCE(si->highest_bit)) {
 		if (unlikely(--latency_ration < 0)) {
-			cond_resched();
 			latency_ration = LATENCY_LIMIT;
 			scanned_many = true;
 		}
@@ -984,7 +978,6 @@ scan:
 	offset = si->lowest_bit;
 	while (offset < scan_base) {
 		if (unlikely(--latency_ration < 0)) {
-			cond_resched();
 			latency_ration = LATENCY_LIMIT;
 			scanned_many = true;
 		}
@@ -1099,7 +1092,6 @@ start_over:
 		spin_unlock(&si->lock);
 		if (n_ret || size == SWAPFILE_CLUSTER)
 			goto check_out;
-		cond_resched();
 
 		spin_lock(&swap_avail_lock);
 nextsi:
@@ -1914,7 +1906,6 @@ static inline int unuse_pmd_range(struct vm_area_struct *vma, pud_t *pud,
 
 	pmd = pmd_offset(pud, addr);
 	do {
-		cond_resched();
 		next = pmd_addr_end(addr, end);
 		ret = unuse_pte_range(vma, pmd, addr, next, type);
 		if (ret)
@@ -1997,8 +1988,6 @@ static int unuse_mm(struct mm_struct *mm, unsigned int type)
 			if (ret)
 				break;
 		}
-
-		cond_resched();
 	}
 	mmap_read_unlock(mm);
 	return ret;
@@ -2025,8 +2014,6 @@ static unsigned int find_next_to_unuse(struct swap_info_struct *si,
 		count = READ_ONCE(si->swap_map[i]);
 		if (count && swap_count(count) != SWAP_MAP_BAD)
 			break;
-		if ((i % LATENCY_LIMIT) == 0)
-			cond_resched();
 	}
 
 	if (i == si->max)
@@ -2079,7 +2066,6 @@ retry:
 		 * Make sure that we aren't completely killing
 		 * interactive performance.
 		 */
-		cond_resched();
 		spin_lock(&mmlist_lock);
 	}
 	spin_unlock(&mmlist_lock);

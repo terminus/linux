@@ -351,7 +351,6 @@ static int mlock_pte_range(pmd_t *pmd, unsigned long addr,
 	pte_unmap(start_pte);
 out:
 	spin_unlock(ptl);
-	cond_resched();
 	return 0;
 }
 
@@ -696,7 +695,6 @@ static int apply_mlockall_flags(int flags)
 		/* Ignore errors */
 		mlock_fixup(&vmi, vma, &prev, vma->vm_start, vma->vm_end,
 			    newflags);
-		cond_resched();
 	}
 out:
 	return 0;

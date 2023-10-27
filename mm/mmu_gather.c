@@ -98,8 +98,6 @@ static void tlb_batch_pages_flush(struct mmu_gather *tlb)
 			free_pages_and_swap_cache(pages, nr);
 			pages += nr;
 			batch->nr -= nr;
-
-			cond_resched();
 		} while (batch->nr);
 	}
 	tlb->active = &tlb->local;

@@ -704,7 +704,6 @@ static void shrink_worker(struct work_struct *w)
 			if (++failures == MAX_RECLAIM_RETRIES)
 				break;
 		}
-		cond_resched();
 	} while (!zswap_can_accept());
 	zswap_pool_put(pool);
 }

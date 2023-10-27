@@ -106,8 +106,6 @@ int generic_swapfile_activate(struct swap_info_struct *sis,
 		unsigned block_in_page;
 		sector_t first_block;
 
-		cond_resched();
-
 		first_block = probe_block;
 		ret = bmap(inode, &first_block);
 		if (ret || !first_block)

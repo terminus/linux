@@ -5650,7 +5650,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
 		if (ret)
 			return ret;
 		mc.precharge++;
-		cond_resched();
 	}
 	return 0;
 }
@@ -6035,7 +6034,6 @@ static int mem_cgroup_count_precharge_pte_range(pmd_t *pmd,
 		if (get_mctgt_type(vma, addr, ptep_get(pte), NULL))
 			mc.precharge++;	/* increment precharge temporarily */
 	pte_unmap_unlock(pte - 1, ptl);
-	cond_resched();
 
 	return 0;
 }
@@ -6303,7 +6301,6 @@ put:			/* get_mctgt_type() gets & locks the page */
 		}
 	}
 	pte_unmap_unlock(pte - 1, ptl);
-	cond_resched();
 
 	if (addr != end) {
 		/*
@@ -6345,7 +6342,6 @@ retry:
 		 * feature anyway, so it wouldn't be a big problem.
 		 */
 		__mem_cgroup_clear_mc();
-		cond_resched();
 		goto retry;
 	}
 	/*

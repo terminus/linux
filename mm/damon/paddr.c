@@ -251,7 +251,6 @@ put_folio:
 		folio_put(folio);
 	}
 	applied = reclaim_pages(&folio_list);
-	cond_resched();
 	return applied * PAGE_SIZE;
 }
 

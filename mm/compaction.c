@@ -395,8 +395,6 @@ static void __reset_isolation_suitable(struct zone *zone)
 	 */
 	for (; migrate_pfn < free_pfn; migrate_pfn += pageblock_nr_pages,
 					free_pfn -= pageblock_nr_pages) {
-		cond_resched();
-
 		/* Update the migrate PFN */
 		if (__reset_isolation_pfn(zone, migrate_pfn, true, source_set) &&
 		    migrate_pfn < reset_migrate) {
@@ -570,8 +568,6 @@ static bool compact_unlock_should_abort(spinlock_t *lock,
 		cc->contended = true;
 		return true;
 	}
-
-	cond_resched();
 
 	return false;
 }
@@ -874,8 +870,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 			return -EINTR;
 	}
 
-	cond_resched();
-
 	if (cc->direct_compaction && (cc->mode == MIGRATE_ASYNC)) {
 		skip_on_failure = true;
 		next_skip_pfn = block_end_pfn(low_pfn, cc->order);
@@ -923,8 +917,6 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
 
 				goto fatal_pending;
 			}
-
-			cond_resched();
 		}
 
 		nr_scanned++;
@@ -1681,11 +1673,10 @@ static void isolate_freepages(struct compact_control *cc)
 		unsigned long nr_isolated;
 
 		/*
-		 * This can iterate a massively long zone without finding any
-		 * suitable migration targets, so periodically check resched.
+		 * We can iterate over a massively long zone without finding
+		 * any suitable migration targets. Since we don't disable
+		 * preemption while doing so, expect to be preempted.
 		 */
-		if (!(block_start_pfn % (COMPACT_CLUSTER_MAX * pageblock_nr_pages)))
-			cond_resched();
 
 		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
 									zone);
@@ -2006,12 +1997,10 @@ static isolate_migrate_t isolate_migratepages(struct compact_control *cc)
 			block_end_pfn += pageblock_nr_pages) {
 
 		/*
-		 * This can potentially iterate a massively long zone with
-		 * many pageblocks unsuitable, so periodically check if we
-		 * need to schedule.
+		 * We can potentially iterate a massively long zone with
+		 * many pageblocks unsuitable. Since we don't disable
+		 * preemption while doing so, expect to be preempted.
 		 */
-		if (!(low_pfn % (COMPACT_CLUSTER_MAX * pageblock_nr_pages)))
-			cond_resched();
 
 		page = pageblock_pfn_to_page(block_start_pfn,
 						block_end_pfn, cc->zone);

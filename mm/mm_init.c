@@ -892,10 +892,8 @@ void __meminit memmap_init_range(unsigned long size, int nid, unsigned long zone
 		 * such that unmovable allocations won't be scattered all
 		 * over the place during system boot.
 		 */
-		if (pageblock_aligned(pfn)) {
+		if (pageblock_aligned(pfn))
 			set_pageblock_migratetype(page, migratetype);
-			cond_resched();
-		}
 		pfn++;
 	}
 }
@@ -996,10 +994,8 @@ static void __ref __init_zone_device_page(struct page *page, unsigned long pfn,
 	 * Please note that MEMINIT_HOTPLUG path doesn't clear memmap
 	 * because this is done early in section_activate()
 	 */
-	if (pageblock_aligned(pfn)) {
+	if (pageblock_aligned(pfn))
 		set_pageblock_migratetype(page, MIGRATE_MOVABLE);
-		cond_resched();
-	}
 
 	/*
 	 * ZONE_DEVICE pages are released directly to the driver page allocator
@@ -2163,10 +2159,8 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 	 * Initialize and free pages in MAX_ORDER sized increments so that we
 	 * can avoid introducing any issues with the buddy allocator.
 	 */
-	while (spfn < end_pfn) {
+	while (spfn < end_pfn)
 		deferred_init_maxorder(&i, zone, &spfn, &epfn);
-		cond_resched();
-	}
 }
 
 /* An arch may override for more concurrency. */
@@ -2365,7 +2359,6 @@ void set_zone_contiguous(struct zone *zone)
 		if (!__pageblock_pfn_to_page(block_start_pfn,
 					     block_end_pfn, zone))
 			return;
-		cond_resched();
 	}
 
 	/* We confirm that there is no hole */

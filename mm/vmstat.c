@@ -835,7 +835,6 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
 #ifdef CONFIG_NUMA
 
 		if (do_pagesets) {
-			cond_resched();
 			/*
 			 * Deal with draining the remote pageset of this
 			 * processor
@@ -1525,7 +1524,6 @@ static void pagetypeinfo_showfree_print(struct seq_file *m,
 			}
 			seq_printf(m, "%s%6lu ", overflow ? ">" : "", freecount);
 			spin_unlock_irq(&zone->lock);
-			cond_resched();
 			spin_lock_irq(&zone->lock);
 		}
 		seq_putc(m, '\n');
@@ -2041,8 +2039,6 @@ static void vmstat_shepherd(struct work_struct *w)
 
 		if (!delayed_work_pending(dw) && need_update(cpu))
 			queue_delayed_work_on(cpu, mm_percpu_wq, dw, 0);
-
-		cond_resched();
 	}
 	cpus_read_unlock();
 

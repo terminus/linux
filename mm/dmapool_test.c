@@ -82,8 +82,6 @@ static int dmapool_test_block(const struct dmapool_parms *parms)
 		ret = dmapool_test_alloc(p, blocks);
 		if (ret)
 			goto free_pool;
-		if (need_resched())
-			cond_resched();
 	}
 	end_time = ktime_get();
 

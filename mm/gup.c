@@ -1232,7 +1232,6 @@ retry:
 			ret = -EINTR;
 			goto out;
 		}
-		cond_resched();
 
 		page = follow_page_mask(vma, start, foll_flags, &ctx);
 		if (!page || PTR_ERR(page) == -EMLINK) {

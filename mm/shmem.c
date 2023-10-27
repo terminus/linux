@@ -939,7 +939,6 @@ void shmem_unlock_mapping(struct address_space *mapping)
 	       filemap_get_folios(mapping, &index, ~0UL, &fbatch)) {
 		check_move_unevictable_folios(&fbatch);
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 
@@ -1017,7 +1016,6 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
 		}
 		folio_batch_remove_exceptionals(&fbatch);
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	/*
@@ -1058,8 +1056,6 @@ whole_folios:
 
 	index = start;
 	while (index < end) {
-		cond_resched();
-
 		if (!find_get_entries(mapping, &index, end - 1, &fbatch,
 				indices)) {
 			/* If all gone or hole-punch or unfalloc, we're done */
@@ -1394,7 +1390,6 @@ int shmem_unuse(unsigned int type)
 		mutex_unlock(&shmem_swaplist_mutex);
 
 		error = shmem_unuse_inode(&info->vfs_inode, type);
-		cond_resched();
 
 		mutex_lock(&shmem_swaplist_mutex);
 		next = list_next_entry(info, swaplist);
@@ -2832,7 +2827,6 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 			error = -EFAULT;
 			break;
 		}
-		cond_resched();
 	}
 
 	*ppos = ((loff_t) index << PAGE_SHIFT) + offset;
@@ -2986,8 +2980,6 @@ static ssize_t shmem_file_splice_read(struct file *in, loff_t *ppos,
 		in->f_ra.prev_pos = *ppos;
 		if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 			break;
-
-		cond_resched();
 	} while (len);
 
 	if (folio)
@@ -3155,7 +3147,6 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
 		folio_mark_dirty(folio);
 		folio_unlock(folio);
 		folio_put(folio);
-		cond_resched();
 	}
 
 	if (!(mode & FALLOC_FL_KEEP_SIZE) && offset + len > inode->i_size)

@@ -526,7 +526,6 @@ static void __filemap_fdatawait_range(struct address_space *mapping,
 			folio_clear_error(folio);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 
@@ -2636,8 +2635,6 @@ ssize_t filemap_read(struct kiocb *iocb, struct iov_iter *iter,
 	folio_batch_init(&fbatch);
 
 	do {
-		cond_resched();
-
 		/*
 		 * If we've already successfully copied some data, then we
 		 * can no longer safely return -EIOCBQUEUED. Hence mark
@@ -2910,8 +2907,6 @@ ssize_t filemap_splice_read(struct file *in, loff_t *ppos,
 	folio_batch_init(&fbatch);
 
 	do {
-		cond_resched();
-
 		if (*ppos >= i_size_read(in->f_mapping->host))
 			break;
 
@@ -3984,7 +3979,6 @@ again:
 			if (unlikely(status < 0))
 				break;
 		}
-		cond_resched();
 
 		if (unlikely(status == 0)) {
 			/*

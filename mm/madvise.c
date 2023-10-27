@@ -225,7 +225,6 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 	if (ptep)
 		pte_unmap_unlock(ptep, ptl);
 	swap_read_unplug(splug);
-	cond_resched();
 
 	return 0;
 }
@@ -531,7 +530,6 @@ regular_folio:
 	}
 	if (pageout)
 		reclaim_pages(&folio_list);
-	cond_resched();
 
 	return 0;
 }
@@ -755,7 +753,6 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 		arch_leave_lazy_mmu_mode();
 		pte_unmap_unlock(start_pte, ptl);
 	}
-	cond_resched();
 
 	return 0;
 }

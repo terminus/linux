@@ -151,7 +151,6 @@ static int mincore_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	pte_unmap_unlock(ptep - 1, ptl);
 out:
 	walk->private += nr;
-	cond_resched();
 	return 0;
 }
 
