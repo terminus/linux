@@ -532,10 +532,8 @@ static struct io_wq_work *io_get_next_work(struct io_wq_acct *acct,
 static void io_assign_current_work(struct io_worker *worker,
 				   struct io_wq_work *work)
 {
-	if (work) {
+	if (work)
 		io_run_task_work();
-		cond_resched();
-	}
 
 	raw_spin_lock(&worker->lock);
 	worker->cur_work = work;

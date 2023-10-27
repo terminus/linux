@@ -212,7 +212,6 @@ static bool io_sqd_handle_event(struct io_sq_data *sqd)
 		mutex_unlock(&sqd->lock);
 		if (signal_pending(current))
 			did_sig = get_signal(&ksig);
-		cond_resched();
 		mutex_lock(&sqd->lock);
 	}
 	return did_sig || test_bit(IO_SQ_THREAD_SHOULD_STOP, &sqd->state);
@@ -258,8 +257,11 @@ static int io_sq_thread(void *data)
 			if (sqt_spin)
 				timeout = jiffies + sqd->sq_thread_idle;
 			if (unlikely(need_resched())) {
+				/*
+				 * Drop the mutex and reacquire so a reschedule can
+				 * happen on unlock.
+				 */
 				mutex_unlock(&sqd->lock);
-				cond_resched();
 				mutex_lock(&sqd->lock);
 			}
 			continue;

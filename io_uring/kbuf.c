@@ -246,7 +246,6 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 		list_move(&nxt->list, &ctx->io_buffers_cache);
 		if (++i == nbufs)
 			return i;
-		cond_resched();
 	}
 
 	return i;
@@ -421,7 +420,6 @@ static int io_add_buffers(struct io_ring_ctx *ctx, struct io_provide_buf *pbuf,
 		buf->bgid = pbuf->bgid;
 		addr += pbuf->len;
 		bid++;
-		cond_resched();
 	}
 
 	return i ? 0 : -ENOMEM;

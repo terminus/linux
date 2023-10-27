@@ -181,10 +181,8 @@ __cold void io_uring_clean_tctx(struct io_uring_task *tctx)
 	struct io_tctx_node *node;
 	unsigned long index;
 
-	xa_for_each(&tctx->xa, index, node) {
+	xa_for_each(&tctx->xa, index, node)
 		io_uring_del_tctx_node(index);
-		cond_resched();
-	}
 	if (wq) {
 		/*
 		 * Must be after io_uring_del_tctx_node() (removes nodes under

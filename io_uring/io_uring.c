@@ -1203,9 +1203,14 @@ static unsigned int handle_tw_list(struct llist_node *node,
 		node = next;
 		count++;
 		if (unlikely(need_resched())) {
+
+			/*
+			 * Depending on whether we have PREEMPT_RCU or not, the
+			 * mutex_unlock() or percpu_ref_put() should cause us to
+			 * reschedule.
+			 */
 			ctx_flush_and_put(*ctx, ts);
 			*ctx = NULL;
-			cond_resched();
 		}
 	}
 
@@ -1611,7 +1616,6 @@ static __cold void io_iopoll_try_reap_events(struct io_ring_ctx *ctx)
 		 */
 		if (need_resched()) {
 			mutex_unlock(&ctx->uring_lock);
-			cond_resched();
 			mutex_lock(&ctx->uring_lock);
 		}
 	}
@@ -1977,7 +1981,6 @@ fail:
 				break;
 			if (io_wq_worker_stopped())
 				break;
-			cond_resched();
 			continue;
 		}
 
@@ -2649,7 +2652,6 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 			ret = 0;
 			break;
 		}
-		cond_resched();
 	} while (1);
 
 	if (!(ctx->flags & IORING_SETUP_DEFER_TASKRUN))
@@ -3096,8 +3098,12 @@ static __cold void io_ring_exit_work(struct work_struct *work)
 		if (ctx->flags & IORING_SETUP_DEFER_TASKRUN)
 			io_move_task_work_from_local(ctx);
 
+		/*
+		 * io_uring_try_cancel_requests() will reschedule when needed
+		 * in the mutex_unlock().
+		 */
 		while (io_uring_try_cancel_requests(ctx, NULL, true))
-			cond_resched();
+			;
 
 		if (ctx->sq_data) {
 			struct io_sq_data *sqd = ctx->sq_data;
@@ -3313,7 +3319,6 @@ static __cold bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 		while (!wq_list_empty(&ctx->iopoll_list)) {
 			io_iopoll_try_reap_events(ctx);
 			ret = true;
-			cond_resched();
 		}
 	}
 
@@ -3382,10 +3387,8 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd)
 								     cancel_all);
 		}
 
-		if (loop) {
-			cond_resched();
+		if (loop)
 			continue;
-		}
 
 		prepare_to_wait(&tctx->wait, &wait, TASK_INTERRUPTIBLE);
 		io_run_task_work();
