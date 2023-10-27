@@ -152,7 +152,6 @@ static int build_merkle_tree(struct file *filp,
 			err = -EINTR;
 			goto out;
 		}
-		cond_resched();
 	}
 	/* Finish all nonempty pending tree blocks. */
 	for (level = 0; level < num_levels; level++) {

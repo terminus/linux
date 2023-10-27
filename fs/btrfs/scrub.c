@@ -2046,9 +2046,6 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 			break;
 
 		cur_logical = found_logical + BTRFS_STRIPE_LEN;
-
-		/* Don't hold CPU for too long time */
-		cond_resched();
 	}
 	return ret;
 }

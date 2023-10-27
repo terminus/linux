@@ -121,10 +121,8 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 	c->flags |= JFFS2_SB_FLAG_BUILDING;
 	/* Now scan the directory tree, increasing nlink according to every dirent found. */
 	for_each_inode(i, c, ic) {
-		if (ic->scan_dents) {
+		if (ic->scan_dents)
 			jffs2_build_inode_pass1(c, ic, &dir_hardlinks);
-			cond_resched();
-		}
 	}
 
 	dbg_fsbuild("pass 1 complete\n");
@@ -141,7 +139,6 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 			continue;
 
 		jffs2_build_remove_unlinked_inode(c, ic, &dead_fds);
-		cond_resched();
 	}
 
 	dbg_fsbuild("pass 2a starting\n");
@@ -209,7 +206,6 @@ static int jffs2_build_filesystem(struct jffs2_sb_info *c)
 			jffs2_free_full_dirent(fd);
 		}
 		ic->scan_dents = NULL;
-		cond_resched();
 	}
 	ret = jffs2_build_xattr_subsystem(c);
 	if (ret)

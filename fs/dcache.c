@@ -619,7 +619,6 @@ static void __dentry_kill(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 	if (likely(can_free))
 		dentry_free(dentry);
-	cond_resched();
 }
 
 static struct dentry *__lock_parent(struct dentry *dentry)
@@ -1629,7 +1628,6 @@ void shrink_dcache_parent(struct dentry *parent)
 			continue;
 		}
 
-		cond_resched();
 		if (!data.found)
 			break;
 		data.victim = NULL;

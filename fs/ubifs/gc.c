@@ -109,7 +109,6 @@ static int data_nodes_cmp(void *priv, const struct list_head *a,
 	struct ubifs_info *c = priv;
 	struct ubifs_scan_node *sa, *sb;
 
-	cond_resched();
 	if (a == b)
 		return 0;
 
@@ -153,7 +152,6 @@ static int nondata_nodes_cmp(void *priv, const struct list_head *a,
 	struct ubifs_info *c = priv;
 	struct ubifs_scan_node *sa, *sb;
 
-	cond_resched();
 	if (a == b)
 		return 0;
 
@@ -305,7 +303,6 @@ static int move_node(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 {
 	int err, new_lnum = wbuf->lnum, new_offs = wbuf->offs + wbuf->used;
 
-	cond_resched();
 	err = ubifs_wbuf_write_nolock(wbuf, snod->node, snod->len);
 	if (err)
 		return err;
@@ -694,8 +691,6 @@ int ubifs_garbage_collect(struct ubifs_info *c, int anyway)
 
 		/* Maybe continue after find and break before find */
 		lp.lnum = -1;
-
-		cond_resched();
 
 		/* Give the commit an opportunity to run */
 		if (ubifs_gc_should_commit(c)) {

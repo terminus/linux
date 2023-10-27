@@ -715,7 +715,6 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 		list_add_tail(&ordered->work_list, &works);
 		btrfs_queue_work(fs_info->flush_workers, &ordered->flush_work);
 
-		cond_resched();
 		spin_lock(&root->ordered_extent_lock);
 		if (nr != U64_MAX)
 			nr--;
@@ -729,7 +728,6 @@ u64 btrfs_wait_ordered_extents(struct btrfs_root *root, u64 nr,
 		list_del_init(&ordered->work_list);
 		wait_for_completion(&ordered->completion);
 		btrfs_put_ordered_extent(ordered);
-		cond_resched();
 	}
 	mutex_unlock(&root->ordered_extent_mutex);
 

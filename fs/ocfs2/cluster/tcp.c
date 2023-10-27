@@ -951,7 +951,12 @@ static void o2net_sendpage(struct o2net_sock_container *sc,
 		if (ret == (ssize_t)-EAGAIN) {
 			mlog(0, "sendpage of size %zu to " SC_NODEF_FMT
 			     " returned EAGAIN\n", size, SC_NODEF_ARGS(sc));
-			cond_resched();
+
+			/*
+			 * Take a breather before retrying. Though maybe this
+			 * should be a wait on an event or a timeout?
+			 */
+			cpu_relax();
 			continue;
 		}
 		mlog(ML_ERROR, "sendpage of size %zu to " SC_NODEF_FMT
@@ -1929,7 +1934,6 @@ static void o2net_accept_many(struct work_struct *work)
 		o2net_accept_one(sock, &more);
 		if (!more)
 			break;
-		cond_resched();
 	}
 }
 

@@ -689,7 +689,6 @@ static void remove_inode_hugepages(struct inode *inode, loff_t lstart,
 			mutex_unlock(&hugetlb_fault_mutex_table[hash]);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	if (truncate_op)
@@ -866,8 +865,6 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
 		 */
 		struct folio *folio;
 		unsigned long addr;
-
-		cond_resched();
 
 		/*
 		 * fallocate(2) manpage permits EINTR; we may have been

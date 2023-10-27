@@ -927,7 +927,6 @@ retry:
 		if (unlikely(copied != status))
 			iov_iter_revert(i, copied - status);
 
-		cond_resched();
 		if (unlikely(status == 0)) {
 			/*
 			 * A short copy made iomap_write_end() reject the
@@ -1296,8 +1295,6 @@ static loff_t iomap_unshare_iter(struct iomap_iter *iter)
 		if (WARN_ON_ONCE(bytes == 0))
 			return -EIO;
 
-		cond_resched();
-
 		pos += bytes;
 		written += bytes;
 		length -= bytes;
@@ -1533,10 +1530,8 @@ iomap_finish_ioends(struct iomap_ioend *ioend, int error)
 	completions = iomap_finish_ioend(ioend, error);
 
 	while (!list_empty(&tmp)) {
-		if (completions > IOEND_BATCH_SIZE * 8) {
-			cond_resched();
+		if (completions > IOEND_BATCH_SIZE * 8)
 			completions = 0;
-		}
 		ioend = list_first_entry(&tmp, struct iomap_ioend, io_list);
 		list_del_init(&ioend->io_list);
 		completions += iomap_finish_ioend(ioend, error);

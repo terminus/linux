@@ -1252,7 +1252,6 @@ found:
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	if (total_bytes < sums->len) {
 		btrfs_release_path(path);
-		cond_resched();
 		goto again;
 	}
 out:

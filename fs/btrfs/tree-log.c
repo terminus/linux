@@ -2657,11 +2657,9 @@ static noinline int walk_down_log_tree(struct btrfs_trans_handle *trans,
 		path->nodes[*level-1] = next;
 		*level = btrfs_header_level(next);
 		path->slots[*level] = 0;
-		cond_resched();
 	}
 	path->slots[*level] = btrfs_header_nritems(path->nodes[*level]);
 
-	cond_resched();
 	return 0;
 }
 
@@ -3898,7 +3896,6 @@ search:
 		}
 		if (need_resched()) {
 			btrfs_release_path(path);
-			cond_resched();
 			goto search;
 		}
 	}
@@ -5037,7 +5034,6 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 		ins_nr++;
 		path->slots[0]++;
 		found_xattrs = true;
-		cond_resched();
 	}
 	if (ins_nr > 0) {
 		ret = copy_items(trans, inode, dst_path, path,
@@ -5135,7 +5131,6 @@ static int btrfs_log_holes(struct btrfs_trans_handle *trans,
 
 		prev_extent_end = btrfs_file_extent_end(path);
 		path->slots[0]++;
-		cond_resched();
 	}
 
 	if (prev_extent_end < i_size) {
@@ -5919,13 +5914,6 @@ next_key:
 		} else {
 			break;
 		}
-
-		/*
-		 * We may process many leaves full of items for our inode, so
-		 * avoid monopolizing a cpu for too long by rescheduling while
-		 * not holding locks on any tree.
-		 */
-		cond_resched();
 	}
 	if (ins_nr) {
 		ret = copy_items(trans, inode, dst_path, path, ins_start_slot,

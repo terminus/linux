@@ -299,9 +299,7 @@ static void cachefiles_withdraw_objects(struct cachefiles_cache *cache)
 		fscache_withdraw_cookie(object->cookie);
 		count++;
 		if ((count & 63) == 0) {
-			spin_unlock(&cache->object_list_lock);
-			cond_resched();
-			spin_lock(&cache->object_list_lock);
+			cond_resched_lock(&cache->object_list_lock);
 		}
 	}
 

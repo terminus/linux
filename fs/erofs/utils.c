@@ -93,7 +93,6 @@ repeat:
 		} else if (!erofs_workgroup_get(pre)) {
 			/* try to legitimize the current in-tree one */
 			xa_unlock(&sbi->managed_pslots);
-			cond_resched();
 			goto repeat;
 		}
 		lockref_put_return(&grp->lockref);

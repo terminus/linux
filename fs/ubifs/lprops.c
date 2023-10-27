@@ -1113,8 +1113,6 @@ static int scan_check_cb(struct ubifs_info *c,
 	list_for_each_entry(snod, &sleb->nodes, list) {
 		int found, level = 0;
 
-		cond_resched();
-
 		if (is_idx == -1)
 			is_idx = (snod->type == UBIFS_IDX_NODE) ? 1 : 0;
 

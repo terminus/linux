@@ -1743,7 +1743,6 @@ unlock_page:
 			folio_unlock(folio);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 		/* End of range already reached? */
 		if (index > end || !index)
 			break;

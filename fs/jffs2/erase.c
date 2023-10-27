@@ -143,8 +143,6 @@ int jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			BUG();
 		}
 
-		/* Be nice */
-		cond_resched();
 		mutex_lock(&c->erase_free_sem);
 		spin_lock(&c->erase_completion_lock);
 	}
@@ -387,7 +385,6 @@ static int jffs2_block_check_erase(struct jffs2_sb_info *c, struct jffs2_erasebl
 			}
 		}
 		ofs += readlen;
-		cond_resched();
 	}
 	ret = 0;
 fail:

@@ -261,7 +261,6 @@ more:
 	sum += count;
 	if (!empty) {
 		count = 0;
-		cond_resched();
 		goto more;
 	}
 

@@ -143,8 +143,6 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	for (i=0; i<c->nr_blocks; i++) {
 		struct jffs2_eraseblock *jeb = &c->blocks[i];
 
-		cond_resched();
-
 		/* reset summary info for next eraseblock scan */
 		jffs2_sum_reset_collected(s);
 
@@ -620,8 +618,6 @@ scan_more:
 		err = jffs2_prealloc_raw_node_refs(c, jeb, 2);
 		if (err)
 			return err;
-
-		cond_resched();
 
 		if (ofs & 3) {
 			pr_warn("Eep. ofs 0x%08x not word-aligned!\n", ofs);

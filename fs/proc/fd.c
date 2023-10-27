@@ -272,7 +272,6 @@ static int proc_readfd_common(struct file *file, struct dir_context *ctx,
 				     name, len, instantiate, p,
 				     &data))
 			goto out;
-		cond_resched();
 		rcu_read_lock();
 	}
 	rcu_read_unlock();

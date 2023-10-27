@@ -67,7 +67,6 @@ static int ext4_orphan_file_add(handle_t *handle, struct inode *inode)
 				atomic_inc(&oi->of_binfo[i].ob_free_entries);
 				return -ENOSPC;
 			}
-			cond_resched();
 		}
 		while (bdata[j]) {
 			if (++j >= inodes_per_ob) {

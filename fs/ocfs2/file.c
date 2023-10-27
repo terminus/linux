@@ -940,6 +940,10 @@ static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
 	BUG_ON(range_start >= range_end);
 
 	while (zero_pos < range_end) {
+		/*
+		 * If this is a very long extent, then we might be here
+		 * awhile. We should expect the scheduler to preempt us.
+		 */
 		next_pos = (zero_pos & PAGE_MASK) + PAGE_SIZE;
 		if (next_pos > range_end)
 			next_pos = range_end;
@@ -949,12 +953,6 @@ static int ocfs2_zero_extend_range(struct inode *inode, u64 range_start,
 			break;
 		}
 		zero_pos = next_pos;
-
-		/*
-		 * Very large extends have the potential to lock up
-		 * the cpu for extended periods of time.
-		 */
-		cond_resched();
 	}
 
 	return rc;

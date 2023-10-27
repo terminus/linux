@@ -227,7 +227,6 @@ static void __process_pages_contig(struct address_space *mapping,
 					 page_ops, start, end);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 
@@ -291,7 +290,6 @@ static noinline int lock_delalloc_pages(struct inode *inode,
 			processed_end = page_offset(page) + PAGE_SIZE - 1;
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	return 0;
@@ -401,7 +399,6 @@ again:
 			      &cached_state);
 		__unlock_for_delalloc(inode, locked_page,
 			      delalloc_start, delalloc_end);
-		cond_resched();
 		goto again;
 	}
 	free_extent_state(cached_state);
@@ -1924,7 +1921,6 @@ retry:
 			nr_to_write_done = wbc->nr_to_write <= 0;
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 	if (!scanned && !done) {
 		/*
@@ -2116,7 +2112,6 @@ retry:
 					    wbc->nr_to_write <= 0);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 	if (!scanned && !done) {
 		/*
@@ -2397,8 +2392,6 @@ next:
 
 			/* once for us */
 			free_extent_map(em);
-
-			cond_resched(); /* Allow large-extent preemption. */
 		}
 	}
 	return try_release_extent_state(tree, page, mask);
@@ -2698,7 +2691,6 @@ static int fiemap_process_hole(struct btrfs_inode *inode,
 		last_delalloc_end = delalloc_end;
 		cur_offset = delalloc_end + 1;
 		extent_offset += cur_offset - delalloc_start;
-		cond_resched();
 	}
 
 	/*
@@ -2986,7 +2978,6 @@ next_item:
 			/* No more file extent items for this inode. */
 			break;
 		}
-		cond_resched();
 	}
 
 check_eof_delalloc:

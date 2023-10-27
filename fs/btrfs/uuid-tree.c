@@ -324,7 +324,6 @@ again_search_slot:
 			ret = -EINTR;
 			goto out;
 		}
-		cond_resched();
 		leaf = path->nodes[0];
 		slot = path->slots[0];
 		btrfs_item_key_to_cpu(leaf, &key, slot);

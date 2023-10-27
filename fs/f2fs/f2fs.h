@@ -2849,8 +2849,12 @@ static inline bool is_idle(struct f2fs_sb_info *sbi, int type)
 static inline void f2fs_radix_tree_insert(struct radix_tree_root *root,
 				unsigned long index, void *item)
 {
+	/*
+	 * Insert in a tight loop. The scheduler will
+	 * preempt when necessary.
+	 */
 	while (radix_tree_insert(root, index, item))
-		cond_resched();
+		;
 }
 
 #define RAW_IS_INODE(p)	((p)->footer.nid == (p)->footer.ino)

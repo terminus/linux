@@ -1013,8 +1013,6 @@ static int jffs2_get_inode_nodes(struct jffs2_sb_info *c, struct jffs2_inode_inf
 		valid_ref = jffs2_first_valid_node(ref->next_in_ino);
 		spin_unlock(&c->erase_completion_lock);
 
-		cond_resched();
-
 		/*
 		 * At this point we don't know the type of the node we're going
 		 * to read, so we do not know the size of its header. In order

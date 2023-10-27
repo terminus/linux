@@ -259,7 +259,6 @@ do_non_resident_extend:
 		 * files.
 		 */
 		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
 	} while (++index < end_index);
 	read_lock_irqsave(&ni->size_lock, flags);
 	BUG_ON(ni->initialized_size != new_init_size);
@@ -1868,7 +1867,6 @@ again:
 			iov_iter_revert(i, copied);
 			break;
 		}
-		cond_resched();
 		if (unlikely(copied < bytes)) {
 			iov_iter_revert(i, copied);
 			if (copied)

@@ -457,7 +457,6 @@ again:
 	}
 
 	spin_unlock(&journal->j_list_lock);
-	cond_resched();
 
 	if (*nr_to_scan && next_tid)
 		goto again;
@@ -529,7 +528,6 @@ void jbd2_journal_destroy_checkpoint(journal_t *journal)
 		}
 		__jbd2_journal_clean_checkpoint_list(journal, true);
 		spin_unlock(&journal->j_list_lock);
-		cond_resched();
 	}
 }
 

@@ -1053,7 +1053,6 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 		ret++;
 		if ((ret == max) && !cinfo->dreq)
 			break;
-		cond_resched();
 	}
 	return ret;
 }
@@ -1890,8 +1889,6 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		atomic_long_inc(&NFS_I(data->inode)->redirtied_pages);
 	next:
 		nfs_unlock_and_release_request(req);
-		/* Latency breaker */
-		cond_resched();
 	}
 	nfss = NFS_SERVER(data->inode);
 	if (atomic_long_read(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
@@ -1958,7 +1955,6 @@ static int __nfs_commit_inode(struct inode *inode, int how,
 		}
 		if (nscan < INT_MAX)
 			break;
-		cond_resched();
 	}
 	nfs_commit_end(cinfo.mds);
 	if (ret || !may_wait)

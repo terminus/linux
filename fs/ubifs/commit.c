@@ -309,7 +309,6 @@ int ubifs_bg_thread(void *info)
 			ubifs_ro_mode(c, err);
 
 		run_bg_commit(c);
-		cond_resched();
 	}
 
 	ubifs_msg(c, "background thread \"%s\" stops", c->bgt_name);

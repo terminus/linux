@@ -4561,7 +4561,6 @@ static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
 		spin_unlock(&fs_info->ordered_root_lock);
 		btrfs_destroy_ordered_extents(root);
 
-		cond_resched();
 		spin_lock(&fs_info->ordered_root_lock);
 	}
 	spin_unlock(&fs_info->ordered_root_lock);
@@ -4643,7 +4642,6 @@ static void btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
 		}
 		btrfs_cleanup_ref_head_accounting(fs_info, delayed_refs, head);
 		btrfs_put_delayed_ref_head(head);
-		cond_resched();
 		spin_lock(&delayed_refs->lock);
 	}
 	btrfs_qgroup_destroy_extent_records(trans);
@@ -4759,7 +4757,6 @@ static void btrfs_destroy_pinned_extent(struct btrfs_fs_info *fs_info,
 		free_extent_state(cached_state);
 		btrfs_error_unpin_extent_range(fs_info, start, end);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
-		cond_resched();
 	}
 }
 

@@ -852,7 +852,6 @@ void ubifs_dump_leb(const struct ubifs_info *c, int lnum)
 	       sleb->nodes_cnt, sleb->endpt);
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
-		cond_resched();
 		pr_err("Dumping node at LEB %d:%d len %d\n", lnum,
 		       snod->offs, snod->len);
 		ubifs_dump_node(c, snod->node, c->leb_size - snod->offs);
@@ -1622,8 +1621,6 @@ int dbg_walk_index(struct ubifs_info *c, dbg_leaf_callback leaf_cb,
 	while (1) {
 		int idx;
 
-		cond_resched();
-
 		if (znode_cb) {
 			err = znode_cb(c, znode, priv);
 			if (err) {
@@ -2329,7 +2326,6 @@ int dbg_check_data_nodes_order(struct ubifs_info *c, struct list_head *head)
 		ino_t inuma, inumb;
 		uint32_t blka, blkb;
 
-		cond_resched();
 		sa = container_of(cur, struct ubifs_scan_node, list);
 		sb = container_of(cur->next, struct ubifs_scan_node, list);
 
@@ -2396,7 +2392,6 @@ int dbg_check_nondata_nodes_order(struct ubifs_info *c, struct list_head *head)
 		ino_t inuma, inumb;
 		uint32_t hasha, hashb;
 
-		cond_resched();
 		sa = container_of(cur, struct ubifs_scan_node, list);
 		sb = container_of(cur->next, struct ubifs_scan_node, list);
 

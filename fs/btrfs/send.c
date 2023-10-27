@@ -7778,7 +7778,6 @@ static int btrfs_compare_trees(struct btrfs_root *left_root,
 		if (need_resched() ||
 		    rwsem_is_contended(&fs_info->commit_root_sem)) {
 			up_read(&fs_info->commit_root_sem);
-			cond_resched();
 			down_read(&fs_info->commit_root_sem);
 		}
 

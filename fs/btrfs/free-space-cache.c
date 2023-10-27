@@ -3807,8 +3807,6 @@ next:
 			ret = -ERESTARTSYS;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	return ret;
@@ -4000,8 +3998,6 @@ next:
 			ret = -ERESTARTSYS;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	if (offset >= end)

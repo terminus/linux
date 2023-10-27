@@ -2556,7 +2556,6 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		set_page_dirty(page);
 		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
 		if (idx == end)
 			goto done;
 		idx++;
@@ -2597,7 +2596,6 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		unlock_page(page);
 		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
 	}
 	/* If there is a last partial page, need to do it the slow way. */
 	if (end_ofs) {
@@ -2614,7 +2612,6 @@ int ntfs_attr_set(ntfs_inode *ni, const s64 ofs, const s64 cnt, const u8 val)
 		set_page_dirty(page);
 		put_page(page);
 		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
 	}
 done:
 	ntfs_debug("Done.");

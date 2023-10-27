@@ -2105,7 +2105,6 @@ skip_fill:
 	}
 
 prep_next:
-	cond_resched();
 	if (fatal_signal_pending(current))
 		ret = -EINTR;
 	else
@@ -3250,7 +3249,6 @@ next:
 				goto readd;
 		}
 		release_pages(pages, nr_pages);
-		cond_resched();
 	}
 #ifdef CONFIG_F2FS_FS_COMPRESSION
 	/* flush remained pages in compress cluster */
@@ -3981,7 +3979,6 @@ static int check_swap_activate(struct swap_info_struct *sis,
 	while (cur_lblock < last_lblock && cur_lblock < sis->max) {
 		struct f2fs_map_blocks map;
 retry:
-		cond_resched();
 
 		memset(&map, 0, sizeof(map));
 		map.m_lblk = cur_lblock;

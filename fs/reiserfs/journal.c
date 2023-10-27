@@ -814,7 +814,6 @@ static int write_ordered_buffers(spinlock_t * lock,
 			if (chunk.nr)
 				write_ordered_chunk(&chunk);
 			wait_on_buffer(bh);
-			cond_resched();
 			spin_lock(lock);
 			goto loop_next;
 		}
@@ -1671,7 +1670,6 @@ static int write_one_transaction(struct super_block *s,
 		}
 next:
 		cn = cn->next;
-		cond_resched();
 	}
 	return ret;
 }

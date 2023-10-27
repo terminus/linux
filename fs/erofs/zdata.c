@@ -697,8 +697,13 @@ static void z_erofs_cache_invalidate_folio(struct folio *folio,
 	DBG_BUGON(stop > folio_size(folio) || stop < length);
 
 	if (offset == 0 && stop == folio_size(folio))
+		/*
+		 * We are in a seemingly tight loop here. Though, if needed,
+		 * preemption can happen in z_erofs_cache_release_folio()
+		 * via the spin_unlock() call.
+		 */
 		while (!z_erofs_cache_release_folio(folio, GFP_NOFS))
-			cond_resched();
+			;
 }
 
 static const struct address_space_operations z_erofs_cache_aops = {
@@ -1527,7 +1532,6 @@ out_allocpage:
 	if (oldpage != cmpxchg(&pcl->compressed_bvecs[nr].page,
 			       oldpage, page)) {
 		erofs_pagepool_add(pagepool, page);
-		cond_resched();
 		goto repeat;
 	}
 out_tocache:

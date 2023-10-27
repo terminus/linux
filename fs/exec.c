@@ -451,7 +451,6 @@ static int count(struct user_arg_ptr argv, int max)
 
 			if (fatal_signal_pending(current))
 				return -ERESTARTNOHAND;
-			cond_resched();
 		}
 	}
 	return i;
@@ -469,7 +468,6 @@ static int count_strings_kernel(const char *const *argv)
 			return -E2BIG;
 		if (fatal_signal_pending(current))
 			return -ERESTARTNOHAND;
-		cond_resched();
 	}
 	return i;
 }
@@ -562,7 +560,6 @@ static int copy_strings(int argc, struct user_arg_ptr argv,
 				ret = -ERESTARTNOHAND;
 				goto out;
 			}
-			cond_resched();
 
 			offset = pos % PAGE_SIZE;
 			if (offset == 0)
@@ -661,7 +658,6 @@ static int copy_strings_kernel(int argc, const char *const *argv,
 			return ret;
 		if (fatal_signal_pending(current))
 			return -ERESTARTNOHAND;
-		cond_resched();
 	}
 	return 0;
 }

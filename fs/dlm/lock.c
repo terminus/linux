@@ -1713,7 +1713,6 @@ void dlm_scan_rsbs(struct dlm_ls *ls)
 		shrink_bucket(ls, i);
 		if (dlm_locking_stopped(ls))
 			break;
-		cond_resched();
 	}
 }
 
@@ -5227,7 +5226,6 @@ void dlm_recover_purge(struct dlm_ls *ls)
 		}
 		unlock_rsb(r);
 		unhold_rsb(r);
-		cond_resched();
 	}
 	up_write(&ls->ls_root_sem);
 
@@ -5302,7 +5300,6 @@ void dlm_recover_grant(struct dlm_ls *ls)
 		confirm_master(r, 0);
 		unlock_rsb(r);
 		put_rsb(r);
-		cond_resched();
 	}
 
 	if (lkb_count)

@@ -62,7 +62,6 @@ retry:
 			cachefiles_bury_object(cache, NULL, cache->store, vdentry,
 					       FSCACHE_VOLUME_IS_WEIRD);
 			cachefiles_put_directory(volume->dentry);
-			cond_resched();
 			goto retry;
 		}
 	}

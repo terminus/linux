@@ -801,7 +801,6 @@ static void ep_clear_and_put(struct eventpoll *ep)
 		epi = rb_entry(rbp, struct epitem, rbn);
 
 		ep_unregister_pollwait(ep, epi);
-		cond_resched();
 	}
 
 	/*
@@ -816,7 +815,6 @@ static void ep_clear_and_put(struct eventpoll *ep)
 		next = rb_next(rbp);
 		epi = rb_entry(rbp, struct epitem, rbn);
 		ep_remove_safe(ep, epi);
-		cond_resched();
 	}
 
 	dispose = ep_refcount_dec_and_test(ep);
@@ -1039,7 +1037,6 @@ static struct epitem *ep_find_tfd(struct eventpoll *ep, int tfd, unsigned long t
 			else
 				toff--;
 		}
-		cond_resched();
 	}
 
 	return NULL;

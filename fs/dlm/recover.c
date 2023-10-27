@@ -545,7 +545,6 @@ int dlm_recover_masters(struct dlm_ls *ls, uint64_t seq)
 		else
 			error = recover_master(r, &count, seq);
 		unlock_rsb(r);
-		cond_resched();
 		total++;
 
 		if (error) {

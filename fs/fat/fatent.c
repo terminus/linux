@@ -741,7 +741,6 @@ int fat_count_free_clusters(struct super_block *sb)
 			if (ops->ent_get(&fatent) == FAT_ENT_FREE)
 				free++;
 		} while (fat_ent_next(sbi, &fatent));
-		cond_resched();
 	}
 	sbi->free_clusters = free;
 	sbi->free_clus_valid = 1;
@@ -822,7 +821,6 @@ int fat_trim_fs(struct inode *inode, struct fstrim_range *range)
 		if (need_resched()) {
 			fatent_brelse(&fatent);
 			unlock_fat(sbi);
-			cond_resched();
 			lock_fat(sbi);
 		}
 	}

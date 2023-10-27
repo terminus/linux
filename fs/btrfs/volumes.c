@@ -1689,7 +1689,6 @@ again:
 			search_start = extent_end;
 next:
 		path->slots[0]++;
-		cond_resched();
 	}
 
 	/*
@@ -4756,7 +4755,6 @@ skip:
 		} else {
 			break;
 		}
-		cond_resched();
 	}
 
 out:

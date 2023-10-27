@@ -2705,7 +2705,6 @@ retry:
 		towrite -= tocopy;
 		off += tocopy;
 		data += tocopy;
-		cond_resched();
 	}
 
 	if (len == towrite)

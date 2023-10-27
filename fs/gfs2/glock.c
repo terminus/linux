@@ -2073,7 +2073,7 @@ static void glock_hash_walk(glock_examiner examiner, const struct gfs2_sbd *sdp)
 		}
 
 		rhashtable_walk_stop(&iter);
-	} while (cond_resched(), gl == ERR_PTR(-EAGAIN));
+	} while (gl == ERR_PTR(-EAGAIN));
 
 	rhashtable_walk_exit(&iter);
 }

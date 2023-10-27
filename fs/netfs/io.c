@@ -641,7 +641,6 @@ int netfs_begin_read(struct netfs_io_request *rreq, bool sync)
 			netfs_rreq_assess(rreq, false);
 			if (!test_bit(NETFS_RREQ_IN_PROGRESS, &rreq->flags))
 				break;
-			cond_resched();
 		}
 
 		ret = rreq->error;

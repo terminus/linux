@@ -568,7 +568,6 @@ static void afs_extend_writeback(struct address_space *mapping,
 		}
 
 		folio_batch_release(&fbatch);
-		cond_resched();
 	} while (!stop);
 
 	*_len = len;
@@ -790,7 +789,6 @@ try_again:
 		}
 
 		folio_batch_release(&fbatch);
-		cond_resched();
 	} while (wbc->nr_to_write > 0);
 
 	*_next = start;

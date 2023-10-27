@@ -3922,7 +3922,6 @@ static int f2fs_sec_trim_file(struct file *filp, unsigned long arg)
 			ret = -EINTR;
 			goto out;
 		}
-		cond_resched();
 	}
 
 	if (len)
@@ -4110,7 +4109,6 @@ static int f2fs_ioc_decompress_file(struct file *filp)
 		count -= cluster_size;
 		page_idx += cluster_size;
 
-		cond_resched();
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
 			break;
@@ -4188,7 +4186,6 @@ static int f2fs_ioc_compress_file(struct file *filp)
 		count -= cluster_size;
 		page_idx += cluster_size;
 
-		cond_resched();
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;
 			break;

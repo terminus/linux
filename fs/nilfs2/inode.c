@@ -1280,7 +1280,6 @@ int nilfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 			}
 			blkoff += n;
 		}
-		cond_resched();
 	} while (true);
 
 	/* If ret is 1 then we just hit the end of the extent array */

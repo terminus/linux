@@ -562,7 +562,6 @@ int dlm_lowcomms_connect_node(int nodeid)
 	up_read(&con->sock_lock);
 	srcu_read_unlock(&connections_srcu, idx);
 
-	cond_resched();
 	return 0;
 }
 
@@ -1504,7 +1503,6 @@ static void process_recv_sockets(struct work_struct *work)
 		/* CF_RECV_PENDING cleared */
 		break;
 	case DLM_IO_RESCHED:
-		cond_resched();
 		queue_work(io_workqueue, &con->rwork);
 		/* CF_RECV_PENDING not cleared */
 		break;
@@ -1650,7 +1648,6 @@ static void process_send_sockets(struct work_struct *work)
 		break;
 	case DLM_IO_RESCHED:
 		/* CF_SEND_PENDING not cleared */
-		cond_resched();
 		queue_work(io_workqueue, &con->swork);
 		break;
 	default:

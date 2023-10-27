@@ -235,7 +235,6 @@ long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
 			    !ubifs_zn_dirty(zn->zbranch[n].znode))
 				clean_freed += 1;
 
-			cond_resched();
 			kfree(zn->zbranch[n].znode);
 		}
 

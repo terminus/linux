@@ -1090,7 +1090,6 @@ static int f2fs_readdir(struct file *file, struct dir_context *ctx)
 			err = -ERESTARTSYS;
 			goto out_free;
 		}
-		cond_resched();
 
 		/* readahead for multi pages of dir */
 		if (npages - n > 1 && !ra_has_index(ra, n))

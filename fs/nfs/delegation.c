@@ -650,7 +650,6 @@ restart:
 
 		err = nfs_end_delegation_return(inode, delegation, 0);
 		iput(inode);
-		cond_resched();
 		if (!err)
 			goto restart;
 		set_bit(NFS4CLNT_DELEGRETURN, &server->nfs_client->cl_state);
@@ -1186,7 +1185,6 @@ restart_locked:
 			nfs_put_delegation(delegation);
 		}
 		iput(inode);
-		cond_resched();
 		goto restart;
 	}
 	rcu_read_unlock();
@@ -1318,7 +1316,6 @@ restart_locked:
 		put_cred(cred);
 		if (!nfs4_server_rebooted(server->nfs_client)) {
 			iput(inode);
-			cond_resched();
 			goto restart;
 		}
 		nfs_inode_mark_test_expired_delegation(server,inode);

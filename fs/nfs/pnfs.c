@@ -2665,14 +2665,12 @@ restart:
 			spin_unlock(&inode->i_lock);
 			rcu_read_unlock();
 			pnfs_put_layout_hdr(lo);
-			cond_resched();
 			goto restart;
 		}
 		spin_unlock(&inode->i_lock);
 		rcu_read_unlock();
 		pnfs_send_layoutreturn(lo, &stateid, &cred, iomode, false);
 		pnfs_put_layout_hdr(lo);
-		cond_resched();
 		goto restart;
 	}
 	rcu_read_unlock();

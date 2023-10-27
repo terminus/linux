@@ -1996,7 +1996,6 @@ static int btrfs_run_delayed_refs_for_head(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_put_delayed_ref(ref);
-		cond_resched();
 
 		spin_lock(&locked_ref->lock);
 		btrfs_merge_delayed_refs(fs_info, delayed_refs, locked_ref);
@@ -2074,7 +2073,6 @@ static noinline int __btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 		 */
 
 		locked_ref = NULL;
-		cond_resched();
 	} while ((nr != -1 && count < nr) || locked_ref);
 
 	return 0;
@@ -2183,7 +2181,6 @@ again:
 		mutex_unlock(&head->mutex);
 
 		btrfs_put_delayed_ref_head(head);
-		cond_resched();
 		goto again;
 	}
 out:
@@ -2805,7 +2802,6 @@ int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans)
 		unpin_extent_range(fs_info, start, end, true);
 		mutex_unlock(&fs_info->unused_bg_unpin_mutex);
 		free_extent_state(cached_state);
-		cond_resched();
 	}
 
 	if (btrfs_test_opt(fs_info, DISCARD_ASYNC)) {
@@ -4416,7 +4412,6 @@ loop:
 			goto have_block_group;
 		}
 		release_block_group(block_group, ffe_ctl, ffe_ctl->delalloc);
-		cond_resched();
 	}
 	up_read(&space_info->groups_sem);
 
@@ -5037,7 +5032,6 @@ static noinline void reada_walk_down(struct btrfs_trans_handle *trans,
 		if (nread >= wc->reada_count)
 			break;
 
-		cond_resched();
 		bytenr = btrfs_node_blockptr(eb, slot);
 		generation = btrfs_node_ptr_generation(eb, slot);
 
@@ -6039,8 +6033,6 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 			ret = -ERESTARTSYS;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	return ret;

@@ -1211,7 +1211,6 @@ static void btrfs_preempt_reclaim_metadata_space(struct work_struct *work)
 		if (!to_reclaim)
 			to_reclaim = btrfs_calc_insert_metadata_size(fs_info, 1);
 		flush_space(fs_info, space_info, to_reclaim, flush, true);
-		cond_resched();
 		spin_lock(&space_info->lock);
 	}
 

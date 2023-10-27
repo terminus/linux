@@ -45,7 +45,6 @@ static noinline int process_page_range(struct inode *inode, u64 start, u64 end,
 				folio_put(folio);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 		loops++;
 		if (loops > 100000) {
 			printk(KERN_ERR

@@ -914,7 +914,6 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
 	mmap_write_lock(mm);
 	prev = NULL;
 	for_each_vma(vmi, vma) {
-		cond_resched();
 		BUG_ON(!!vma->vm_userfaultfd_ctx.ctx ^
 		       !!(vma->vm_flags & __VM_UFFD_FLAGS));
 		if (vma->vm_userfaultfd_ctx.ctx != ctx) {
@@ -1277,7 +1276,6 @@ static __always_inline void wake_userfault(struct userfaultfd_ctx *ctx,
 		seq = read_seqcount_begin(&ctx->refile_seq);
 		need_wakeup = waitqueue_active(&ctx->fault_pending_wqh) ||
 			waitqueue_active(&ctx->fault_wqh);
-		cond_resched();
 	} while (read_seqcount_retry(&ctx->refile_seq, seq));
 	if (need_wakeup)
 		__wake_userfault(ctx, range);
@@ -1392,8 +1390,6 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 	basic_ioctls = false;
 	cur = vma;
 	do {
-		cond_resched();
-
 		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
 		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
 
@@ -1458,7 +1454,6 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
 
 	ret = 0;
 	for_each_vma_range(vmi, vma, end) {
-		cond_resched();
 
 		BUG_ON(!vma_can_userfault(vma, vm_flags));
 		BUG_ON(vma->vm_userfaultfd_ctx.ctx &&
@@ -1603,8 +1598,6 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 	found = false;
 	cur = vma;
 	do {
-		cond_resched();
-
 		BUG_ON(!!cur->vm_userfaultfd_ctx.ctx ^
 		       !!(cur->vm_flags & __VM_UFFD_FLAGS));
 
@@ -1629,8 +1622,6 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
 
 	ret = 0;
 	for_each_vma_range(vmi, vma, end) {
-		cond_resched();
-
 		BUG_ON(!vma_can_userfault(vma, vma->vm_flags));
 
 		/*

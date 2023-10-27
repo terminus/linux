@@ -125,7 +125,6 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 
 		zprev = znode;
 		znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, znode);
-		cond_resched();
 	}
 
 	return total_freed;

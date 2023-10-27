@@ -1483,7 +1483,6 @@ static int dbg_is_nnode_dirty(struct ubifs_info *c, int lnum, int offs)
 	for (; nnode; nnode = next_nnode(c, nnode, &hght)) {
 		struct ubifs_nbranch *branch;
 
-		cond_resched();
 		if (nnode->parent) {
 			branch = &nnode->parent->nbranch[nnode->iip];
 			if (branch->lnum != lnum || branch->offs != offs)
@@ -1517,7 +1516,6 @@ static int dbg_is_pnode_dirty(struct ubifs_info *c, int lnum, int offs)
 		struct ubifs_pnode *pnode;
 		struct ubifs_nbranch *branch;
 
-		cond_resched();
 		pnode = ubifs_pnode_lookup(c, i);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
@@ -1673,7 +1671,6 @@ int dbg_check_ltab(struct ubifs_info *c)
 		pnode = ubifs_pnode_lookup(c, i);
 		if (IS_ERR(pnode))
 			return PTR_ERR(pnode);
-		cond_resched();
 	}
 
 	/* Check nodes */

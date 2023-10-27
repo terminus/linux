@@ -3861,7 +3861,6 @@ cont_thread:
 		cur = jiffies;
 		if ((time_after_eq(cur, next_wakeup)) ||
 		    (MAX_JIFFY_OFFSET == next_wakeup)) {
-			cond_resched();
 			continue;
 		}
 
@@ -4226,7 +4225,6 @@ int ext4_calculate_overhead(struct super_block *sb)
 		overhead += blks;
 		if (blks)
 			memset(buf, 0, PAGE_SIZE);
-		cond_resched();
 	}
 
 	/*

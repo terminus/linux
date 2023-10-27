@@ -1021,7 +1021,6 @@ again:
 			 nr_pages, compress_type);
 	if (start + total_in < end) {
 		start += total_in;
-		cond_resched();
 		goto again;
 	}
 	return;
@@ -3376,7 +3375,6 @@ void btrfs_run_delayed_iputs(struct btrfs_fs_info *fs_info)
 		run_delayed_iput_locked(fs_info, inode);
 		if (need_resched()) {
 			spin_unlock_irq(&fs_info->delayed_iput_lock);
-			cond_resched();
 			spin_lock_irq(&fs_info->delayed_iput_lock);
 		}
 	}
@@ -4423,7 +4421,6 @@ again:
 			 * cache when its usage count hits zero.
 			 */
 			iput(inode);
-			cond_resched();
 			spin_lock(&root->inode_lock);
 			goto again;
 		}
@@ -5135,7 +5132,6 @@ static void evict_inode_truncate_pages(struct inode *inode)
 				 EXTENT_CLEAR_ALL_BITS | EXTENT_DO_ACCOUNTING,
 				 &cached_state);
 
-		cond_resched();
 		spin_lock(&io_tree->lock);
 	}
 	spin_unlock(&io_tree->lock);
@@ -7209,8 +7205,6 @@ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
 
 		if (ret)
 			break;
-
-		cond_resched();
 	}
 
 	return ret;
@@ -9269,7 +9263,6 @@ static int start_delalloc_inodes(struct btrfs_root *root,
 			if (ret || wbc->nr_to_write <= 0)
 				goto out;
 		}
-		cond_resched();
 		spin_lock(&root->delalloc_lock);
 	}
 	spin_unlock(&root->delalloc_lock);
@@ -10065,7 +10058,6 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 			break;
 		btrfs_put_ordered_extent(ordered);
 		unlock_extent(io_tree, start, lockend, &cached_state);
-		cond_resched();
 	}
 
 	em = btrfs_get_extent(inode, NULL, 0, start, lockend - start + 1);
@@ -10306,7 +10298,6 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 		if (ordered)
 			btrfs_put_ordered_extent(ordered);
 		unlock_extent(io_tree, start, end, &cached_state);
-		cond_resched();
 	}
 
 	/*

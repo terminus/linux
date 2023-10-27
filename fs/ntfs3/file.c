@@ -158,7 +158,6 @@ next:
 			break;
 
 		balance_dirty_pages_ratelimited(mapping);
-		cond_resched();
 	}
 
 	return 0;
@@ -241,7 +240,6 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 
 		unlock_page(page);
 		put_page(page);
-		cond_resched();
 	}
 out:
 	mark_inode_dirty(inode);
@@ -1004,13 +1002,6 @@ static ssize_t ntfs_compress_write(struct kiocb *iocb, struct iov_iter *from)
 
 		if (err)
 			goto out;
-
-		/*
-		 * We can loop for a long time in here. Be nice and allow
-		 * us to schedule out to avoid softlocking if preempt
-		 * is disabled.
-		 */
-		cond_resched();
 
 		pos += copied;
 		written += copied;

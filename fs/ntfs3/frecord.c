@@ -2265,8 +2265,6 @@ int ni_decompress_file(struct ntfs_inode *ni)
 
 		if (err)
 			goto out;
-
-		cond_resched();
 	}
 
 remove_wof:

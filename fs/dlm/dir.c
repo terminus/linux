@@ -94,8 +94,6 @@ int dlm_recover_directory(struct dlm_ls *ls, uint64_t seq)
 			if (error)
 				goto out_free;
 
-			cond_resched();
-
 			/*
 			 * pick namelen/name pairs out of received buffer
 			 */

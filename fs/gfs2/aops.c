@@ -357,7 +357,6 @@ retry:
 		if (ret > 0)
 			ret = 0;
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	if (!cycled && !done) {

@@ -1482,7 +1482,6 @@ unsigned long ext4_count_free_inodes(struct super_block *sb)
 		if (!gdp)
 			continue;
 		desc_count += ext4_free_inodes_count(sb, gdp);
-		cond_resched();
 	}
 	return desc_count;
 #endif

@@ -792,11 +792,10 @@ in_progress:
 		spin_unlock(&dlm->spinlock);
 		dlm_flush_asts(dlm);
 
-		/* yield and continue right away if there is more work to do */
-		if (!n) {
-			cond_resched();
+		/* An unlock above would have led to a yield if one was
+		 * needed. Continue right away if there is more to do */
+		if (!n)
 			continue;
-		}
 
 		wait_event_interruptible_timeout(dlm->dlm_thread_wq,
 						 !dlm_dirty_list_empty(dlm) ||

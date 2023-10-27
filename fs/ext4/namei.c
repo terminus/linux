@@ -1255,7 +1255,6 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			err = -ERESTARTSYS;
 			goto errout;
 		}
-		cond_resched();
 		block = dx_get_block(frame->at);
 		ret = htree_dirblock_to_tree(dir_file, dir, block, &hinfo,
 					     start_hash, start_minor_hash);
@@ -1341,7 +1340,6 @@ static int dx_make_map(struct inode *dir, struct buffer_head *bh,
 			map_tail->size = ext4_rec_len_from_disk(de->rec_len,
 								blocksize);
 			count++;
-			cond_resched();
 		}
 		de = ext4_next_entry(de, blocksize);
 	}
@@ -1658,7 +1656,6 @@ restart:
 		/*
 		 * We deal with the read-ahead logic here.
 		 */
-		cond_resched();
 		if (ra_ptr >= ra_max) {
 			/* Refill the readahead buffer */
 			ra_ptr = 0;

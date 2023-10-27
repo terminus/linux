@@ -683,7 +683,6 @@ static int ubifs_readdir(struct file *file, struct dir_context *ctx)
 		kfree(file->private_data);
 		ctx->pos = key_hash_flash(c, &dent->key);
 		file->private_data = dent;
-		cond_resched();
 	}
 
 out:

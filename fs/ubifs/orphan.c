@@ -957,7 +957,6 @@ static int dbg_read_orphans(struct check_info *ci, struct ubifs_scan_leb *sleb)
 	int i, n, err;
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
-		cond_resched();
 		if (snod->type != UBIFS_ORPH_NODE)
 			continue;
 		orph = snod->node;

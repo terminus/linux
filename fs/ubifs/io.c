@@ -683,8 +683,6 @@ int ubifs_bg_wbufs_sync(struct ubifs_info *c)
 	for (i = 0; i < c->jhead_cnt; i++) {
 		struct ubifs_wbuf *wbuf = &c->jheads[i].wbuf;
 
-		cond_resched();
-
 		/*
 		 * If the mutex is locked then wbuf is being changed, so
 		 * synchronization is not necessary.

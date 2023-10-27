@@ -185,8 +185,6 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 			} else if (ret)
 				return ret;
 
-			cond_resched();
-
 			if (signal_pending(current))
 				return -EINTR;
 
@@ -227,7 +225,14 @@ int jffs2_reserve_space_gc(struct jffs2_sb_info *c, uint32_t minsize,
 		spin_unlock(&c->erase_completion_lock);
 
 		if (ret == -EAGAIN)
-			cond_resched();
+			/*
+			 * The spin_unlock() above will implicitly reschedule
+			 * if one is needed.
+			 *
+			 * In case we did not reschedule, take a breather here
+			 * before retrying.
+			 */
+			cpu_relax();
 		else
 			break;
 	}

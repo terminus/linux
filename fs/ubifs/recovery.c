@@ -638,8 +638,6 @@ struct ubifs_scan_leb *ubifs_recover_leb(struct ubifs_info *c, int lnum,
 		dbg_scan("look at LEB %d:%d (%d bytes left)",
 			 lnum, offs, len);
 
-		cond_resched();
-
 		/*
 		 * Scan quietly until there is an error from which we cannot
 		 * recover
@@ -998,8 +996,6 @@ static int clean_an_unclean_leb(struct ubifs_info *c,
 
 	while (len >= 8) {
 		int ret;
-
-		cond_resched();
 
 		/* Scan quietly until there is an error */
 		ret = ubifs_scan_a_node(c, buf, len, lnum, offs, quiet);

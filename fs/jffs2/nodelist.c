@@ -578,7 +578,6 @@ void jffs2_kill_fragtree(struct rb_root *root, struct jffs2_sb_info *c)
 		}
 
 		jffs2_free_node_frag(frag);
-		cond_resched();
 	}
 }
 

@@ -986,7 +986,6 @@ static int dax_writeback_one(struct xa_state *xas, struct dax_device *dax_dev,
 	i_mmap_lock_read(mapping);
 	vma_interval_tree_foreach(vma, &mapping->i_mmap, index, end) {
 		pfn_mkclean_range(pfn, count, index, vma);
-		cond_resched();
 	}
 	i_mmap_unlock_read(mapping);
 

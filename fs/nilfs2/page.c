@@ -277,7 +277,6 @@ repeat:
 		folio_unlock(folio);
 	}
 	folio_batch_release(&fbatch);
-	cond_resched();
 
 	if (likely(!err))
 		goto repeat;
@@ -346,7 +345,6 @@ repeat:
 		folio_unlock(folio);
 	}
 	folio_batch_release(&fbatch);
-	cond_resched();
 
 	goto repeat;
 }
@@ -382,7 +380,6 @@ void nilfs_clear_dirty_pages(struct address_space *mapping, bool silent)
 			folio_unlock(folio);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 
@@ -539,7 +536,6 @@ repeat:
 	} while (++i < nr_folios);
 
 	folio_batch_release(&fbatch);
-	cond_resched();
 	goto repeat;
 
 out_locked:

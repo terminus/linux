@@ -16,13 +16,6 @@ xchk_should_terminate(
 	struct xfs_scrub	*sc,
 	int			*error)
 {
-	/*
-	 * If preemption is disabled, we need to yield to the scheduler every
-	 * few seconds so that we don't run afoul of the soft lockup watchdog
-	 * or RCU stall detector.
-	 */
-	cond_resched();
-
 	if (fatal_signal_pending(current)) {
 		if (*error == 0)
 			*error = -EINTR;

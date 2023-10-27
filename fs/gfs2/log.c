@@ -143,7 +143,6 @@ __acquires(&sdp->sd_ail_lock)
 		ret = write_cache_pages(mapping, wbc, __gfs2_writepage, mapping);
 		if (need_resched()) {
 			blk_finish_plug(plug);
-			cond_resched();
 			blk_start_plug(plug);
 		}
 		spin_lock(&sdp->sd_ail_lock);

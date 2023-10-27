@@ -949,8 +949,6 @@ static int check_volume_empty(struct ubifs_info *c)
 			c->empty = 0;
 			break;
 		}
-
-		cond_resched();
 	}
 
 	return 0;

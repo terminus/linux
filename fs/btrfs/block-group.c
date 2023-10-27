@@ -769,7 +769,6 @@ next:
 				btrfs_release_path(path);
 				up_read(&fs_info->commit_root_sem);
 				mutex_unlock(&caching_ctl->mutex);
-				cond_resched();
 				mutex_lock(&caching_ctl->mutex);
 				down_read(&fs_info->commit_root_sem);
 				goto next;
@@ -4066,8 +4065,6 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 			wait_for_alloc = false;
 			spin_unlock(&space_info->lock);
 		}
-
-		cond_resched();
 	} while (wait_for_alloc);
 
 	mutex_lock(&fs_info->chunk_mutex);

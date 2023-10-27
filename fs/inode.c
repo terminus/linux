@@ -695,7 +695,6 @@ static void dispose_list(struct list_head *head)
 		list_del_init(&inode->i_lru);
 
 		evict(inode);
-		cond_resched();
 	}
 }
 
@@ -737,7 +736,6 @@ again:
 		 */
 		if (need_resched()) {
 			spin_unlock(&sb->s_inode_list_lock);
-			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}
@@ -778,7 +776,6 @@ again:
 		list_add(&inode->i_lru, &dispose);
 		if (need_resched()) {
 			spin_unlock(&sb->s_inode_list_lock);
-			cond_resched();
 			dispose_list(&dispose);
 			goto again;
 		}

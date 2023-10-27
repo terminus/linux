@@ -629,7 +629,6 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		smaps_pte_entry(pte, addr, walk);
 	pte_unmap_unlock(pte - 1, ptl);
 out:
-	cond_resched();
 	return 0;
 }
 
@@ -1210,7 +1209,6 @@ out:
 		ClearPageReferenced(page);
 	}
 	pte_unmap_unlock(pte - 1, ptl);
-	cond_resched();
 	return 0;
 }
 
@@ -1554,8 +1552,6 @@ static int pagemap_pmd_range(pmd_t *pmdp, unsigned long addr, unsigned long end,
 	}
 	pte_unmap_unlock(orig_pte, ptl);
 
-	cond_resched();
-
 	return err;
 }
 
@@ -1604,8 +1600,6 @@ static int pagemap_hugetlb_range(pte_t *ptep, unsigned long hmask,
 		if (pm->show_pfn && (flags & PM_PRESENT))
 			frame++;
 	}
-
-	cond_resched();
 
 	return err;
 }
@@ -1899,7 +1893,6 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 
 	} while (pte++, addr += PAGE_SIZE, addr != end);
 	pte_unmap_unlock(orig_pte, ptl);
-	cond_resched();
 	return 0;
 }
 #ifdef CONFIG_HUGETLB_PAGE

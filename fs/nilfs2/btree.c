@@ -2173,7 +2173,6 @@ static void nilfs_btree_lookup_dirty_buffers(struct nilfs_bmap *btree,
 			} while ((bh = bh->b_this_page) != head);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 
 	for (level = NILFS_BTREE_LEVEL_NODE_MIN;

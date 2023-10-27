@@ -2843,7 +2843,6 @@ repeat:
 		     ext4_mb_choose_next_group(ac, &new_cr, &group, ngroups)) {
 			int ret = 0;
 
-			cond_resched();
 			if (new_cr != cr) {
 				cr = new_cr;
 				goto repeat;
@@ -3387,7 +3386,6 @@ static int ext4_mb_init_backend(struct super_block *sb)
 	sbi->s_buddy_cache->i_ino = EXT4_BAD_INO;
 	EXT4_I(sbi->s_buddy_cache)->i_disksize = 0;
 	for (i = 0; i < ngroups; i++) {
-		cond_resched();
 		desc = ext4_get_group_desc(sb, i, NULL);
 		if (desc == NULL) {
 			ext4_msg(sb, KERN_ERR, "can't read descriptor %u", i);
@@ -3746,7 +3744,6 @@ int ext4_mb_release(struct super_block *sb)
 
 	if (sbi->s_group_info) {
 		for (i = 0; i < ngroups; i++) {
-			cond_resched();
 			grinfo = ext4_get_group_info(sb, i);
 			if (!grinfo)
 				continue;
@@ -6034,7 +6031,6 @@ static int ext4_mb_discard_preallocations(struct super_block *sb, int needed)
 		ret = ext4_mb_discard_group_preallocations(sb, i, &busy);
 		freed += ret;
 		needed -= ret;
-		cond_resched();
 	}
 
 	if (needed > 0 && busy && ++retry < 3) {
@@ -6173,8 +6169,6 @@ ext4_fsblk_t ext4_mb_new_blocks(handle_t *handle,
 		while (ar->len &&
 			ext4_claim_free_clusters(sbi, ar->len, ar->flags)) {
 
-			/* let others to free the space */
-			cond_resched();
 			ar->len = ar->len >> 1;
 		}
 		if (!ar->len) {
@@ -6720,7 +6714,6 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 		int is_metadata = flags & EXT4_FREE_BLOCKS_METADATA;
 
 		for (i = 0; i < count; i++) {
-			cond_resched();
 			if (is_metadata)
 				bh = sb_find_get_block(inode->i_sb, block + i);
 			ext4_forget(handle, is_metadata, inode, bh, block + i);
@@ -6959,8 +6952,11 @@ __releases(ext4_group_lock_ptr(sb, e4b->bd_group))
 			return count;
 
 		if (need_resched()) {
+			/*
+			 * Rescheduling can implicitly happen after the
+			 * unlock.
+			 */
 			ext4_unlock_group(sb, e4b->bd_group);
-			cond_resched();
 			ext4_lock_group(sb, e4b->bd_group);
 		}
 

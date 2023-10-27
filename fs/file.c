@@ -428,10 +428,8 @@ static struct fdtable *close_files(struct files_struct * files)
 		while (set) {
 			if (set & 1) {
 				struct file * file = xchg(&fdt->fd[i], NULL);
-				if (file) {
+				if (file)
 					filp_close(file, files);
-					cond_resched();
-				}
 			}
 			i++;
 			set >>= 1;
@@ -708,11 +706,9 @@ static inline void __range_close(struct files_struct *files, unsigned int fd,
 		if (file) {
 			spin_unlock(&files->file_lock);
 			filp_close(file, files);
-			cond_resched();
 			spin_lock(&files->file_lock);
 		} else if (need_resched()) {
 			spin_unlock(&files->file_lock);
-			cond_resched();
 			spin_lock(&files->file_lock);
 		}
 	}
@@ -845,7 +841,6 @@ void do_close_on_exec(struct files_struct *files)
 			__put_unused_fd(files, fd);
 			spin_unlock(&files->file_lock);
 			filp_close(file, files);
-			cond_resched();
 			spin_lock(&files->file_lock);
 		}
 

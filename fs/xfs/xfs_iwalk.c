@@ -420,7 +420,6 @@ xfs_iwalk_ag(
 		struct xfs_inobt_rec_incore	*irec;
 		xfs_ino_t			rec_fsino;
 
-		cond_resched();
 		if (xfs_pwork_want_abort(&iwag->pwork))
 			goto out;
 

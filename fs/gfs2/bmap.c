@@ -1592,7 +1592,6 @@ out_unlock:
 			buf_in_tr = false;
 		}
 		gfs2_glock_dq_uninit(rd_gh);
-		cond_resched();
 		goto more_rgrps;
 	}
 out:
@@ -1962,7 +1961,6 @@ out:
 	if (current->journal_info) {
 		up_write(&ip->i_rw_mutex);
 		gfs2_trans_end(sdp);
-		cond_resched();
 	}
 	gfs2_quota_unhold(ip);
 out_metapath:

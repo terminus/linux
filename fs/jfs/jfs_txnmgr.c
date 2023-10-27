@@ -2833,12 +2833,11 @@ restart:
 		mutex_lock(&jfs_ip->commit_mutex);
 		txCommit(tid, 1, &ip, 0);
 		txEnd(tid);
-		mutex_unlock(&jfs_ip->commit_mutex);
 		/*
-		 * Just to be safe.  I don't know how
-		 * long we can run without blocking
+		 * The mutex_unlock() reschedules if needed.
 		 */
-		cond_resched();
+		mutex_unlock(&jfs_ip->commit_mutex);
+
 		TXN_LOCK();
 	}
 
@@ -2912,11 +2911,6 @@ int jfs_sync(void *arg)
 				mutex_unlock(&jfs_ip->commit_mutex);
 
 				iput(ip);
-				/*
-				 * Just to be safe.  I don't know how
-				 * long we can run without blocking
-				 */
-				cond_resched();
 				TXN_LOCK();
 			} else {
 				/* We can't get the commit mutex.  It may

@@ -77,8 +77,6 @@ void *hpfs_map_sector(struct super_block *s, unsigned secno, struct buffer_head 
 
 	hpfs_prefetch_sectors(s, secno, ahead);
 
-	cond_resched();
-
 	*bhp = bh = sb_bread(s, hpfs_search_hotfix_map(s, secno));
 	if (bh != NULL)
 		return bh->b_data;
@@ -96,8 +94,6 @@ void *hpfs_get_sector(struct super_block *s, unsigned secno, struct buffer_head 
 	/*return hpfs_map_sector(s, secno, bhp, 0);*/
 
 	hpfs_lock_assert(s);
-
-	cond_resched();
 
 	if ((*bhp = bh = sb_getblk(s, hpfs_search_hotfix_map(s, secno))) != NULL) {
 		if (!buffer_uptodate(bh)) wait_on_buffer(bh);
@@ -117,8 +113,6 @@ void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffe
 	char *data;
 
 	hpfs_lock_assert(s);
-
-	cond_resched();
 
 	if (secno & 3) {
 		pr_err("%s(): unaligned read\n", __func__);
@@ -168,8 +162,6 @@ void *hpfs_map_4sectors(struct super_block *s, unsigned secno, struct quad_buffe
 void *hpfs_get_4sectors(struct super_block *s, unsigned secno,
                           struct quad_buffer_head *qbh)
 {
-	cond_resched();
-
 	hpfs_lock_assert(s);
 
 	if (secno & 3) {

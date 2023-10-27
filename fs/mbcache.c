@@ -322,7 +322,6 @@ static unsigned long mb_cache_shrink(struct mb_cache *cache,
 		spin_unlock(&cache->c_list_lock);
 		__mb_cache_entry_free(cache, entry);
 		shrunk++;
-		cond_resched();
 		spin_lock(&cache->c_list_lock);
 	}
 	spin_unlock(&cache->c_list_lock);

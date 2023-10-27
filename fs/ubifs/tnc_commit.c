@@ -857,8 +857,6 @@ static int write_index(struct ubifs_info *c)
 	while (1) {
 		u8 hash[UBIFS_HASH_ARR_SZ];
 
-		cond_resched();
-
 		znode = cnext;
 		idx = c->cbuf + used;
 

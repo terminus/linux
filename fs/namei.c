@@ -1781,7 +1781,6 @@ static const char *pick_link(struct nameidata *nd, struct path *link,
 
 	if (!(nd->flags & LOOKUP_RCU)) {
 		touch_atime(&last->link);
-		cond_resched();
 	} else if (atime_needs_update(&last->link, inode)) {
 		if (!try_to_unlazy(nd))
 			return ERR_PTR(-ECHILD);

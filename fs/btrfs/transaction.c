@@ -1115,7 +1115,6 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 			werr = filemap_fdatawait_range(mapping, start, end);
 		free_extent_state(cached_state);
 		cached_state = NULL;
-		cond_resched();
 		start = end + 1;
 	}
 	return werr;
@@ -1157,7 +1156,6 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 			werr = err;
 		free_extent_state(cached_state);
 		cached_state = NULL;
-		cond_resched();
 		start = end + 1;
 	}
 	if (err)
@@ -1507,7 +1505,6 @@ int btrfs_defrag_root(struct btrfs_root *root)
 
 		btrfs_end_transaction(trans);
 		btrfs_btree_balance_dirty(info);
-		cond_resched();
 
 		if (btrfs_fs_closing(info) || ret != -EAGAIN)
 			break;

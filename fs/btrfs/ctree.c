@@ -5052,7 +5052,6 @@ again:
 				 */
 				free_extent_buffer(next);
 				btrfs_release_path(path);
-				cond_resched();
 				goto again;
 			}
 			if (!ret)

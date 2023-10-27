@@ -1914,7 +1914,6 @@ static long writeback_sb_inodes(struct super_block *sb,
 			 * give up the CPU.
 			 */
 			blk_flush_plug(current->plug, false);
-			cond_resched();
 		}
 
 		/*
@@ -2620,8 +2619,6 @@ static void wait_sb_inodes(struct super_block *sb)
 		 * See filemap_fdatawait_keep_errors() for details.
 		 */
 		filemap_fdatawait_keep_errors(mapping);
-
-		cond_resched();
 
 		iput(inode);
 

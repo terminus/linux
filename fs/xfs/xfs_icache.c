@@ -1716,8 +1716,6 @@ restart:
 		if (error == -EFSCORRUPTED)
 			break;
 
-		cond_resched();
-
 		if (icw && (icw->icw_flags & XFS_ICWALK_FLAG_SCAN_LIMIT)) {
 			icw->icw_scan_limit -= XFS_LOOKUP_BATCH;
 			if (icw->icw_scan_limit <= 0)

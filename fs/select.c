@@ -573,7 +573,6 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 				*routp = res_out;
 			if (res_ex)
 				*rexp = res_ex;
-			cond_resched();
 		}
 		wait->_qproc = NULL;
 		if (retval || timed_out || signal_pending(current))

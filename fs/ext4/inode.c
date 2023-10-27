@@ -2491,7 +2491,6 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
 			}
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 	mpd->scanned_until_end = 1;
 	if (handle)

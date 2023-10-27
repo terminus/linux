@@ -1774,7 +1774,6 @@ static void gfs2_evict_inodes(struct super_block *sb)
 		iput(toput_inode);
 		toput_inode = inode;
 
-		cond_resched();
 		spin_lock(&sb->s_inode_list_lock);
 	}
 	spin_unlock(&sb->s_inode_list_lock);

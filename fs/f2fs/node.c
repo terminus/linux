@@ -1579,7 +1579,6 @@ continue_unlock:
 			unlock_page(page);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 	return last_page;
 }
@@ -1841,7 +1840,6 @@ continue_unlock:
 			}
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 
 		if (ret || marked)
 			break;
@@ -1944,7 +1942,6 @@ continue_unlock:
 			unlock_page(page);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 
@@ -2046,7 +2043,6 @@ write_node:
 				break;
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 
 		if (wbc->nr_to_write == 0) {
 			step = 2;

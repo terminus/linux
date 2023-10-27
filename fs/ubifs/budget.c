@@ -477,7 +477,6 @@ again:
 	}
 
 	err = make_free_space(c);
-	cond_resched();
 	if (err == -EAGAIN) {
 		dbg_budg("try again");
 		goto again;

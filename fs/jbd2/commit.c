@@ -729,7 +729,6 @@ start_journal_io:
 				bh->b_end_io = journal_end_buffer_io_sync;
 				submit_bh(REQ_OP_WRITE | REQ_SYNC, bh);
 			}
-			cond_resched();
 
 			/* Force a new descriptor to be generated next
                            time round the loop. */
@@ -811,7 +810,6 @@ start_journal_io:
 						    b_assoc_buffers);
 
 		wait_on_buffer(bh);
-		cond_resched();
 
 		if (unlikely(!buffer_uptodate(bh)))
 			err = -EIO;
@@ -854,7 +852,6 @@ start_journal_io:
 
 		bh = list_entry(log_bufs.prev, struct buffer_head, b_assoc_buffers);
 		wait_on_buffer(bh);
-		cond_resched();
 
 		if (unlikely(!buffer_uptodate(bh)))
 			err = -EIO;

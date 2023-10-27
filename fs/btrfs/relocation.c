@@ -1094,7 +1094,6 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 	for (i = 0; i < nritems; i++) {
 		struct btrfs_ref ref = { 0 };
 
-		cond_resched();
 		btrfs_item_key_to_cpu(leaf, &key, i);
 		if (key.type != BTRFS_EXTENT_DATA_KEY)
 			continue;
@@ -1531,7 +1530,6 @@ static int invalidate_extent_cache(struct btrfs_root *root,
 	while (1) {
 		struct extent_state *cached_state = NULL;
 
-		cond_resched();
 		iput(inode);
 
 		if (objectid > max_key->objectid)
@@ -2163,7 +2161,6 @@ struct btrfs_root *select_reloc_root(struct btrfs_trans_handle *trans,
 
 	next = node;
 	while (1) {
-		cond_resched();
 		next = walk_up_backref(next, edges, &index);
 		root = next->root;
 
@@ -2286,7 +2283,6 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 
 	next = node;
 	while (1) {
-		cond_resched();
 		next = walk_up_backref(next, edges, &index);
 		root = next->root;
 
@@ -2331,7 +2327,6 @@ u64 calcu_metadata_size(struct reloc_control *rc,
 	BUG_ON(reserve && node->processed);
 
 	while (next) {
-		cond_resched();
 		while (1) {
 			if (next->processed && (reserve || next != node))
 				break;
@@ -2425,8 +2420,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	rc->backref_cache.path[node->level] = node;
 	list_for_each_entry(edge, &node->upper, list[LOWER]) {
 		struct btrfs_ref ref = { 0 };
-
-		cond_resched();
 
 		upper = edge->node[UPPER];
 		root = select_reloc_root(trans, rc, upper, edges);
@@ -2609,7 +2602,6 @@ static void update_processed_blocks(struct reloc_control *rc,
 	int index = 0;
 
 	while (next) {
-		cond_resched();
 		while (1) {
 			if (next->processed)
 				break;
@@ -3508,7 +3500,6 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 	while (1) {
 		bool block_found;
 
-		cond_resched();
 		if (rc->search_start >= last) {
 			ret = 1;
 			break;

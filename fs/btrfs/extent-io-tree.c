@@ -695,8 +695,6 @@ search_again:
 	if (start > end)
 		goto out;
 	spin_unlock(&tree->lock);
-	if (gfpflags_allow_blocking(mask))
-		cond_resched();
 	goto again;
 
 out:
@@ -1189,8 +1187,6 @@ search_again:
 	if (start > end)
 		goto out;
 	spin_unlock(&tree->lock);
-	if (gfpflags_allow_blocking(mask))
-		cond_resched();
 	goto again;
 
 out:
@@ -1409,7 +1405,6 @@ search_again:
 	if (start > end)
 		goto out;
 	spin_unlock(&tree->lock);
-	cond_resched();
 	first_iteration = false;
 	goto again;
 

@@ -45,7 +45,6 @@ struct page *f2fs_grab_meta_page(struct f2fs_sb_info *sbi, pgoff_t index)
 repeat:
 	page = f2fs_grab_cache_page(mapping, index, false);
 	if (!page) {
-		cond_resched();
 		goto repeat;
 	}
 	f2fs_wait_on_page_writeback(page, META, true, true);
@@ -76,7 +75,6 @@ static struct page *__get_meta_page(struct f2fs_sb_info *sbi, pgoff_t index,
 repeat:
 	page = f2fs_grab_cache_page(mapping, index, false);
 	if (!page) {
-		cond_resched();
 		goto repeat;
 	}
 	if (PageUptodate(page))
@@ -463,7 +461,6 @@ continue_unlock:
 				break;
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 stop:
 	if (nwritten)
@@ -1111,9 +1108,13 @@ retry:
 			F2FS_I(inode)->cp_task = NULL;
 
 		iput(inode);
-		/* We need to give cpu to another writers. */
+		/*
+		 * We need to give cpu to other writers but cond_resched_stall()
+		 * does not guarantee that. Perhaps we should explicitly wait on
+		 * an event or a timeout?
+		 */
 		if (ino == cur_ino)
-			cond_resched();
+			cond_resched_stall();
 		else
 			ino = cur_ino;
 	} else {
@@ -1122,7 +1123,6 @@ retry:
 		 * writebacking dentry pages in the freeing inode.
 		 */
 		f2fs_submit_merged_write(sbi, DATA);
-		cond_resched();
 	}
 	goto retry;
 }
@@ -1229,7 +1229,6 @@ retry_flush_quotas:
 		f2fs_quota_sync(sbi->sb, -1);
 		if (locked)
 			up_read(&sbi->sb->s_umount);
-		cond_resched();
 		goto retry_flush_quotas;
 	}
 
@@ -1240,7 +1239,6 @@ retry_flush_dents:
 		err = f2fs_sync_dirty_inodes(sbi, DIR_INODE, true);
 		if (err)
 			return err;
-		cond_resched();
 		goto retry_flush_quotas;
 	}
 
@@ -1256,7 +1254,6 @@ retry_flush_dents:
 		err = f2fs_sync_inode_meta(sbi);
 		if (err)
 			return err;
-		cond_resched();
 		goto retry_flush_quotas;
 	}
 
@@ -1273,7 +1270,6 @@ retry_flush_nodes:
 			f2fs_unlock_all(sbi);
 			return err;
 		}
-		cond_resched();
 		goto retry_flush_nodes;
 	}
 

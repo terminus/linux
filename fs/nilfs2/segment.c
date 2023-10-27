@@ -361,7 +361,6 @@ static void nilfs_transaction_lock(struct super_block *sb,
 		nilfs_segctor_do_immediate_flush(sci);
 
 		up_write(&nilfs->ns_segctor_sem);
-		cond_resched();
 	}
 	if (gcflag)
 		ti->ti_flags |= NILFS_TI_GC;
@@ -746,13 +745,11 @@ static size_t nilfs_lookup_dirty_data_buffers(struct inode *inode,
 			ndirties++;
 			if (unlikely(ndirties >= nlimit)) {
 				folio_batch_release(&fbatch);
-				cond_resched();
 				return ndirties;
 			}
 		} while (bh = bh->b_this_page, bh != head);
 	}
 	folio_batch_release(&fbatch);
-	cond_resched();
 	goto repeat;
 }
 
@@ -785,7 +782,6 @@ static void nilfs_lookup_dirty_node_buffers(struct inode *inode,
 			} while (bh != head);
 		}
 		folio_batch_release(&fbatch);
-		cond_resched();
 	}
 }
 

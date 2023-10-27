@@ -491,7 +491,6 @@ static ssize_t read_kcore_iter(struct kiocb *iocb, struct iov_iter *iter)
 
 		if (page_offline_frozen++ % MAX_ORDER_NR_PAGES == 0) {
 			page_offline_thaw();
-			cond_resched();
 			page_offline_freeze();
 		}
 

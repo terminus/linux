@@ -1375,7 +1375,6 @@ release_folios:
 					wait_on_page_writeback(page);
 				}
 				folio_batch_release(&fbatch);
-				cond_resched();
 			}
 		}
 

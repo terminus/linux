@@ -305,7 +305,6 @@ static int replay_entries_cmp(void *priv, const struct list_head *a,
 	struct ubifs_info *c = priv;
 	struct replay_entry *ra, *rb;
 
-	cond_resched();
 	if (a == b)
 		return 0;
 
@@ -332,8 +331,6 @@ static int apply_replay_list(struct ubifs_info *c)
 	list_sort(c, &c->replay_list, &replay_entries_cmp);
 
 	list_for_each_entry(r, &c->replay_list, list) {
-		cond_resched();
-
 		err = apply_replay_entry(c, r);
 		if (err)
 			return err;
@@ -722,8 +719,6 @@ static int replay_bud(struct ubifs_info *c, struct bud_entry *b)
 		u8 hash[UBIFS_HASH_ARR_SZ];
 		int deletion = 0;
 
-		cond_resched();
-
 		if (snod->sqnum >= SQNUM_WATERMARK) {
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;
@@ -1060,8 +1055,6 @@ static int replay_log_leb(struct ubifs_info *c, int lnum, int offs, void *sbuf)
 	}
 
 	list_for_each_entry(snod, &sleb->nodes, list) {
-		cond_resched();
-
 		if (snod->sqnum >= SQNUM_WATERMARK) {
 			ubifs_err(c, "file system's life ended");
 			goto out_dump;

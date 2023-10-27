@@ -125,9 +125,8 @@ static struct dentry *scan_positives(struct dentry *cursor,
 		if (need_resched()) {
 			list_move(&cursor->d_child, p);
 			p = &cursor->d_child;
-			spin_unlock(&dentry->d_lock);
-			cond_resched();
-			spin_lock(&dentry->d_lock);
+
+			cond_resched_lock(&dentry->d_lock);
 		}
 	}
 	spin_unlock(&dentry->d_lock);

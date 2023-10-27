@@ -71,7 +71,6 @@ static int fsverity_read_merkle_tree(struct inode *inode,
 			err = -EINTR;
 			break;
 		}
-		cond_resched();
 		offs_in_page = 0;
 	}
 	return retval ? retval : err;

@@ -823,7 +823,6 @@ static int resolve_indirect_refs(struct btrfs_backref_walk_ctx *ctx,
 		prelim_ref_insert(ctx->fs_info, &preftrees->direct, ref, NULL);
 
 		ulist_reinit(parents);
-		cond_resched();
 	}
 out:
 	/*
@@ -879,7 +878,6 @@ static int add_missing_keys(struct btrfs_fs_info *fs_info,
 			btrfs_tree_read_unlock(eb);
 		free_extent_buffer(eb);
 		prelim_ref_insert(fs_info, &preftrees->indirect, ref, NULL);
-		cond_resched();
 	}
 	return 0;
 }
@@ -1676,7 +1674,6 @@ again:
 			 */
 			ref->inode_list = NULL;
 		}
-		cond_resched();
 	}
 
 out:
@@ -1784,7 +1781,6 @@ static int btrfs_find_all_roots_safe(struct btrfs_backref_walk_ctx *ctx)
 		if (!node)
 			break;
 		ctx->bytenr = node->val;
-		cond_resched();
 	}
 
 	ulist_free(ctx->refs);
@@ -1993,7 +1989,6 @@ int btrfs_is_data_extent_shared(struct btrfs_inode *inode, u64 bytenr,
 		}
 		shared.share_count = 0;
 		shared.have_delayed_delete_refs = false;
-		cond_resched();
 	}
 
 	/*
@@ -3424,7 +3419,6 @@ int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
 		struct btrfs_key key;
 		int type;
 
-		cond_resched();
 		eb = btrfs_backref_get_eb(iter);
 
 		key.objectid = iter->bytenr;

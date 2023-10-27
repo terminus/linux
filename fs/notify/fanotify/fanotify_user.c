@@ -805,7 +805,6 @@ static ssize_t fanotify_read(struct file *file, char __user *buf,
 		 * User can supply arbitrarily large buffer. Avoid softlockups
 		 * in case there are lots of available events.
 		 */
-		cond_resched();
 		event = get_one_event(group, count);
 		if (IS_ERR(event)) {
 			ret = PTR_ERR(event);

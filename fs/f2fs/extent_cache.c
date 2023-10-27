@@ -936,7 +936,6 @@ static unsigned int __shrink_extent_tree(struct f2fs_sb_info *sbi, int nr_shrink
 
 		if (node_cnt + tree_cnt >= nr_shrink)
 			goto unlock_out;
-		cond_resched();
 	}
 	mutex_unlock(&eti->extent_tree_lock);
 

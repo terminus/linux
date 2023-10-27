@@ -1405,8 +1405,6 @@ again:
 
 		btrfs_drop_pages(fs_info, pages, num_pages, pos, copied);
 
-		cond_resched();
-
 		pos += copied;
 		num_written += copied;
 	}
@@ -3376,7 +3374,6 @@ bool btrfs_find_delalloc_in_range(struct btrfs_inode *inode, u64 start, u64 end,
 
 		prev_delalloc_end = delalloc_end;
 		cur_offset = delalloc_end + 1;
-		cond_resched();
 	}
 
 	return ret;
@@ -3654,7 +3651,6 @@ static loff_t find_desired_extent(struct file *file, loff_t offset, int whence)
 			ret = -EINTR;
 			goto out;
 		}
-		cond_resched();
 	}
 
 	/* We have an implicit hole from the last extent found up to i_size. */

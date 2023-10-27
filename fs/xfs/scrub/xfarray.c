@@ -498,13 +498,6 @@ xfarray_sort_terminated(
 	struct xfarray_sortinfo	*si,
 	int			*error)
 {
-	/*
-	 * If preemption is disabled, we need to yield to the scheduler every
-	 * few seconds so that we don't run afoul of the soft lockup watchdog
-	 * or RCU stall detector.
-	 */
-	cond_resched();
-
 	if ((si->flags & XFARRAY_SORT_KILLABLE) &&
 	    fatal_signal_pending(current)) {
 		if (*error == 0)

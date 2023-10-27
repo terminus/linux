@@ -353,7 +353,6 @@ try_again:
 		unlock_rename(cache->graveyard, dir);
 		dput(grave);
 		grave = NULL;
-		cond_resched();
 		goto try_again;
 	}
 
