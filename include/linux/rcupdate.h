@@ -238,14 +238,12 @@ static inline bool rcu_trace_implies_rcu_gp(void) { return true; }
 /**
  * cond_resched_tasks_rcu_qs - Report potential quiescent states to RCU
  *
- * This macro resembles cond_resched(), except that it is defined to
- * report potential quiescent states to RCU-tasks even if the cond_resched()
- * machinery were to be shut off, as some advocate for PREEMPTION kernels.
+ * This macro resembles cond_resched(), in that it reports potential
+ * quiescent states to RCU-tasks.
  */
 #define cond_resched_tasks_rcu_qs() \
 do { \
 	rcu_tasks_qs(current, false); \
-	cond_resched(); \
 } while (0)
 
 /*

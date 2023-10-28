@@ -2145,7 +2145,12 @@ static inline void cond_resched_rcu(void)
 {
 #if defined(CONFIG_DEBUG_ATOMIC_SLEEP) || !defined(CONFIG_PREEMPT_RCU)
 	rcu_read_unlock();
-	cond_resched();
+
+	/*
+	 * Might reschedule here as we exit the RCU read-side
+	 * critical section.
+	 */
+
 	rcu_read_lock();
 #endif
 }

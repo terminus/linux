@@ -541,7 +541,6 @@ static void rcu_tasks_invoke_cbs(struct rcu_tasks *rtp, struct rcu_tasks_percpu 
 		local_bh_disable();
 		rhp->func(rhp);
 		local_bh_enable();
-		cond_resched();
 	}
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 	rcu_segcblist_add_len(&rtpcp->cblist, -len);
@@ -974,10 +973,8 @@ static void check_all_holdout_tasks(struct list_head *hop,
 {
 	struct task_struct *t, *t1;
 
-	list_for_each_entry_safe(t, t1, hop, rcu_tasks_holdout_list) {
+	list_for_each_entry_safe(t, t1, hop, rcu_tasks_holdout_list)
 		check_holdout_task(t, needreport, firstreport);
-		cond_resched();
-	}
 }
 
 /* Finish off the Tasks-RCU grace period. */

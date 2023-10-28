@@ -153,8 +153,8 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
  * To avoid extending the RCU grace period for an unbounded amount of time,
  * periodically exit the critical section and enter a new one.
  *
- * For preemptible RCU it is sufficient to call rcu_read_unlock in order
- * to exit the grace period. For classic RCU, a reschedule is required.
+ * Under a preemptive kernel, or with preemptible RCU, it is sufficient to
+ * call rcu_read_unlock in order to exit the grace period.
  */
 static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 {
@@ -163,7 +163,7 @@ static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 	get_task_struct(g);
 	get_task_struct(t);
 	rcu_read_unlock();
-	cond_resched();
+
 	rcu_read_lock();
 	can_cont = pid_alive(g) && pid_alive(t);
 	put_task_struct(t);
