@@ -6431,8 +6431,8 @@ static int shadow_mmu_try_split_huge_page(struct kvm *kvm,
 	}
 
 	if (need_topup_split_caches_or_resched(kvm)) {
+		/* The preemption point in write_unlock() reschedules if needed. */
 		write_unlock(&kvm->mmu_lock);
-		cond_resched();
 		/*
 		 * If the topup succeeds, return -EAGAIN to indicate that the
 		 * rmap iterator should be restarted because the MMU lock was

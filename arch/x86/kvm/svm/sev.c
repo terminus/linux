@@ -476,7 +476,6 @@ static void sev_clflush_pages(struct page *pages[], unsigned long npages)
 		page_virtual = kmap_local_page(pages[i]);
 		clflush_cache_range(page_virtual, PAGE_SIZE);
 		kunmap_local(page_virtual);
-		cond_resched();
 	}
 }
 
@@ -2157,12 +2156,14 @@ void sev_vm_destroy(struct kvm *kvm)
 	/*
 	 * if userspace was terminated before unregistering the memory regions
 	 * then lets unpin all the registered memory.
+	 *
+	 * This might be a while but we are preemptible so the scheduler can
+	 * always preempt if needed.
 	 */
 	if (!list_empty(head)) {
 		list_for_each_safe(pos, q, head) {
 			__unregister_enc_region_locked(kvm,
 				list_entry(pos, struct enc_region, list));
-			cond_resched();
 		}
 	}
 

@@ -98,8 +98,6 @@ static unsigned long __sgx_sanitize_pages(struct list_head *dirty_page_list)
 			list_move_tail(&page->list, &dirty);
 			left_dirty++;
 		}
-
-		cond_resched();
 	}
 
 	list_splice(&dirty, dirty_page_list);
@@ -413,8 +411,6 @@ static int ksgxd(void *p)
 
 		if (sgx_should_reclaim(SGX_NR_HIGH_PAGES))
 			sgx_reclaim_pages();
-
-		cond_resched();
 	}
 
 	return 0;
@@ -581,7 +577,6 @@ struct sgx_epc_page *sgx_alloc_epc_page(void *owner, bool reclaim)
 		}
 
 		sgx_reclaim_pages();
-		cond_resched();
 	}
 
 	if (sgx_should_reclaim(SGX_NR_LOW_PAGES))

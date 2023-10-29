@@ -2594,7 +2594,6 @@ out_image:
 			}
 		}
 		oldproglen = proglen;
-		cond_resched();
 	}
 
 	if (bpf_jit_enable > 1)

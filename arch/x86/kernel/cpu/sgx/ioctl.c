@@ -439,9 +439,6 @@ static long sgx_ioc_enclave_add_pages(struct sgx_encl *encl, void __user *arg)
 			break;
 		}
 
-		if (need_resched())
-			cond_resched();
-
 		ret = sgx_encl_add_page(encl, add_arg.src + c, add_arg.offset + c,
 					&secinfo, add_arg.flags);
 		if (ret)

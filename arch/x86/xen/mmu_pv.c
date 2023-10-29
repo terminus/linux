@@ -2510,7 +2510,6 @@ int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 		addr += range;
 		if (err_ptr)
 			err_ptr += batch;
-		cond_resched();
 	}
 out:
 

@@ -549,13 +549,14 @@ int sgx_encl_may_map(struct sgx_encl *encl, unsigned long start,
 			break;
 		}
 
-		/* Reschedule on every XA_CHECK_SCHED iteration. */
+		/*
+		 * Drop the lock every XA_CHECK_SCHED iteration so the
+		 * scheduler can preempt if needed.
+		 */
 		if (!(++count % XA_CHECK_SCHED)) {
 			xas_pause(&xas);
 			xas_unlock(&xas);
 			mutex_unlock(&encl->lock);
-
-			cond_resched();
 
 			mutex_lock(&encl->lock);
 			xas_lock(&xas);
@@ -723,15 +724,14 @@ void sgx_encl_release(struct kref *ref)
 		}
 
 		kfree(entry);
+
 		/*
-		 * Invoke scheduler on every XA_CHECK_SCHED iteration
-		 * to prevent soft lockups.
+		 * Drop the lock every XA_CHECK_SCHED iteration so the
+		 * scheduler can preempt if needed.
 		 */
 		if (!(++count % XA_CHECK_SCHED)) {
 			xas_pause(&xas);
 			xas_unlock(&xas);
-
-			cond_resched();
 
 			xas_lock(&xas);
 		}

@@ -2819,7 +2819,6 @@ out_image:
 			prog->aux->extable = (void *) image + roundup(proglen, align);
 		}
 		oldproglen = proglen;
-		cond_resched();
 	}
 
 	if (bpf_jit_enable > 1)

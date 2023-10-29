@@ -435,7 +435,11 @@ retry:
 			kvfree(new);
 			new = NULL;
 			if (r == -E2BIG) {
-				cond_resched();
+				/*
+				 * A vCPU was just added or a enabled its APIC.
+				 * Give things time to settle before retrying.
+				 */
+				cond_resched_stall();
 				goto retry;
 			}
 
