@@ -171,10 +171,6 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
 	} while (0)
 void call_rcu_tasks(struct rcu_head *head, rcu_callback_t func);
 void synchronize_rcu_tasks(void);
-# else
-# define rcu_tasks_classic_qs(t, preempt) do { } while (0)
-# define call_rcu_tasks call_rcu
-# define synchronize_rcu_tasks synchronize_rcu
 # endif
 
 # ifdef CONFIG_TASKS_TRACE_RCU
