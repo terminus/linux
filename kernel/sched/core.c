@@ -256,7 +256,7 @@ void sched_core_dequeue(struct rq *rq, struct task_struct *p, int flags)
 	 */
 	if (!(flags & DEQUEUE_SAVE) && rq->nr_running == 1 &&
 	    rq->core->core_forceidle_count && rq->curr == rq->idle)
-		resched_curr(rq);
+		resched_curr(rq, false);
 }
 
 static int sched_task_is_throttled(struct task_struct *p, int cpu)
@@ -1074,9 +1074,12 @@ void __resched_curr(struct rq *rq, resched_t rs)
  *
  *  - in userspace: run to completion semantics are only for kernel tasks
  *
- * Otherwise (regardless of priority), run to completion.
+ *  - running under voluntary preemption (sched_feat(PREEMPT_PRIORITY))
+ *    and a task from a sched_class above wants the CPU
+ *
+ * Otherwise, run to completion.
  */
-void resched_curr(struct rq *rq)
+void resched_curr(struct rq *rq, bool above)
 {
 	resched_t rs = RESCHED_lazy;
 	int context;
@@ -1112,6 +1115,9 @@ void resched_curr(struct rq *rq)
 		goto resched;
 	}
 
+	if (sched_feat(PREEMPT_PRIORITY) && above)
+		rs = RESCHED_eager;
+
 resched:
 	__resched_curr(rq, rs);
 }
@@ -1123,7 +1129,7 @@ void resched_cpu(int cpu)
 
 	raw_spin_rq_lock_irqsave(rq, flags);
 	if (cpu_online(cpu) || cpu == smp_processor_id())
-		resched_curr(rq);
+		resched_curr(rq, true);
 	raw_spin_rq_unlock_irqrestore(rq, flags);
 }
 
@@ -2277,7 +2283,7 @@ void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 	if (p->sched_class == rq->curr->sched_class)
 		rq->curr->sched_class->check_preempt_curr(rq, p, flags);
 	else if (sched_class_above(p->sched_class, rq->curr->sched_class))
-		resched_curr(rq);
+		resched_curr(rq, true);
 
 	/*
 	 * A queue event has occurred, and we're going to schedule.  In
@@ -2764,7 +2770,7 @@ int push_cpu_stop(void *arg)
 		deactivate_task(rq, p, 0);
 		set_task_cpu(p, lowest_rq->cpu);
 		activate_task(lowest_rq, p, 0);
-		resched_curr(lowest_rq);
+		resched_curr(lowest_rq, true);
 	}
 
 	double_unlock_balance(rq, lowest_rq);
@@ -3999,7 +4005,7 @@ void wake_up_if_idle(int cpu)
 	if (is_idle_task(rcu_dereference(rq->curr))) {
 		guard(rq_lock_irqsave)(rq);
 		if (is_idle_task(rq->curr))
-			resched_curr(rq);
+			resched_curr(rq, true);
 	}
 }
 
@@ -6333,7 +6339,7 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 			continue;
 		}
 
-		resched_curr(rq_i);
+		resched_curr(rq_i, false);
 	}
 
 out_set_next:
@@ -6388,7 +6394,7 @@ static bool try_steal_cookie(int this, int that)
 		set_task_cpu(p, this);
 		activate_task(dst, p, 0);
 
-		resched_curr(dst);
+		resched_curr(dst, false);
 
 		success = true;
 		break;
@@ -8743,7 +8749,7 @@ again:
 		 * fairness.
 		 */
 		if (preempt && rq != p_rq)
-			resched_curr(p_rq);
+			resched_curr(p_rq, true);
 	}
 
 out_unlock:
@@ -10300,7 +10306,7 @@ void sched_move_task(struct task_struct *tsk)
 		 * throttled one but it's still the running task. Trigger a
 		 * resched to make sure that task can still run.
 		 */
-		resched_curr(rq);
+		resched_curr(rq, true);
 	}
 
 unlock:

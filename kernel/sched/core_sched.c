@@ -89,7 +89,7 @@ static unsigned long sched_core_update_cookie(struct task_struct *p,
 	 * next scheduling edge, rather than always forcing a reschedule here.
 	 */
 	if (task_on_cpu(rq, p))
-		resched_curr(rq);
+		resched_curr(rq, false);
 
 	task_rq_unlock(rq, p, &rf);
 

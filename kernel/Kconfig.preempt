@@ -20,23 +20,16 @@ config PREEMPT_NONE
 	  at runtime.
 
 config PREEMPT_VOLUNTARY
-	bool "Voluntary Kernel Preemption (Desktop)"
+	bool "Voluntary Kernel Preemption"
 	depends on !ARCH_NO_PREEMPT
 	select PREEMPTION
 	help
-	  This option reduces the latency of the kernel by adding more
-	  "explicit preemption points" to the kernel code. These new
-	  preemption points have been selected to reduce the maximum
-	  latency of rescheduling, providing faster application reactions,
-	  at the cost of slightly lower throughput.
+	  This option reduces the latency of the kernel by allowing
+	  processes in higher scheduling policy classes preempt ones
+	  lower down.
 
-	  This allows reaction to interactive events by allowing a
-	  low priority process to voluntarily preempt itself even if it
-	  is in kernel mode executing a system call. This allows
-	  applications to run more 'smoothly' even when the system is
-	  under load.
-
-	  Select this if you are building a kernel for a desktop system.
+	  Higher priority processes in the same scheduling policy class
+	  do not preempt others in the same class.
 
 config PREEMPT
 	bool "Preemptible Kernel (Low-Latency Desktop)"

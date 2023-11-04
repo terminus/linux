@@ -2435,7 +2435,7 @@ extern void init_sched_fair_class(void);
 extern void reweight_task(struct task_struct *p, int prio);
 
 extern void __resched_curr(struct rq *rq, resched_t rs);
-extern void resched_curr(struct rq *rq);
+extern void resched_curr(struct rq *rq, bool above);
 extern void resched_cpu(int cpu);
 
 extern struct rt_bandwidth def_rt_bandwidth;

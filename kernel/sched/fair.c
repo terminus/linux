@@ -1046,7 +1046,7 @@ static void update_deadline(struct cfs_rq *cfs_rq,
 	if (tick && test_tsk_thread_flag(rq->curr, TIF_NEED_RESCHED_LAZY))
 		__resched_curr(rq, RESCHED_eager);
 	else
-		resched_curr(rq);
+		resched_curr(rq, false);
 
 	clear_buddies(cfs_rq, se);
 }
@@ -5337,7 +5337,7 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 	 * validating it and just reschedule.
 	 */
 	if (queued) {
-		resched_curr(rq_of(cfs_rq));
+		resched_curr(rq_of(cfs_rq), false);
 		return;
 	}
 	/*
@@ -5483,7 +5483,7 @@ static void __account_cfs_rq_runtime(struct cfs_rq *cfs_rq, u64 delta_exec)
 	 * hierarchy can be throttled
 	 */
 	if (!assign_cfs_rq_runtime(cfs_rq) && likely(cfs_rq->curr))
-		resched_curr(rq_of(cfs_rq));
+		resched_curr(rq_of(cfs_rq), false);
 }
 
 static __always_inline
@@ -5743,7 +5743,7 @@ unthrottle_throttle:
 
 	/* Determine whether we need to wake up potentially idle CPU: */
 	if (rq->curr == rq->idle && rq->cfs.nr_running)
-		resched_curr(rq);
+		resched_curr(rq, false);
 }
 
 #ifdef CONFIG_SMP
@@ -6448,7 +6448,7 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 
 		if (delta < 0) {
 			if (task_current(rq, p))
-				resched_curr(rq);
+				resched_curr(rq, false);
 			return;
 		}
 		hrtick_start(rq, delta);
@@ -8143,7 +8143,7 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	return;
 
 preempt:
-	resched_curr(rq);
+	resched_curr(rq, false);
 }
 
 #ifdef CONFIG_SMP
@@ -12294,7 +12294,7 @@ static inline void task_tick_core(struct rq *rq, struct task_struct *curr)
 	 */
 	if (rq->core->core_forceidle_count && rq->cfs.nr_running == 1 &&
 	    __entity_slice_used(&curr->se, MIN_NR_TASKS_DURING_FORCEIDLE))
-		resched_curr(rq);
+		resched_curr(rq, false);
 }
 
 /*
@@ -12459,7 +12459,7 @@ prio_changed_fair(struct rq *rq, struct task_struct *p, int oldprio)
 	 */
 	if (task_current(rq, p)) {
 		if (p->prio > oldprio)
-			resched_curr(rq);
+			resched_curr(rq, false);
 	} else
 		check_preempt_curr(rq, p, 0);
 }
@@ -12561,7 +12561,7 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p)
 		 * if we can still preempt the current task.
 		 */
 		if (task_current(rq, p))
-			resched_curr(rq);
+			resched_curr(rq, false);
 		else
 			check_preempt_curr(rq, p, 0);
 	}

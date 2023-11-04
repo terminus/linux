@@ -1177,7 +1177,7 @@ static enum hrtimer_restart dl_task_timer(struct hrtimer *timer)
 	if (dl_task(rq->curr))
 		check_preempt_curr_dl(rq, p, 0);
 	else
-		resched_curr(rq);
+		resched_curr(rq, false);
 
 #ifdef CONFIG_SMP
 	/*
@@ -1367,7 +1367,7 @@ throttle:
 			enqueue_task_dl(rq, curr, ENQUEUE_REPLENISH);
 
 		if (!is_leftmost(curr, &rq->dl))
-			resched_curr(rq);
+			resched_curr(rq, false);
 	}
 
 	/*
@@ -1914,7 +1914,7 @@ static void check_preempt_equal_dl(struct rq *rq, struct task_struct *p)
 	    cpudl_find(&rq->rd->cpudl, p, NULL))
 		return;
 
-	resched_curr(rq);
+	resched_curr(rq, false);
 }
 
 static int balance_dl(struct rq *rq, struct task_struct *p, struct rq_flags *rf)
@@ -1943,7 +1943,7 @@ static void check_preempt_curr_dl(struct rq *rq, struct task_struct *p,
 				  int flags)
 {
 	if (dl_entity_preempt(&p->dl, &rq->curr->dl)) {
-		resched_curr(rq);
+		resched_curr(rq, false);
 		return;
 	}
 
@@ -2307,7 +2307,7 @@ retry:
 	if (dl_task(rq->curr) &&
 	    dl_time_before(next_task->dl.deadline, rq->curr->dl.deadline) &&
 	    rq->curr->nr_cpus_allowed > 1) {
-		resched_curr(rq);
+		resched_curr(rq, false);
 		return 0;
 	}
 
@@ -2353,7 +2353,7 @@ retry:
 	activate_task(later_rq, next_task, 0);
 	ret = 1;
 
-	resched_curr(later_rq);
+	resched_curr(later_rq, false);
 
 	double_unlock_balance(rq, later_rq);
 
@@ -2457,7 +2457,7 @@ skip:
 	}
 
 	if (resched)
-		resched_curr(this_rq);
+		resched_curr(this_rq, false);
 }
 
 /*
@@ -2654,7 +2654,7 @@ static void switched_to_dl(struct rq *rq, struct task_struct *p)
 		if (dl_task(rq->curr))
 			check_preempt_curr_dl(rq, p, 0);
 		else
-			resched_curr(rq);
+			resched_curr(rq, false);
 	} else {
 		update_dl_rq_load_avg(rq_clock_pelt(rq), rq, 0);
 	}
@@ -2687,7 +2687,7 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 		 * runqueue.
 		 */
 		if (dl_time_before(rq->dl.earliest_dl.curr, p->dl.deadline))
-			resched_curr(rq);
+			resched_curr(rq, false);
 	} else {
 		/*
 		 * Current may not be deadline in case p was throttled but we
@@ -2697,14 +2697,14 @@ static void prio_changed_dl(struct rq *rq, struct task_struct *p,
 		 */
 		if (!dl_task(rq->curr) ||
 		    dl_time_before(p->dl.deadline, rq->curr->dl.deadline))
-			resched_curr(rq);
+			resched_curr(rq, false);
 	}
 #else
 	/*
 	 * We don't know if p has a earlier or later deadline, so let's blindly
 	 * set a (maybe not needed) rescheduling point.
 	 */
-	resched_curr(rq);
+	resched_curr(rq, false);
 #endif
 }
 

@@ -403,7 +403,7 @@ balance_idle(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  */
 static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int flags)
 {
-	resched_curr(rq);
+	resched_curr(rq, true);
 }
 
 static void put_prev_task_idle(struct rq *rq, struct task_struct *prev)
