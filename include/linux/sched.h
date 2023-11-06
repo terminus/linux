@@ -2083,19 +2083,11 @@ static inline bool test_tsk_need_resched_any(struct task_struct *tsk)
 }
 
 /*
- * cond_resched() and cond_resched_lock(): latency reduction via
- * explicit rescheduling in places that are safe. The return
- * value indicates whether a reschedule was done in fact.
- * cond_resched_lock() will drop the spinlock before scheduling,
+ * cond_resched_lock(): latency reduction via explicit rescheduling
+ * in places that are safe. The return value indicates whether a
+ * reschedule was done in fact.  cond_resched_lock() will drop the
+ * spinlock before scheduling.
  */
-#ifdef CONFIG_PREEMPTION
-static inline int _cond_resched(void) { return 0; }
-#endif
-
-#define cond_resched() ({			\
-	__might_resched(__FILE__, __LINE__, 0);	\
-	_cond_resched();			\
-})
 
 extern int __cond_resched_lock(spinlock_t *lock);
 extern int __cond_resched_rwlock_read(rwlock_t *lock);
