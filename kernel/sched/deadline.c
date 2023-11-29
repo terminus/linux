@@ -1378,8 +1378,11 @@ throttle:
 				enqueue_task_dl(rq, dl_task_of(dl_se), ENQUEUE_REPLENISH);
 		}
 
+		/*
+		 * We are not leftmost anymore. Reschedule straight away.
+		 */
 		if (!is_leftmost(dl_se, &rq->dl))
-			resched_curr(rq);
+			__resched_curr(rq, RESCHED_FORCE);
 	}
 
 	/*

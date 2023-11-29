@@ -1051,6 +1051,14 @@ static resched_t resched_opt_translate(struct task_struct *curr,
 	if (is_idle_task(curr))
 		return RESCHED_NOW;
 
+	if (opt == RESCHED_TICK &&
+	    unlikely(__test_tsk_need_resched(curr, RESCHED_LAZY)))
+		/*
+		 * If the task hasn't switched away by the second tick,
+		 * force it away by upgrading to TIF_NEED_RESCHED.
+		 */
+		return RESCHED_NOW;
+
 	return RESCHED_LAZY;
 }
 
