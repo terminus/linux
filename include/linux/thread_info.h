@@ -59,6 +59,18 @@ enum syscall_work_bit {
 
 #include <asm/thread_info.h>
 
+/*
+ * Fall back to the default need-resched flag when an architecture does not
+ * define TIF_NEED_RESCHED_LAZY.
+ *
+ * Note: with !PREEMPT_AUTO, code should not be setting TIF_NEED_RESCHED_LAZY
+ * anywhere. Define this here because we will explicitly test for this bit.
+ */
+#ifndef TIF_NEED_RESCHED_LAZY
+#define TIF_NEED_RESCHED_LAZY TIF_NEED_RESCHED
+#define _TIF_NEED_RESCHED_LAZY _TIF_NEED_RESCHED
+#endif
+
 #ifdef __KERNEL__
 
 #ifndef arch_set_restart_data
