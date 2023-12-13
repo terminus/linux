@@ -2073,7 +2073,7 @@ extern int __cond_resched_rwlock_write(rwlock_t *lock);
 	__cond_resched_rwlock_write(lock);					\
 })
 
-#ifdef CONFIG_PREEMPT_DYNAMIC
+#if defined(CONFIG_PREEMPT_DYNAMIC) || defined(CONFIG_PREEMPT_AUTO)
 
 extern bool preempt_model_none(void);
 extern bool preempt_model_voluntary(void);
