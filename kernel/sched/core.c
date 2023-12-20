@@ -1052,6 +1052,9 @@ static resched_t resched_opt_translate(struct task_struct *curr,
 	if (preempt_model_preemptible())
 		return RESCHED_NOW;
 
+	if (preempt_model_voluntary() && opt == RESCHED_PRIORITY)
+		return RESCHED_NOW;
+
 	if (is_idle_task(curr))
 		return RESCHED_NOW;
 
@@ -2289,7 +2292,7 @@ void wakeup_preempt(struct rq *rq, struct task_struct *p, int flags)
 	if (p->sched_class == rq->curr->sched_class)
 		rq->curr->sched_class->wakeup_preempt(rq, p, flags);
 	else if (sched_class_above(p->sched_class, rq->curr->sched_class))
-		resched_curr(rq);
+		resched_curr_priority(rq);
 
 	/*
 	 * A queue event has occurred, and we're going to schedule.  In
@@ -8989,11 +8992,11 @@ static void __sched_dynamic_update(int mode)
 	case preempt_dynamic_none:
 		if (mode != preempt_dynamic_mode)
 			pr_info("%s: none\n", PREEMPT_MODE);
-		preempt_dynamic_mode = mode;
 		break;
 
 	case preempt_dynamic_voluntary:
-		preempt_dynamic_mode = preempt_dynamic_undefined;
+		if (mode != preempt_dynamic_mode)
+			pr_info("%s: voluntary\n", PREEMPT_MODE);
 		break;
 
 	case preempt_dynamic_full:
@@ -9003,9 +9006,10 @@ static void __sched_dynamic_update(int mode)
 
 		if (mode != preempt_dynamic_mode)
 			pr_info("%s: full\n", PREEMPT_MODE);
-		preempt_dynamic_mode = mode;
 		break;
 	}
+
+	preempt_dynamic_mode = mode;
 }
 
 #endif /* CONFIG_PREEMPT_AUTO */
