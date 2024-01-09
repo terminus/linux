@@ -2466,6 +2466,7 @@ extern void reweight_task(struct task_struct *p, int prio);
 
 enum resched_opt {
 	RESCHED_DEFAULT,
+	RESCHED_FORCE,
 };
 
 extern void __resched_curr(struct rq *rq, enum resched_opt opt);

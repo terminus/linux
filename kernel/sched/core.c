@@ -1035,13 +1035,17 @@ void wake_up_q(struct wake_q_head *head)
  * For preemption models other than PREEMPT_AUTO: always schedule
  * eagerly.
  *
- * For PREEMPT_AUTO: allow everything else to finish its time quanta, and
- * mark for rescheduling at the next exit to user.
+ * For PREEMPT_AUTO: schedule idle threads eagerly, allow everything else
+ * to finish its time quanta, and mark for rescheduling at the next exit
+ * to user.
  */
 static resched_t resched_opt_translate(struct task_struct *curr,
 				       enum resched_opt opt)
 {
 	if (!IS_ENABLED(CONFIG_PREEMPT_AUTO))
+		return RESCHED_NOW;
+
+	if (opt == RESCHED_FORCE)
 		return RESCHED_NOW;
 
 	if (is_idle_task(curr))
@@ -1099,7 +1103,11 @@ void resched_cpu(int cpu)
 
 	raw_spin_rq_lock_irqsave(rq, flags);
 	if (cpu_online(cpu) || cpu == smp_processor_id())
-		resched_curr(rq);
+		/*
+		 * resched_cpu() is typically used as an RCU hammer.
+		 * Mark for imminent resched.
+		 */
+		__resched_curr(rq, RESCHED_FORCE);
 	raw_spin_rq_unlock_irqrestore(rq, flags);
 }
 
