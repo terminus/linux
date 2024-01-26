@@ -6582,20 +6582,23 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  *
  *   1. Explicit blocking: mutex, semaphore, waitqueue, etc.
  *
- *   2. TIF_NEED_RESCHED flag is checked on interrupt and userspace return
- *      paths. For example, see arch/x86/entry_64.S.
+ *   2. TIF_NEED_RESCHED flag is checked on interrupt and TIF_NEED_RESCHED[_LAZY]
+ *      flags on userspace return paths. For example, see kernel/entry/common.c
  *
- *      To drive preemption between tasks, the scheduler sets the flag in timer
- *      interrupt handler scheduler_tick().
+ *      To drive preemption between tasks, the scheduler sets one of the need-
+ *      resched flags in the timer interrupt handler scheduler_tick():
+ *        - !CONFIG_PREEMPT_AUTO: TIF_NEED_RESCHED.
+ *        -  CONFIG_PREEMPT_AUTO: TIF_NEED_RESCHED or TIF_NEED_RESCHED_LAZY
+ *           depending on the preemption model.
  *
  *   3. Wakeups don't really cause entry into schedule(). They add a
  *      task to the run-queue and that's it.
  *
  *      Now, if the new task added to the run-queue preempts the current
- *      task, then the wakeup sets TIF_NEED_RESCHED and schedule() gets
- *      called on the nearest possible occasion:
+ *      task, then the wakeup sets TIF_NEED_RESCHED[_LAZY] and schedule()
+ *      gets called on the nearest possible occasion:
  *
- *       - If the kernel is preemptible (CONFIG_PREEMPTION=y):
+ *       - If the kernel is running under preempt_model_preemptible():
  *
  *         - in syscall or exception context, at the next outmost
  *           preempt_enable(). (this might be as soon as the wake_up()'s
@@ -6604,8 +6607,8 @@ pick_next_task(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
  *         - in IRQ context, return from interrupt-handler to
  *           preemptible context
  *
- *       - If the kernel is not preemptible (CONFIG_PREEMPTION is not set)
- *         then at the next:
+ *       - If the kernel is running under preempt_model_none(), or
+ *         preempt_model_voluntary(), then at the next:
  *
  *          - cond_resched() call
  *          - explicit schedule() call
@@ -6823,6 +6826,11 @@ static __always_inline void __schedule_loop(unsigned int sched_mode)
 		preempt_disable();
 		__schedule(sched_mode);
 		sched_preempt_enable_no_resched();
+
+		/*
+		 * We don't check for need_resched_lazy() here, since it is
+		 * always handled at exit-to-user.
+		 */
 	} while (need_resched());
 }
 
@@ -6928,7 +6936,7 @@ static void __sched notrace preempt_schedule_common(void)
 		preempt_enable_no_resched_notrace();
 
 		/*
-		 * Check again in case we missed a preemption opportunity
+		 * Check again in case we missed an eager preemption opportunity
 		 * between schedule and now.
 		 */
 	} while (need_resched());
